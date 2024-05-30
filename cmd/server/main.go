@@ -1,36 +1,13 @@
 package main
 
 import (
+	"fmt"
+	"github.com/Vidkin/metrics/internal"
 	"net/http"
 	"strconv"
 )
 
-type MemStorage struct {
-	gauge   map[string]float64
-	counter map[string]int64
-}
-
-func NewMemStorage() *MemStorage {
-	var m MemStorage
-	m.gauge = make(map[string]float64)
-	m.counter = make(map[string]int64)
-	return &m
-}
-
-func (m *MemStorage) GetGauge() map[string]float64 {
-	return m.gauge
-}
-
-func (m *MemStorage) GetCounter() map[string]int64 {
-	return m.counter
-}
-
-var memStorage = NewMemStorage()
-
-const (
-	MetricTypeCounter = "counter"
-	MetricTypeGauge   = "gauge"
-)
+var memStorage = internal.NewMemStorage()
 
 func requestHandler(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
@@ -38,22 +15,22 @@ func requestHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	metricType := req.PathValue("metricType")
-	metricName := req.PathValue("metricName")
-	metricValue := req.PathValue("metricValue")
+	metricType := req.PathValue(internal.ParamMetricType)
+	metricName := req.PathValue(internal.ParamMetricName)
+	metricValue := req.PathValue(internal.ParamMetricValue)
 
 	switch metricType {
-	case MetricTypeGauge:
-		if s, err := strconv.ParseFloat(metricValue, 64); err != nil {
+	case internal.MetricTypeGauge:
+		if value, err := strconv.ParseFloat(metricValue, 64); err != nil {
 			http.Error(res, "Bad metric value!", http.StatusBadRequest)
 		} else {
-			memStorage.GetGauge()[metricName] = s
+			memStorage.UpdateGauge(metricName, value)
 		}
-	case MetricTypeCounter:
-		if s, err := strconv.ParseInt(metricValue, 10, 64); err != nil {
+	case internal.MetricTypeCounter:
+		if value, err := strconv.ParseInt(metricValue, 10, 64); err != nil {
 			http.Error(res, "Bad metric value!", http.StatusBadRequest)
 		} else {
-			memStorage.GetCounter()[metricName] += s
+			memStorage.UpdateCounter(metricName, value)
 		}
 	default:
 		http.Error(res, "Bad metric type!", http.StatusBadRequest)
@@ -64,7 +41,8 @@ func requestHandler(res http.ResponseWriter, req *http.Request) {
 
 func main() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/update/{metricType}/{metricName}/{metricValue}", requestHandler)
+	pattern := fmt.Sprintf("/update/{%s}/{%s}/{%s}", internal.ParamMetricType, internal.ParamMetricName, internal.ParamMetricValue)
+	mux.HandleFunc(pattern, requestHandler)
 	err := http.ListenAndServe(":8080", mux)
 
 	if err != nil {
