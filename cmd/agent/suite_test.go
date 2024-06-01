@@ -15,12 +15,12 @@ import (
 func TestSendMetrics(t *testing.T) {
 	tests := []struct {
 		name           string
-		sendToWrongUrl bool
+		sendToWrongURL bool
 		repository     repository.Repository
 	}{
 		{
 			name:           "test send ok",
-			sendToWrongUrl: false,
+			sendToWrongURL: false,
 			repository: &storage.MemStorage{
 				Gauge:   map[string]float64{"param1": 45.21, "param2": 12},
 				Counter: map[string]int64{"param2": 1},
@@ -28,7 +28,7 @@ func TestSendMetrics(t *testing.T) {
 		},
 		{
 			name:           "test send to wrong url",
-			sendToWrongUrl: true,
+			sendToWrongURL: true,
 			repository: &storage.MemStorage{
 				Gauge:   map[string]float64{"param1": 45.21, "param2": 12},
 				Counter: map[string]int64{"param2": 1},
@@ -48,7 +48,7 @@ func TestSendMetrics(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
 
-			if test.sendToWrongUrl {
+			if test.sendToWrongURL {
 				SendMetrics(mockServer.URL+"/wrong_url/", test.repository)
 				assert.NotEqual(t, test.repository, serverRepository)
 			} else {
@@ -62,7 +62,7 @@ func TestSendMetrics(t *testing.T) {
 func TestSendMetric(t *testing.T) {
 	tests := []struct {
 		name           string
-		sendToWrongUrl bool
+		sendToWrongURL bool
 		metricType     string
 		metricName     string
 		metricValue    string
@@ -70,7 +70,7 @@ func TestSendMetric(t *testing.T) {
 	}{
 		{
 			name:           "test send ok",
-			sendToWrongUrl: false,
+			sendToWrongURL: false,
 			metricType:     internal.MetricTypeGauge,
 			metricName:     "test",
 			metricValue:    "25",
@@ -78,7 +78,7 @@ func TestSendMetric(t *testing.T) {
 		},
 		{
 			name:           "test send bad metric type",
-			sendToWrongUrl: false,
+			sendToWrongURL: false,
 			metricType:     "bad_metric_type",
 			metricName:     "test",
 			metricValue:    "25",
@@ -86,7 +86,7 @@ func TestSendMetric(t *testing.T) {
 		},
 		{
 			name:           "test send empty metric name",
-			sendToWrongUrl: false,
+			sendToWrongURL: false,
 			metricType:     "gauge",
 			metricName:     "",
 			metricValue:    "25",
@@ -94,7 +94,7 @@ func TestSendMetric(t *testing.T) {
 		},
 		{
 			name:           "test send bad metric value",
-			sendToWrongUrl: false,
+			sendToWrongURL: false,
 			metricType:     "gauge",
 			metricName:     "test",
 			metricValue:    "bad_value",
@@ -111,7 +111,7 @@ func TestSendMetric(t *testing.T) {
 			mockServer := httptest.NewServer(mux)
 			defer mockServer.Close()
 
-			if test.sendToWrongUrl {
+			if test.sendToWrongURL {
 				_, err := SendMetric(mockServer.URL+"/wrong_url/", test.metricType, test.metricName, test.metricValue)
 				assert.NotNil(t, err)
 			} else {
