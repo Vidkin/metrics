@@ -52,6 +52,8 @@ func SendMetric(url string, metricType string, metricName string, metricValue st
 		return
 	}
 
+	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		fmt.Printf("error send metric: type=%s, name=%s, value=%s, code=%d\n", metricType, metricName, metricValue, resp.StatusCode)
 	}
