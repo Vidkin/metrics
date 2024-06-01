@@ -113,6 +113,7 @@ func TestMetricsHandler(t *testing.T) {
 			metricsHandler(w, request)
 
 			res := w.Result()
+			defer res.Body.Close()
 			// проверяем код ответа
 			assert.Equal(t, test.want.statusCode, res.StatusCode)
 
