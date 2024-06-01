@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/Vidkin/metrics/internal"
 	"github.com/Vidkin/metrics/internal/domain/repository"
 	"math/rand/v2"
@@ -43,24 +42,32 @@ func collectMetrics(repository repository.Repository, memStats *runtime.MemStats
 	repository.UpdateCounter(internal.CounterMetricPollCount, 1)
 }
 
-func SendMetric(url string, metricType string, metricName string, metricValue string) {
+func SendMetric(url string, metricType string, metricName string, metricValue string) (int, error) {
 	url += metricType + "/" + metricName + "/" + metricValue
 	resp, err := http.Post(url, "Content-Type: text/plain", nil)
 
 	if err != nil {
-		fmt.Println(err)
-		return
+		return 0, err
 	}
 
 	defer resp.Body.Close()
+	return resp.StatusCode, nil
+}
 
-	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("error send metric: type=%s, name=%s, value=%s, code=%d\n", metricType, metricName, metricValue, resp.StatusCode)
+func SendMetrics(url string, repository repository.Repository) {
+	for metricName, metricValue := range repository.GetGauges() {
+		valueAsString := strconv.FormatFloat(metricValue, 'g', -1, 64)
+		SendMetric(url, internal.MetricTypeGauge, metricName, valueAsString)
+	}
+	for metricName, metricValue := range repository.GetCounters() {
+		valueAsString := strconv.FormatInt(metricValue, 10)
+		SendMetric(url, internal.MetricTypeCounter, metricName, valueAsString)
 	}
 }
 
 func Poll(repository repository.Repository, memStats *runtime.MemStats) {
 	startTime := time.Now()
+	url := "http://localhost:8080/update/"
 
 	for {
 		currentTime := time.Now()
@@ -68,14 +75,7 @@ func Poll(repository repository.Repository, memStats *runtime.MemStats) {
 
 		if currentTime.Sub(startTime).Seconds() >= internal.AgentReportInterval {
 			startTime = currentTime
-			for metricName, metricValue := range repository.GetGauges() {
-				valueAsString := strconv.FormatFloat(metricValue, 'g', -1, 64)
-				SendMetric("http://localhost:8080/update/", internal.MetricTypeGauge, metricName, valueAsString)
-			}
-			for metricName, metricValue := range repository.GetCounters() {
-				valueAsString := strconv.FormatInt(metricValue, 10)
-				SendMetric("http://localhost:8080/update/", internal.MetricTypeCounter, metricName, valueAsString)
-			}
+			SendMetrics(url, repository)
 		}
 		time.Sleep(internal.AgentPollInterval * time.Second)
 	}
