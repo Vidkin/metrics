@@ -94,6 +94,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			resp, _ := testRequest(t, ts, http.MethodPost, test.url)
+			defer resp.Body.Close()
 			assert.Equal(t, test.want.statusCode, resp.StatusCode)
 			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
 		})
@@ -168,6 +169,8 @@ func TestGetMetricValueHandler(t *testing.T) {
 				serverRepository.UpdateCounter(k, v)
 			}
 			resp, value := testRequest(t, ts, http.MethodGet, test.url)
+			defer resp.Body.Close()
+
 			assert.Equal(t, test.want.statusCode, resp.StatusCode)
 			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
 			if test.want.statusCode != http.StatusNotFound {
@@ -230,6 +233,8 @@ func TestRootHandler(t *testing.T) {
 				serverRepository.UpdateCounter(k, v)
 			}
 			resp, value := testRequest(t, ts, http.MethodGet, "")
+			defer resp.Body.Close()
+
 			assert.Equal(t, test.want.statusCode, resp.StatusCode)
 			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
 			if test.want.statusCode != http.StatusNotFound {
