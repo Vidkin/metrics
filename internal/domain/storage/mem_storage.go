@@ -27,3 +27,13 @@ func (m *MemStorage) GetGauges() map[string]float64 {
 func (m *MemStorage) GetCounters() map[string]int64 {
 	return m.Counter
 }
+
+func (m *MemStorage) GetGauge(metricName string) (value float64, ok bool) {
+	v, ok := m.Gauge[metricName]
+	return v, ok
+}
+
+func (m *MemStorage) GetCounter(metricName string) (value int64, ok bool) {
+	v, ok := m.Counter[metricName]
+	return v, ok
+}

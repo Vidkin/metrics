@@ -109,7 +109,7 @@ func TestMetricsHandler(t *testing.T) {
 			// создаём новый Recorder
 			w := httptest.NewRecorder()
 
-			metricsHandler := MetricsHandler(test.repository)
+			metricsHandler := UpdateMetricHandler(test.repository)
 			metricsHandler(w, request)
 
 			res := w.Result()

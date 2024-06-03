@@ -39,7 +39,7 @@ func TestSendMetrics(t *testing.T) {
 	mux := http.NewServeMux()
 	serverRepository := storage.New()
 	pattern := fmt.Sprintf("/update/{%s}/{%s}/{%s}", internal.ParamMetricType, internal.ParamMetricName, internal.ParamMetricValue)
-	mux.HandleFunc(pattern, handlers.MetricsHandler(serverRepository))
+	mux.HandleFunc(pattern, handlers.UpdateMetricHandler(serverRepository))
 	mockServer := httptest.NewServer(mux)
 	defer mockServer.Close()
 
@@ -107,7 +107,7 @@ func TestSendMetric(t *testing.T) {
 			mux := http.NewServeMux()
 			serverRepository := storage.New()
 			pattern := fmt.Sprintf("/update/{%s}/{%s}/{%s}", internal.ParamMetricType, internal.ParamMetricName, internal.ParamMetricValue)
-			mux.HandleFunc(pattern, handlers.MetricsHandler(serverRepository))
+			mux.HandleFunc(pattern, handlers.UpdateMetricHandler(serverRepository))
 			mockServer := httptest.NewServer(mux)
 			defer mockServer.Close()
 
