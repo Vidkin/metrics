@@ -26,7 +26,6 @@ func MetricsRouter(repository repository.Repository) chi.Router {
 
 func RootHandler(repository repository.Repository) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		fmt.Println(repository)
 		for k, v := range repository.GetGauges() {
 			io.WriteString(res, fmt.Sprintf("%s = %v\n", k, v))
 		}
@@ -71,6 +70,10 @@ func UpdateMetricHandler(repository repository.Repository) http.HandlerFunc {
 		metricType := chi.URLParam(req, internal.ParamMetricType)
 		metricName := chi.URLParam(req, internal.ParamMetricName)
 		metricValue := chi.URLParam(req, internal.ParamMetricValue)
+
+		if metricName == "" {
+			http.Error(res, "Empty metric name!", http.StatusNotFound)
+		}
 
 		switch metricType {
 		case internal.MetricTypeGauge:

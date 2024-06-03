@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"github.com/Vidkin/metrics/internal"
 	"github.com/Vidkin/metrics/internal/domain/handlers"
 	"github.com/Vidkin/metrics/internal/domain/repository"
 	"github.com/Vidkin/metrics/internal/domain/storage"
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -36,12 +36,11 @@ func TestSendMetrics(t *testing.T) {
 		},
 	}
 
-	mux := http.NewServeMux()
 	serverRepository := storage.New()
-	pattern := fmt.Sprintf("/update/{%s}/{%s}/{%s}", internal.ParamMetricType, internal.ParamMetricName, internal.ParamMetricValue)
-	mux.HandleFunc(pattern, handlers.UpdateMetricHandler(serverRepository))
-	mockServer := httptest.NewServer(mux)
-	defer mockServer.Close()
+	ts := httptest.NewServer(handlers.MetricsRouter(serverRepository))
+	defer ts.Close()
+
+	client := resty.New()
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -49,10 +48,10 @@ func TestSendMetrics(t *testing.T) {
 			clear(serverRepository.Counter)
 
 			if test.sendToWrongURL {
-				SendMetrics(mockServer.URL+"/wrong_url/", test.repository)
+				SendMetrics(client, ts.URL+"/wrong_url/", test.repository)
 				assert.NotEqual(t, test.repository, serverRepository)
 			} else {
-				SendMetrics(mockServer.URL+"/update/", test.repository)
+				SendMetrics(client, ts.URL+"/update/", test.repository)
 				assert.Equal(t, test.repository, serverRepository)
 			}
 		})
@@ -102,20 +101,22 @@ func TestSendMetric(t *testing.T) {
 		},
 	}
 
+	serverRepository := storage.New()
+	ts := httptest.NewServer(handlers.MetricsRouter(serverRepository))
+	defer ts.Close()
+
+	client := resty.New()
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mux := http.NewServeMux()
-			serverRepository := storage.New()
-			pattern := fmt.Sprintf("/update/{%s}/{%s}/{%s}", internal.ParamMetricType, internal.ParamMetricName, internal.ParamMetricValue)
-			mux.HandleFunc(pattern, handlers.UpdateMetricHandler(serverRepository))
-			mockServer := httptest.NewServer(mux)
-			defer mockServer.Close()
+			clear(serverRepository.Gauge)
+			clear(serverRepository.Counter)
 
 			if test.sendToWrongURL {
-				_, err := SendMetric(mockServer.URL+"/wrong_url/", test.metricType, test.metricName, test.metricValue)
+				_, err := SendMetric(client, ts.URL+"/wrong_url/", test.metricType, test.metricName, test.metricValue)
 				assert.NotNil(t, err)
 			} else {
-				respCode, err := SendMetric(mockServer.URL+"/update/", test.metricType, test.metricName, test.metricValue)
+				respCode, err := SendMetric(client, ts.URL+"/update/", test.metricType, test.metricName, test.metricValue)
 				assert.Equal(t, test.statusCode, respCode)
 				assert.Nil(t, err)
 			}

@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/Vidkin/metrics/internal"
 	"github.com/Vidkin/metrics/internal/domain/repository"
+	"github.com/go-resty/resty/v2"
 	"math/rand/v2"
-	"net/http"
 	"runtime"
 	"strconv"
 	"time"
@@ -42,30 +42,32 @@ func collectMetrics(repository repository.Repository, memStats *runtime.MemStats
 	repository.UpdateCounter(internal.CounterMetricPollCount, 1)
 }
 
-func SendMetric(url string, metricType string, metricName string, metricValue string) (int, error) {
+func SendMetric(client *resty.Client, url string, metricType string, metricName string, metricValue string) (int, error) {
 	url += metricType + "/" + metricName + "/" + metricValue
-	resp, err := http.Post(url, "Content-Type: text/plain", nil)
+
+	resp, err := client.R().
+		SetHeader("Content-Type", "text/plain; charset=utf-8").
+		Post(url)
 
 	if err != nil {
 		return 0, err
 	}
 
-	defer resp.Body.Close()
-	return resp.StatusCode, nil
+	return resp.StatusCode(), nil
 }
 
-func SendMetrics(url string, repository repository.Repository) {
+func SendMetrics(client *resty.Client, url string, repository repository.Repository) {
 	for metricName, metricValue := range repository.GetGauges() {
 		valueAsString := strconv.FormatFloat(metricValue, 'g', -1, 64)
-		SendMetric(url, internal.MetricTypeGauge, metricName, valueAsString)
+		SendMetric(client, url, internal.MetricTypeGauge, metricName, valueAsString)
 	}
 	for metricName, metricValue := range repository.GetCounters() {
 		valueAsString := strconv.FormatInt(metricValue, 10)
-		SendMetric(url, internal.MetricTypeCounter, metricName, valueAsString)
+		SendMetric(client, url, internal.MetricTypeCounter, metricName, valueAsString)
 	}
 }
 
-func Poll(repository repository.Repository, memStats *runtime.MemStats) {
+func Poll(client *resty.Client, repository repository.Repository, memStats *runtime.MemStats) {
 	startTime := time.Now()
 	url := "http://localhost:8080/update/"
 
@@ -76,7 +78,7 @@ func Poll(repository repository.Repository, memStats *runtime.MemStats) {
 
 		if currentTime.Sub(startTime).Seconds() >= internal.AgentReportInterval {
 			startTime = currentTime
-			SendMetrics(url, repository)
+			SendMetrics(client, url, repository)
 		}
 		time.Sleep(internal.AgentPollInterval * time.Second)
 	}
