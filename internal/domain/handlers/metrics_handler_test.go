@@ -1,131 +1,239 @@
 package handlers
 
 import (
-	"github.com/Vidkin/metrics/internal"
 	"github.com/Vidkin/metrics/internal/domain/repository"
 	"github.com/Vidkin/metrics/internal/domain/storage"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
 )
 
-func TestMetricsHandler(t *testing.T) {
+func testRequest(t *testing.T, ts *httptest.Server, method,
+	path string) (*http.Response, string) {
+	req, err := http.NewRequest(method, ts.URL+path, nil)
+	require.NoError(t, err)
+
+	resp, err := ts.Client().Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	return resp, string(respBody)
+}
+
+func TestUpdateMetricHandler(t *testing.T) {
 	type want struct {
 		contentType string
 		statusCode  int
 	}
-	tests := []struct {
-		name        string
-		repository  repository.Repository
-		metricType  string
-		metricName  string
-		metricValue string
-		want        want
+
+	var tests = []struct {
+		name string
+		url  string
+		want want
 	}{
 		{
-			name:        "test update gauge status ok",
-			metricType:  internal.MetricTypeGauge,
-			metricName:  "param1",
-			metricValue: "17.340",
-			repository: &storage.MemStorage{
-				Gauge:   map[string]float64{},
-				Counter: map[string]int64{},
-			},
+			name: "test update gauge status ok",
+			url:  "/update/gauge/param1/17.340",
 			want: want{
-				contentType: "text/plain",
 				statusCode:  http.StatusOK,
+				contentType: "text/plain; charset=utf-8",
 			},
 		},
 		{
-			name:        "test update counter status ok",
-			metricType:  internal.MetricTypeCounter,
-			metricName:  "param1",
-			metricValue: "12",
-			repository: &storage.MemStorage{
-				Gauge:   map[string]float64{},
-				Counter: map[string]int64{},
-			},
+			name: "test update counter status ok",
+			url:  "/update/counter/param1/12",
 			want: want{
-				contentType: "text/plain",
 				statusCode:  http.StatusOK,
+				contentType: "text/plain; charset=utf-8",
 			},
 		},
 		{
-			name:        "test update counter status bad request",
-			metricType:  internal.MetricTypeCounter,
-			metricName:  "param1",
-			metricValue: "test",
-			repository: &storage.MemStorage{
-				Gauge:   map[string]float64{},
-				Counter: map[string]int64{},
-			},
+			name: "test update counter status bad value",
+			url:  "/update/counter/param1/testBadRequest",
 			want: want{
-				contentType: "text/plain",
 				statusCode:  http.StatusBadRequest,
+				contentType: "text/plain; charset=utf-8",
 			},
 		},
 		{
-			name:        "test update gauge status bad request",
-			metricType:  internal.MetricTypeCounter,
-			metricName:  "param1",
-			metricValue: "test",
-			repository: &storage.MemStorage{
-				Gauge:   map[string]float64{},
-				Counter: map[string]int64{},
-			},
+			name: "test update gauge status bad value",
+			url:  "/update/gauge/param1/testBadRequest",
 			want: want{
-				contentType: "text/plain",
 				statusCode:  http.StatusBadRequest,
+				contentType: "text/plain; charset=utf-8",
 			},
 		},
 		{
-			name:        "test method not allowed",
-			metricType:  internal.MetricTypeCounter,
-			metricName:  "param1",
-			metricValue: "test",
-			repository: &storage.MemStorage{
-				Gauge:   map[string]float64{},
-				Counter: map[string]int64{},
-			},
+			name: "test bad metric type",
+			url:  "/update/badMetricType/param1/testMethodNotAllowed",
 			want: want{
-				contentType: "text/plain",
-				statusCode:  http.StatusMethodNotAllowed,
+				statusCode:  http.StatusBadRequest,
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+		{
+			name: "test without metric name",
+			url:  "/update/gauge/17",
+			want: want{
+				statusCode:  http.StatusNotFound,
+				contentType: "text/plain; charset=utf-8",
 			},
 		},
 	}
+
+	serverRepository := storage.New()
+	ts := httptest.NewServer(MetricsRouter(serverRepository))
+	defer ts.Close()
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			httpMethod := http.MethodPost
-			if test.want.statusCode == http.StatusMethodNotAllowed {
-				httpMethod = http.MethodGet
+			resp, _ := testRequest(t, ts, http.MethodPost, test.url)
+			assert.Equal(t, test.want.statusCode, resp.StatusCode)
+			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
+		})
+	}
+}
+
+func TestGetMetricValueHandler(t *testing.T) {
+	type want struct {
+		contentType string
+		statusCode  int
+		value       string
+	}
+
+	var tests = []struct {
+		name       string
+		url        string
+		want       want
+		repository repository.Repository
+	}{
+		{
+			name: "test get gauge metric ok",
+			url:  "/value/gauge/param1",
+			repository: &storage.MemStorage{
+				Gauge:   map[string]float64{"param1": 17.34},
+				Counter: map[string]int64{},
+			},
+			want: want{
+				statusCode:  http.StatusOK,
+				value:       "17.34",
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+		{
+			name: "test get counter metric ok",
+			url:  "/value/counter/param1",
+			repository: &storage.MemStorage{
+				Gauge:   map[string]float64{},
+				Counter: map[string]int64{"param1": 12},
+			},
+			want: want{
+				statusCode:  http.StatusOK,
+				value:       "12",
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+		{
+			name: "test get unknown metric",
+			url:  "/value/counter/param1",
+			repository: &storage.MemStorage{
+				Gauge:   map[string]float64{},
+				Counter: map[string]int64{},
+			},
+			want: want{
+				statusCode:  http.StatusNotFound,
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+	}
+
+	serverRepository := storage.New()
+	ts := httptest.NewServer(MetricsRouter(serverRepository))
+	defer ts.Close()
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			clear(serverRepository.Gauge)
+			clear(serverRepository.Counter)
+			for k, v := range test.repository.GetGauges() {
+				serverRepository.UpdateGauge(k, v)
 			}
-			request := httptest.NewRequest(httpMethod, "http://localhost:8080/update", nil)
-			request.SetPathValue(internal.ParamMetricType, test.metricType)
-			request.SetPathValue(internal.ParamMetricName, test.metricName)
-			request.SetPathValue(internal.ParamMetricValue, test.metricValue)
+			for k, v := range test.repository.GetCounters() {
+				serverRepository.UpdateCounter(k, v)
+			}
+			resp, value := testRequest(t, ts, http.MethodGet, test.url)
+			assert.Equal(t, test.want.statusCode, resp.StatusCode)
+			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
+			if test.want.statusCode != http.StatusNotFound {
+				assert.Equal(t, test.want.value, value)
+			}
+		})
+	}
+}
 
-			// создаём новый Recorder
-			w := httptest.NewRecorder()
+func TestRootHandler(t *testing.T) {
+	type want struct {
+		contentType string
+		statusCode  int
+		value       string
+	}
 
-			metricsHandler := UpdateMetricHandler(test.repository)
-			metricsHandler(w, request)
+	var tests = []struct {
+		name       string
+		want       want
+		repository repository.Repository
+	}{
+		{
+			name: "test get all known metrics ok",
+			repository: &storage.MemStorage{
+				Gauge:   map[string]float64{"param1": 17.34},
+				Counter: map[string]int64{"param2": 2},
+			},
+			want: want{
+				statusCode:  http.StatusOK,
+				value:       "param1 = 17.34\nparam2 = 2\n",
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+		{
+			name: "test empty metrics repository",
+			repository: &storage.MemStorage{
+				Gauge:   map[string]float64{},
+				Counter: map[string]int64{},
+			},
+			want: want{
+				statusCode:  http.StatusOK,
+				value:       "",
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+	}
 
-			res := w.Result()
-			defer res.Body.Close()
-			// проверяем код ответа
-			assert.Equal(t, test.want.statusCode, res.StatusCode)
+	serverRepository := storage.New()
+	ts := httptest.NewServer(MetricsRouter(serverRepository))
+	defer ts.Close()
 
-			if res.StatusCode == http.StatusOK {
-				if test.metricType == internal.MetricTypeGauge {
-					metricValue, _ := strconv.ParseFloat(test.metricValue, 64)
-					assert.Equal(t, metricValue, test.repository.GetGauges()[test.metricName])
-				}
-				if test.metricType == internal.MetricTypeCounter {
-					metricValue, _ := strconv.ParseInt(test.metricValue, 10, 64)
-					assert.Equal(t, metricValue, test.repository.GetCounters()[test.metricName])
-				}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			clear(serverRepository.Gauge)
+			clear(serverRepository.Counter)
+			for k, v := range test.repository.GetGauges() {
+				serverRepository.UpdateGauge(k, v)
+			}
+			for k, v := range test.repository.GetCounters() {
+				serverRepository.UpdateCounter(k, v)
+			}
+			resp, value := testRequest(t, ts, http.MethodGet, "")
+			assert.Equal(t, test.want.statusCode, resp.StatusCode)
+			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
+			if test.want.statusCode != http.StatusNotFound {
+				assert.Equal(t, test.want.value, value)
 			}
 		})
 	}

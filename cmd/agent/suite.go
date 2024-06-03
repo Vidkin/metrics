@@ -71,6 +71,7 @@ func Poll(repository repository.Repository, memStats *runtime.MemStats) {
 
 	for {
 		currentTime := time.Now()
+		runtime.ReadMemStats(memStats)
 		collectMetrics(repository, memStats)
 
 		if currentTime.Sub(startTime).Seconds() >= internal.AgentReportInterval {
