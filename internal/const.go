@@ -1,6 +1,9 @@
 package internal
 
 const (
+	DefaultServerAddress = "localhost"
+	DefaultServerPort    = 8080
+
 	MetricTypeCounter = "counter"
 	MetricTypeGauge   = "gauge"
 
@@ -8,8 +11,8 @@ const (
 	ParamMetricName  = "metricName"
 	ParamMetricValue = "metricValue"
 
-	AgentPollInterval   = 2
-	AgentReportInterval = 10
+	DefaultAgentPollInterval   = 2
+	DefaultAgentReportInterval = 10
 
 	GaugeMetricAlloc         = "Alloc"
 	GaugeMetricBuckHashSys   = "BuckHashSys"

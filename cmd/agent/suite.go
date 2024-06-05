@@ -69,17 +69,17 @@ func SendMetrics(client *resty.Client, url string, repository repository.Reposit
 
 func Poll(client *resty.Client, repository repository.Repository, memStats *runtime.MemStats) {
 	startTime := time.Now()
-	url := "http://localhost:8080/update/"
+	url := "http://" + ServerAddr.String() + "/update/"
 
 	for {
 		currentTime := time.Now()
 		runtime.ReadMemStats(memStats)
 		collectMetrics(repository, memStats)
 
-		if currentTime.Sub(startTime).Seconds() >= internal.AgentReportInterval {
+		if currentTime.Sub(startTime).Seconds() >= float64(ReportInterval) {
 			startTime = currentTime
 			SendMetrics(client, url, repository)
 		}
-		time.Sleep(internal.AgentPollInterval * time.Second)
+		time.Sleep(time.Duration(PollInterval) * time.Second)
 	}
 }
