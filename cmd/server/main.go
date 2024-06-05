@@ -5,6 +5,7 @@ import (
 	"github.com/Vidkin/metrics/internal"
 	"github.com/Vidkin/metrics/internal/domain/handlers"
 	"github.com/Vidkin/metrics/internal/domain/storage"
+	"github.com/caarlos0/env/v6"
 	"net/http"
 )
 
@@ -16,8 +17,16 @@ func main() {
 	flag.Var(addr, "a", "Net address host:port")
 	flag.Parse()
 
+	env.Parse(addr)
+
 	var memStorage = storage.New()
-	err := http.ListenAndServe(addr.String(), handlers.MetricsRouter(memStorage))
+
+	var err error
+	if addr.Address != "" {
+		err = http.ListenAndServe(addr.Address, handlers.MetricsRouter(memStorage))
+	} else {
+		err = http.ListenAndServe(addr.String(), handlers.MetricsRouter(memStorage))
+	}
 
 	if err != nil {
 		panic(err)

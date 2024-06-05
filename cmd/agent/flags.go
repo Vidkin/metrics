@@ -7,8 +7,11 @@ import (
 )
 
 type ServerAddress struct {
-	Host string
-	Port int
+	Host           string
+	Port           int
+	ReportInterval int    `env:"REPORT_INTERVAL"`
+	PollInterval   int    `env:"POLL_INTERVAL"`
+	Address        string `env:"SERVER_ADDRESS"`
 }
 
 func (s *ServerAddress) String() string {
