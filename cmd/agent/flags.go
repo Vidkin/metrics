@@ -11,7 +11,7 @@ type ServerAddress struct {
 	Port           int
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
-	Address        string `env:"SERVER_ADDRESS"`
+	Address        string `env:"ADDRESS"`
 }
 
 func (s *ServerAddress) String() string {

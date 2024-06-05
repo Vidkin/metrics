@@ -9,7 +9,7 @@ import (
 type ServerAddress struct {
 	Host    string
 	Port    int
-	Address string `env:"SERVER_ADDRESS"`
+	Address string `env:"ADDRESS"`
 }
 
 func (s *ServerAddress) String() string {
