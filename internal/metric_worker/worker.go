@@ -1,6 +1,7 @@
-package main
+package metric_worker
 
 import (
+	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/domain/handlers"
 	"github.com/go-resty/resty/v2"
 	"math/rand/v2"
@@ -10,9 +11,6 @@ import (
 )
 
 const (
-	MetricTypeCounter = "counter"
-	MetricTypeGauge   = "gauge"
-
 	GaugeMetricAlloc         = "Alloc"
 	GaugeMetricBuckHashSys   = "BuckHashSys"
 	GaugeMetricFrees         = "Frees"
@@ -43,9 +41,12 @@ const (
 	GaugeMetricRandomValue   = "RandomValue"
 
 	CounterMetricPollCount = "PollCount"
+
+	MetricTypeCounter = "counter"
+	MetricTypeGauge   = "gauge"
 )
 
-func collectMetrics(repository handlers.Repository, memStats *runtime.MemStats) {
+func CollectMetrics(repository handlers.Repository, memStats *runtime.MemStats) {
 	repository.UpdateGauge(GaugeMetricAlloc, float64(memStats.Alloc))
 	repository.UpdateGauge(GaugeMetricBuckHashSys, float64(memStats.BuckHashSys))
 	repository.UpdateGauge(GaugeMetricFrees, float64(memStats.Frees))
@@ -102,24 +103,19 @@ func SendMetrics(client *resty.Client, url string, repository handlers.Repositor
 	}
 }
 
-func Poll(client *resty.Client, repository handlers.Repository, memStats *runtime.MemStats) {
+func Poll(client *resty.Client, repository handlers.Repository, memStats *runtime.MemStats, config *config.AgentConfig) {
 	startTime := time.Now()
-	var url string
-	if ServerAddr.Address != "" {
-		url = "http://" + ServerAddr.Address + "/update/"
-	} else {
-		url = "http://" + ServerAddr.String() + "/update/"
-	}
+	var url = "http://" + config.ServerAddress.Address + "/update/"
 
 	for {
 		currentTime := time.Now()
 		runtime.ReadMemStats(memStats)
-		collectMetrics(repository, memStats)
+		CollectMetrics(repository, memStats)
 
-		if currentTime.Sub(startTime).Seconds() >= float64(ServerAddr.ReportInterval) {
+		if currentTime.Sub(startTime).Seconds() >= float64(config.ReportInterval) {
 			startTime = currentTime
 			SendMetrics(client, url, repository)
 		}
-		time.Sleep(time.Duration(ServerAddr.PollInterval) * time.Second)
+		time.Sleep(time.Duration(config.PollInterval) * time.Second)
 	}
 }

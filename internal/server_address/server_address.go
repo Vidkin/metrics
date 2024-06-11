@@ -1,4 +1,4 @@
-package main
+package server_address
 
 import (
 	"errors"
@@ -6,10 +6,22 @@ import (
 	"strings"
 )
 
+const (
+	DefaultServerAddress = "localhost"
+	DefaultServerPort    = 8080
+)
+
 type ServerAddress struct {
 	Host    string
 	Port    int
 	Address string `env:"ADDRESS"`
+}
+
+func New() *ServerAddress {
+	return &ServerAddress{
+		Host: DefaultServerAddress,
+		Port: DefaultServerPort,
+	}
 }
 
 func (s *ServerAddress) String() string {

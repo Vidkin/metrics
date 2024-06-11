@@ -1,37 +1,18 @@
 package main
 
 import (
-	"flag"
+	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/domain/handlers"
 	"github.com/Vidkin/metrics/internal/repository"
-	"github.com/caarlos0/env/v6"
 	"net/http"
 )
 
-const (
-	DefaultServerAddress = "localhost"
-	DefaultServerPort    = 8080
-)
-
 func main() {
-	addr := new(ServerAddress)
-	addr.Host = DefaultServerAddress
-	addr.Port = DefaultServerPort
+	serverConfig := config.NewServerConfig()
+	memStorage := repository.New()
+	metricRouter := handlers.NewMetricRouter(memStorage)
 
-	flag.Var(addr, "a", "Net address host:port")
-	flag.Parse()
-
-	env.Parse(addr)
-
-	var memStorage = repository.New()
-	var metricRouter = handlers.NewMetricRouter(memStorage)
-
-	var err error
-	if addr.Address != "" {
-		err = http.ListenAndServe(addr.Address, metricRouter.Router)
-	} else {
-		err = http.ListenAndServe(addr.String(), metricRouter.Router)
-	}
+	err := http.ListenAndServe(serverConfig.ServerAddress.Address, metricRouter.Router)
 
 	if err != nil {
 		panic(err)
