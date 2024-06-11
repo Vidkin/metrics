@@ -2,11 +2,19 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/Vidkin/metrics/internal"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
 	"strconv"
+)
+
+const (
+	ParamMetricType  = "metricType"
+	ParamMetricName  = "metricName"
+	ParamMetricValue = "metricValue"
+
+	MetricTypeCounter = "counter"
+	MetricTypeGauge   = "gauge"
 )
 
 type MetricRouter struct {
@@ -57,18 +65,18 @@ func (mr *MetricRouter) RootHandler() http.HandlerFunc {
 
 func (mr *MetricRouter) GetMetricValueHandler() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		metricType := chi.URLParam(req, internal.ParamMetricType)
-		metricName := chi.URLParam(req, internal.ParamMetricName)
+		metricType := chi.URLParam(req, ParamMetricType)
+		metricName := chi.URLParam(req, ParamMetricName)
 
 		switch metricType {
-		case internal.MetricTypeGauge:
+		case MetricTypeGauge:
 			if metricValue, ok := mr.Repository.GetGauge(metricName); ok {
 				valueAsString := strconv.FormatFloat(metricValue, 'g', -1, 64)
 				res.Write([]byte(valueAsString))
 			} else {
 				http.Error(res, "Metric not found", http.StatusNotFound)
 			}
-		case internal.MetricTypeCounter:
+		case MetricTypeCounter:
 			if metricValue, ok := mr.Repository.GetCounter(metricName); ok {
 				valueAsString := strconv.FormatInt(metricValue, 10)
 				res.Write([]byte(valueAsString))
@@ -85,22 +93,22 @@ func (mr *MetricRouter) GetMetricValueHandler() http.HandlerFunc {
 
 func (mr *MetricRouter) UpdateMetricHandler() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		metricType := chi.URLParam(req, internal.ParamMetricType)
-		metricName := chi.URLParam(req, internal.ParamMetricName)
-		metricValue := chi.URLParam(req, internal.ParamMetricValue)
+		metricType := chi.URLParam(req, ParamMetricType)
+		metricName := chi.URLParam(req, ParamMetricName)
+		metricValue := chi.URLParam(req, ParamMetricValue)
 
 		if metricName == "" {
 			http.Error(res, "Empty metric name!", http.StatusNotFound)
 		}
 
 		switch metricType {
-		case internal.MetricTypeGauge:
+		case MetricTypeGauge:
 			if value, err := strconv.ParseFloat(metricValue, 64); err != nil {
 				http.Error(res, "Bad metric value!", http.StatusBadRequest)
 			} else {
 				mr.Repository.UpdateGauge(metricName, value)
 			}
-		case internal.MetricTypeCounter:
+		case MetricTypeCounter:
 			if value, err := strconv.ParseInt(metricValue, 10, 64); err != nil {
 				http.Error(res, "Bad metric value!", http.StatusBadRequest)
 			} else {

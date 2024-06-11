@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/Vidkin/metrics/internal"
 	"github.com/Vidkin/metrics/internal/domain/handlers"
 	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/go-resty/resty/v2"
@@ -70,7 +69,7 @@ func TestSendMetric(t *testing.T) {
 		{
 			name:           "test send ok",
 			sendToWrongURL: false,
-			metricType:     internal.MetricTypeGauge,
+			metricType:     MetricTypeGauge,
 			metricName:     "test",
 			metricValue:    "25",
 			statusCode:     http.StatusOK,

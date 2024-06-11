@@ -2,17 +2,21 @@ package main
 
 import (
 	"flag"
-	"github.com/Vidkin/metrics/internal"
 	"github.com/Vidkin/metrics/internal/domain/handlers"
 	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/caarlos0/env/v6"
 	"net/http"
 )
 
+const (
+	DefaultServerAddress = "localhost"
+	DefaultServerPort    = 8080
+)
+
 func main() {
 	addr := new(ServerAddress)
-	addr.Host = internal.DefaultServerAddress
-	addr.Port = internal.DefaultServerPort
+	addr.Host = DefaultServerAddress
+	addr.Port = DefaultServerPort
 
 	flag.Var(addr, "a", "Net address host:port")
 	flag.Parse()
