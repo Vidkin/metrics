@@ -1,4 +1,4 @@
-package metric_worker
+package metricWorker
 
 import (
 	"github.com/Vidkin/metrics/internal/domain/handlers"
