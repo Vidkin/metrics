@@ -4,7 +4,7 @@ import (
 	"flag"
 	"github.com/Vidkin/metrics/internal"
 	"github.com/Vidkin/metrics/internal/domain/handlers"
-	"github.com/Vidkin/metrics/internal/domain/storage"
+	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/caarlos0/env/v6"
 	"net/http"
 )
@@ -19,7 +19,7 @@ func main() {
 
 	env.Parse(addr)
 
-	var memStorage = storage.New()
+	var memStorage = repository.New()
 	var metricRouter = handlers.NewMetricRouter(memStorage)
 
 	var err error

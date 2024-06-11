@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"github.com/Vidkin/metrics/internal"
-	"github.com/Vidkin/metrics/internal/domain/repository"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
@@ -11,11 +10,22 @@ import (
 )
 
 type MetricRouter struct {
-	Repository repository.Repository
+	Repository Repository
 	Router     chi.Router
 }
 
-func NewMetricRouter(repository repository.Repository) *MetricRouter {
+type Repository interface {
+	UpdateGauge(key string, value float64)
+	UpdateCounter(key string, value int64)
+
+	GetGauges() map[string]float64
+	GetCounters() map[string]int64
+
+	GetGauge(metricName string) (float64, bool)
+	GetCounter(metricName string) (int64, bool)
+}
+
+func NewMetricRouter(repository Repository) *MetricRouter {
 	var mr MetricRouter
 	router := chi.NewRouter()
 	router.Route("/", func(r chi.Router) {

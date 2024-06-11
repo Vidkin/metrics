@@ -1,8 +1,7 @@
 package handlers
 
 import (
-	"github.com/Vidkin/metrics/internal/domain/repository"
-	"github.com/Vidkin/metrics/internal/domain/storage"
+	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -87,7 +86,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 		},
 	}
 
-	serverRepository := storage.New()
+	serverRepository := repository.New()
 	metricRouter := NewMetricRouter(serverRepository)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
@@ -113,12 +112,12 @@ func TestGetMetricValueHandler(t *testing.T) {
 		name       string
 		url        string
 		want       want
-		repository repository.Repository
+		repository Repository
 	}{
 		{
 			name: "test get gauge metric ok",
 			url:  "/value/gauge/param1",
-			repository: &storage.MemStorage{
+			repository: &repository.MemStorage{
 				Gauge:   map[string]float64{"param1": 17.34},
 				Counter: map[string]int64{},
 			},
@@ -131,7 +130,7 @@ func TestGetMetricValueHandler(t *testing.T) {
 		{
 			name: "test get counter metric ok",
 			url:  "/value/counter/param1",
-			repository: &storage.MemStorage{
+			repository: &repository.MemStorage{
 				Gauge:   map[string]float64{},
 				Counter: map[string]int64{"param1": 12},
 			},
@@ -144,7 +143,7 @@ func TestGetMetricValueHandler(t *testing.T) {
 		{
 			name: "test get unknown metric",
 			url:  "/value/counter/param1",
-			repository: &storage.MemStorage{
+			repository: &repository.MemStorage{
 				Gauge:   map[string]float64{},
 				Counter: map[string]int64{},
 			},
@@ -156,7 +155,7 @@ func TestGetMetricValueHandler(t *testing.T) {
 		{
 			name: "test get metric without name",
 			url:  "/value/counter/",
-			repository: &storage.MemStorage{
+			repository: &repository.MemStorage{
 				Gauge:   map[string]float64{},
 				Counter: map[string]int64{},
 			},
@@ -167,7 +166,7 @@ func TestGetMetricValueHandler(t *testing.T) {
 		},
 	}
 
-	serverRepository := storage.New()
+	serverRepository := repository.New()
 	metricRouter := NewMetricRouter(serverRepository)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
@@ -204,11 +203,11 @@ func TestRootHandler(t *testing.T) {
 	var tests = []struct {
 		name       string
 		want       want
-		repository repository.Repository
+		repository Repository
 	}{
 		{
 			name: "test get all known metrics ok",
-			repository: &storage.MemStorage{
+			repository: &repository.MemStorage{
 				Gauge:   map[string]float64{"param1": 17.34},
 				Counter: map[string]int64{"param2": 2},
 			},
@@ -220,7 +219,7 @@ func TestRootHandler(t *testing.T) {
 		},
 		{
 			name: "test empty metrics repository",
-			repository: &storage.MemStorage{
+			repository: &repository.MemStorage{
 				Gauge:   map[string]float64{},
 				Counter: map[string]int64{},
 			},
@@ -232,7 +231,7 @@ func TestRootHandler(t *testing.T) {
 		},
 	}
 
-	serverRepository := storage.New()
+	serverRepository := repository.New()
 	metricRouter := NewMetricRouter(serverRepository)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()

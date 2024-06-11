@@ -3,8 +3,7 @@ package main
 import (
 	"github.com/Vidkin/metrics/internal"
 	"github.com/Vidkin/metrics/internal/domain/handlers"
-	"github.com/Vidkin/metrics/internal/domain/repository"
-	"github.com/Vidkin/metrics/internal/domain/storage"
+	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"net/http"
@@ -16,12 +15,12 @@ func TestSendMetrics(t *testing.T) {
 	tests := []struct {
 		name           string
 		sendToWrongURL bool
-		repository     repository.Repository
+		repository     handlers.Repository
 	}{
 		{
 			name:           "test send ok",
 			sendToWrongURL: false,
-			repository: &storage.MemStorage{
+			repository: &repository.MemStorage{
 				Gauge:   map[string]float64{"param1": 45.21, "param2": 12},
 				Counter: map[string]int64{"param2": 1},
 			},
@@ -29,14 +28,14 @@ func TestSendMetrics(t *testing.T) {
 		{
 			name:           "test send to wrong url",
 			sendToWrongURL: true,
-			repository: &storage.MemStorage{
+			repository: &repository.MemStorage{
 				Gauge:   map[string]float64{"param1": 45.21, "param2": 12},
 				Counter: map[string]int64{"param2": 1},
 			},
 		},
 	}
 
-	serverRepository := storage.New()
+	serverRepository := repository.New()
 	metricRouter := handlers.NewMetricRouter(serverRepository)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
@@ -102,7 +101,7 @@ func TestSendMetric(t *testing.T) {
 		},
 	}
 
-	serverRepository := storage.New()
+	serverRepository := repository.New()
 	metricRouter := handlers.NewMetricRouter(serverRepository)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()

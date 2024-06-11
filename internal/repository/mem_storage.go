@@ -1,4 +1,4 @@
-package storage
+package repository
 
 type MemStorage struct {
 	Gauge   map[string]float64
