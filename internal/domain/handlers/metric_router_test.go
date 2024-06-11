@@ -153,6 +153,18 @@ func TestGetMetricValueHandler(t *testing.T) {
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
+		{
+			name: "test get metric without name",
+			url:  "/value/counter/",
+			repository: &storage.MemStorage{
+				Gauge:   map[string]float64{},
+				Counter: map[string]int64{},
+			},
+			want: want{
+				statusCode:  http.StatusNotFound,
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
 	}
 
 	serverRepository := storage.New()
