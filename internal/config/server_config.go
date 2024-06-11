@@ -2,17 +2,17 @@ package config
 
 import (
 	"flag"
-	"github.com/Vidkin/metrics/internal/serverAddress"
+	"github.com/Vidkin/metrics/internal/serveraddress"
 	"github.com/caarlos0/env/v6"
 )
 
 type ServerConfig struct {
-	ServerAddress *serverAddress.ServerAddress
+	ServerAddress *serveraddress.ServerAddress
 }
 
 func NewServerConfig() *ServerConfig {
 	var config ServerConfig
-	config.ServerAddress = serverAddress.New()
+	config.ServerAddress = serveraddress.New()
 	config.parseFlags()
 	return &config
 }

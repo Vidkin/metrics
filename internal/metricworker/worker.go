@@ -1,4 +1,4 @@
-package metricWorker
+package metricworker
 
 import (
 	"github.com/Vidkin/metrics/internal/config"

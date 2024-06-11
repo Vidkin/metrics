@@ -2,7 +2,7 @@ package config
 
 import (
 	"flag"
-	"github.com/Vidkin/metrics/internal/serverAddress"
+	"github.com/Vidkin/metrics/internal/serveraddress"
 	"github.com/caarlos0/env/v6"
 )
 
@@ -12,14 +12,14 @@ const (
 )
 
 type AgentConfig struct {
-	ServerAddress  *serverAddress.ServerAddress
+	ServerAddress  *serveraddress.ServerAddress
 	ReportInterval int `env:"REPORT_INTERVAL"`
 	PollInterval   int `env:"POLL_INTERVAL"`
 }
 
 func NewAgentConfig() *AgentConfig {
 	var config AgentConfig
-	config.ServerAddress = serverAddress.New()
+	config.ServerAddress = serveraddress.New()
 	config.parseFlags()
 	return &config
 }
