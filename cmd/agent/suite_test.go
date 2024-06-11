@@ -37,7 +37,8 @@ func TestSendMetrics(t *testing.T) {
 	}
 
 	serverRepository := storage.New()
-	ts := httptest.NewServer(handlers.MetricsRouter(serverRepository))
+	metricRouter := handlers.NewMetricRouter(serverRepository)
+	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
 	client := resty.New()
@@ -102,7 +103,8 @@ func TestSendMetric(t *testing.T) {
 	}
 
 	serverRepository := storage.New()
-	ts := httptest.NewServer(handlers.MetricsRouter(serverRepository))
+	metricRouter := handlers.NewMetricRouter(serverRepository)
+	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
 	client := resty.New()

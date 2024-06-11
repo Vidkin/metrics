@@ -20,12 +20,13 @@ func main() {
 	env.Parse(addr)
 
 	var memStorage = storage.New()
+	var metricRouter = handlers.NewMetricRouter(memStorage)
 
 	var err error
 	if addr.Address != "" {
-		err = http.ListenAndServe(addr.Address, handlers.MetricsRouter(memStorage))
+		err = http.ListenAndServe(addr.Address, metricRouter.Router)
 	} else {
-		err = http.ListenAndServe(addr.String(), handlers.MetricsRouter(memStorage))
+		err = http.ListenAndServe(addr.String(), metricRouter.Router)
 	}
 
 	if err != nil {

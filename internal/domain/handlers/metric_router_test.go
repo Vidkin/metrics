@@ -88,7 +88,8 @@ func TestUpdateMetricHandler(t *testing.T) {
 	}
 
 	serverRepository := storage.New()
-	ts := httptest.NewServer(MetricsRouter(serverRepository))
+	metricRouter := NewMetricRouter(serverRepository)
+	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
 	for _, test := range tests {
@@ -155,7 +156,8 @@ func TestGetMetricValueHandler(t *testing.T) {
 	}
 
 	serverRepository := storage.New()
-	ts := httptest.NewServer(MetricsRouter(serverRepository))
+	metricRouter := NewMetricRouter(serverRepository)
+	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
 	for _, test := range tests {
@@ -219,7 +221,8 @@ func TestRootHandler(t *testing.T) {
 	}
 
 	serverRepository := storage.New()
-	ts := httptest.NewServer(MetricsRouter(serverRepository))
+	metricRouter := NewMetricRouter(serverRepository)
+	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
 	for _, test := range tests {
