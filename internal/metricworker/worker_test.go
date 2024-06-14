@@ -35,22 +35,24 @@ func TestSendMetrics(t *testing.T) {
 	}
 
 	serverRepository := repository.New()
+	client := resty.New()
 	metricRouter := handlers.NewMetricRouter(serverRepository)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
-	client := resty.New()
+	mw := New(nil, nil, client, nil)
 
 	for _, test := range tests {
+		mw.repository = test.repository
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
 
 			if test.sendToWrongURL {
-				SendMetrics(client, ts.URL+"/wrong_url/", test.repository)
+				mw.SendMetrics(ts.URL + "/wrong_url/")
 				assert.NotEqual(t, test.repository, serverRepository)
 			} else {
-				SendMetrics(client, ts.URL+"/update/", test.repository)
+				mw.SendMetrics(ts.URL + "/update/")
 				assert.Equal(t, test.repository, serverRepository)
 			}
 		})
@@ -101,11 +103,12 @@ func TestSendMetric(t *testing.T) {
 	}
 
 	serverRepository := repository.New()
+	client := resty.New()
 	metricRouter := handlers.NewMetricRouter(serverRepository)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
-	client := resty.New()
+	mw := New(nil, nil, client, nil)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -113,10 +116,10 @@ func TestSendMetric(t *testing.T) {
 			clear(serverRepository.Counter)
 
 			if test.sendToWrongURL {
-				_, err := SendMetric(client, ts.URL+"/wrong_url/", test.metricType, test.metricName, test.metricValue)
+				_, err := mw.SendMetric(ts.URL+"/wrong_url/", test.metricType, test.metricName, test.metricValue)
 				assert.NotNil(t, err)
 			} else {
-				respCode, err := SendMetric(client, ts.URL+"/update/", test.metricType, test.metricName, test.metricValue)
+				respCode, err := mw.SendMetric(ts.URL+"/update/", test.metricType, test.metricName, test.metricValue)
 				assert.Equal(t, test.statusCode, respCode)
 				assert.Nil(t, err)
 			}
