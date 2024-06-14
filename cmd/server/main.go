@@ -8,11 +8,14 @@ import (
 )
 
 func main() {
-	serverConfig := config.NewServerConfig()
+	serverConfig, err := config.NewServerConfig()
+	if err != nil {
+		panic(err)
+	}
 	memStorage := repository.New()
 	metricRouter := handlers.NewMetricRouter(memStorage)
 
-	err := http.ListenAndServe(serverConfig.ServerAddress.Address, metricRouter.Router)
+	err = http.ListenAndServe(serverConfig.ServerAddress.Address, metricRouter.Router)
 
 	if err != nil {
 		panic(err)

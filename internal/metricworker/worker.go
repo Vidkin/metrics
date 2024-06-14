@@ -66,7 +66,7 @@ func (mw *MetricWorker) CollectMetrics() {
 	mw.repository.UpdateGauge(GaugeMetricAlloc, float64(mw.memStats.Alloc))
 	mw.repository.UpdateGauge(GaugeMetricBuckHashSys, float64(mw.memStats.BuckHashSys))
 	mw.repository.UpdateGauge(GaugeMetricFrees, float64(mw.memStats.Frees))
-	mw.repository.UpdateGauge(GaugeMetricGCCPUFraction, float64(mw.memStats.GCCPUFraction))
+	mw.repository.UpdateGauge(GaugeMetricGCCPUFraction, mw.memStats.GCCPUFraction)
 	mw.repository.UpdateGauge(GaugeMetricGCSys, float64(mw.memStats.GCSys))
 	mw.repository.UpdateGauge(GaugeMetricHeapAlloc, float64(mw.memStats.HeapAlloc))
 	mw.repository.UpdateGauge(GaugeMetricHeapIdle, float64(mw.memStats.HeapIdle))
@@ -111,11 +111,17 @@ func (mw *MetricWorker) SendMetric(url string, metricType string, metricName str
 func (mw *MetricWorker) SendMetrics(url string) {
 	for metricName, metricValue := range mw.repository.GetGauges() {
 		valueAsString := strconv.FormatFloat(metricValue, 'g', -1, 64)
-		mw.SendMetric(url, MetricTypeGauge, metricName, valueAsString)
+		_, err := mw.SendMetric(url, MetricTypeGauge, metricName, valueAsString)
+		if err != nil {
+			continue
+		}
 	}
 	for metricName, metricValue := range mw.repository.GetCounters() {
 		valueAsString := strconv.FormatInt(metricValue, 10)
-		mw.SendMetric(url, MetricTypeCounter, metricName, valueAsString)
+		_, err := mw.SendMetric(url, MetricTypeCounter, metricName, valueAsString)
+		if err != nil {
+			continue
+		}
 	}
 }
 

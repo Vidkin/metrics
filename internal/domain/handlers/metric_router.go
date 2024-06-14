@@ -50,12 +50,18 @@ func NewMetricRouter(repository Repository) *MetricRouter {
 	return &mr
 }
 
-func (mr *MetricRouter) RootHandler(res http.ResponseWriter, req *http.Request) {
+func (mr *MetricRouter) RootHandler(res http.ResponseWriter, _ *http.Request) {
 	for k, v := range mr.Repository.GetGauges() {
-		io.WriteString(res, fmt.Sprintf("%s = %v\n", k, v))
+		_, err := io.WriteString(res, fmt.Sprintf("%s = %v\n", k, v))
+		if err != nil {
+			continue
+		}
 	}
 	for k, v := range mr.Repository.GetCounters() {
-		io.WriteString(res, fmt.Sprintf("%s = %d\n", k, v))
+		_, err := io.WriteString(res, fmt.Sprintf("%s = %d\n", k, v))
+		if err != nil {
+			continue
+		}
 	}
 	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	res.WriteHeader(http.StatusOK)
@@ -69,14 +75,20 @@ func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http
 	case MetricTypeGauge:
 		if metricValue, ok := mr.Repository.GetGauge(metricName); ok {
 			valueAsString := strconv.FormatFloat(metricValue, 'g', -1, 64)
-			res.Write([]byte(valueAsString))
+			_, err := res.Write([]byte(valueAsString))
+			if err != nil {
+				http.Error(res, "Can't convert metric value", http.StatusInternalServerError)
+			}
 		} else {
 			http.Error(res, "Metric not found", http.StatusNotFound)
 		}
 	case MetricTypeCounter:
 		if metricValue, ok := mr.Repository.GetCounter(metricName); ok {
 			valueAsString := strconv.FormatInt(metricValue, 10)
-			res.Write([]byte(valueAsString))
+			_, err := res.Write([]byte(valueAsString))
+			if err != nil {
+				http.Error(res, "Can't convert metric value", http.StatusInternalServerError)
+			}
 		} else {
 			http.Error(res, "Metric not found", http.StatusNotFound)
 		}

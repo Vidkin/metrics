@@ -9,7 +9,10 @@ import (
 )
 
 func main() {
-	agentConfig := config.NewAgentConfig()
+	agentConfig, err := config.NewAgentConfig()
+	if err != nil {
+		panic(err)
+	}
 	memoryStorage := repository.New()
 	memStats := &runtime.MemStats{}
 	client := resty.New()

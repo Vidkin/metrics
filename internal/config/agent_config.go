@@ -17,22 +17,30 @@ type AgentConfig struct {
 	PollInterval   int `env:"POLL_INTERVAL"`
 }
 
-func NewAgentConfig() *AgentConfig {
+func NewAgentConfig() (*AgentConfig, error) {
 	var config AgentConfig
 	config.ServerAddress = serveraddress.New()
-	config.parseFlags()
-	return &config
+	err := config.parseFlags()
+	if err != nil {
+		return nil, err
+	}
+	return &config, nil
 }
 
-func (config *AgentConfig) parseFlags() {
+func (config *AgentConfig) parseFlags() error {
 	flag.Var(config.ServerAddress, "a", "Server address host:port")
 	flag.IntVar(&config.ReportInterval, "r", DefaultAgentReportInterval, "Agent report poll interval (sec)")
 	flag.IntVar(&config.PollInterval, "p", DefaultAgentPollInterval, "Agent poll interval (sec)")
 	flag.Parse()
 
-	env.Parse(config.ServerAddress)
+	err := env.Parse(config.ServerAddress)
+	if err != nil {
+		return err
+	}
 
 	if config.ServerAddress.Address == "" {
 		config.ServerAddress.Address = config.ServerAddress.String()
 	}
+
+	return nil
 }

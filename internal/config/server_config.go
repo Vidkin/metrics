@@ -10,20 +10,28 @@ type ServerConfig struct {
 	ServerAddress *serveraddress.ServerAddress
 }
 
-func NewServerConfig() *ServerConfig {
+func NewServerConfig() (*ServerConfig, error) {
 	var config ServerConfig
 	config.ServerAddress = serveraddress.New()
-	config.parseFlags()
-	return &config
+	err := config.parseFlags()
+	if err != nil {
+		return nil, err
+	}
+	return &config, nil
 }
 
-func (config *ServerConfig) parseFlags() {
+func (config *ServerConfig) parseFlags() error {
 	flag.Var(config.ServerAddress, "a", "Net address host:port")
 	flag.Parse()
 
-	env.Parse(config.ServerAddress)
+	err := env.Parse(config.ServerAddress)
+	if err != nil {
+		return err
+	}
 
 	if config.ServerAddress.Address == "" {
 		config.ServerAddress.Address = config.ServerAddress.String()
 	}
+
+	return nil
 }
