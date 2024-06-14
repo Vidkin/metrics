@@ -10,10 +10,10 @@ import (
 
 func main() {
 	agentConfig := config.NewAgentConfig()
-
-	var memoryStorage = repository.New()
+	memoryStorage := repository.New()
 	memStats := &runtime.MemStats{}
 	client := resty.New()
+	mw := metricworker.New(memoryStorage, memStats, client, agentConfig)
 
-	metricworker.Poll(client, memoryStorage, memStats, agentConfig)
+	mw.Poll()
 }

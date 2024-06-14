@@ -37,12 +37,12 @@ func NewMetricRouter(repository Repository) *MetricRouter {
 	var mr MetricRouter
 	router := chi.NewRouter()
 	router.Route("/", func(r chi.Router) {
-		r.Get("/", mr.RootHandler())
+		r.Get("/", mr.RootHandler)
 		router.Route("/value", func(r chi.Router) {
-			r.Get("/{metricType}/{metricName}", mr.GetMetricValueHandler())
+			r.Get("/{metricType}/{metricName}", mr.GetMetricValueHandler)
 		})
 		router.Route("/update", func(r chi.Router) {
-			r.Post("/{metricType}/{metricName}/{metricValue}", mr.UpdateMetricHandler())
+			r.Post("/{metricType}/{metricName}/{metricValue}", mr.UpdateMetricHandler)
 		})
 	})
 	mr.Router = router
@@ -50,74 +50,68 @@ func NewMetricRouter(repository Repository) *MetricRouter {
 	return &mr
 }
 
-func (mr *MetricRouter) RootHandler() http.HandlerFunc {
-	return func(res http.ResponseWriter, req *http.Request) {
-		for k, v := range mr.Repository.GetGauges() {
-			io.WriteString(res, fmt.Sprintf("%s = %v\n", k, v))
-		}
-		for k, v := range mr.Repository.GetCounters() {
-			io.WriteString(res, fmt.Sprintf("%s = %d\n", k, v))
-		}
-		res.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		res.WriteHeader(http.StatusOK)
+func (mr *MetricRouter) RootHandler(res http.ResponseWriter, req *http.Request) {
+	for k, v := range mr.Repository.GetGauges() {
+		io.WriteString(res, fmt.Sprintf("%s = %v\n", k, v))
 	}
+	for k, v := range mr.Repository.GetCounters() {
+		io.WriteString(res, fmt.Sprintf("%s = %d\n", k, v))
+	}
+	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	res.WriteHeader(http.StatusOK)
 }
 
-func (mr *MetricRouter) GetMetricValueHandler() http.HandlerFunc {
-	return func(res http.ResponseWriter, req *http.Request) {
-		metricType := chi.URLParam(req, ParamMetricType)
-		metricName := chi.URLParam(req, ParamMetricName)
+func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http.Request) {
+	metricType := chi.URLParam(req, ParamMetricType)
+	metricName := chi.URLParam(req, ParamMetricName)
 
-		switch metricType {
-		case MetricTypeGauge:
-			if metricValue, ok := mr.Repository.GetGauge(metricName); ok {
-				valueAsString := strconv.FormatFloat(metricValue, 'g', -1, 64)
-				res.Write([]byte(valueAsString))
-			} else {
-				http.Error(res, "Metric not found", http.StatusNotFound)
-			}
-		case MetricTypeCounter:
-			if metricValue, ok := mr.Repository.GetCounter(metricName); ok {
-				valueAsString := strconv.FormatInt(metricValue, 10)
-				res.Write([]byte(valueAsString))
-			} else {
-				http.Error(res, "Metric not found", http.StatusNotFound)
-			}
-		default:
-			http.Error(res, "Bad metric type!", http.StatusBadRequest)
+	switch metricType {
+	case MetricTypeGauge:
+		if metricValue, ok := mr.Repository.GetGauge(metricName); ok {
+			valueAsString := strconv.FormatFloat(metricValue, 'g', -1, 64)
+			res.Write([]byte(valueAsString))
+		} else {
+			http.Error(res, "Metric not found", http.StatusNotFound)
 		}
-		res.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		res.WriteHeader(http.StatusOK)
+	case MetricTypeCounter:
+		if metricValue, ok := mr.Repository.GetCounter(metricName); ok {
+			valueAsString := strconv.FormatInt(metricValue, 10)
+			res.Write([]byte(valueAsString))
+		} else {
+			http.Error(res, "Metric not found", http.StatusNotFound)
+		}
+	default:
+		http.Error(res, "Bad metric type!", http.StatusBadRequest)
 	}
+	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	res.WriteHeader(http.StatusOK)
 }
 
-func (mr *MetricRouter) UpdateMetricHandler() http.HandlerFunc {
-	return func(res http.ResponseWriter, req *http.Request) {
-		metricType := chi.URLParam(req, ParamMetricType)
-		metricName := chi.URLParam(req, ParamMetricName)
-		metricValue := chi.URLParam(req, ParamMetricValue)
+func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
+	metricType := chi.URLParam(req, ParamMetricType)
+	metricName := chi.URLParam(req, ParamMetricName)
+	metricValue := chi.URLParam(req, ParamMetricValue)
 
-		if metricName == "" {
-			http.Error(res, "Empty metric name!", http.StatusNotFound)
-		}
-
-		switch metricType {
-		case MetricTypeGauge:
-			if value, err := strconv.ParseFloat(metricValue, 64); err != nil {
-				http.Error(res, "Bad metric value!", http.StatusBadRequest)
-			} else {
-				mr.Repository.UpdateGauge(metricName, value)
-			}
-		case MetricTypeCounter:
-			if value, err := strconv.ParseInt(metricValue, 10, 64); err != nil {
-				http.Error(res, "Bad metric value!", http.StatusBadRequest)
-			} else {
-				mr.Repository.UpdateCounter(metricName, value)
-			}
-		default:
-			http.Error(res, "Bad metric type!", http.StatusBadRequest)
-		}
-		res.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		res.WriteHeader(http.StatusOK)
+	if metricName == "" {
+		http.Error(res, "Empty metric name!", http.StatusNotFound)
 	}
+
+	switch metricType {
+	case MetricTypeGauge:
+		if value, err := strconv.ParseFloat(metricValue, 64); err != nil {
+			http.Error(res, "Bad metric value!", http.StatusBadRequest)
+		} else {
+			mr.Repository.UpdateGauge(metricName, value)
+		}
+	case MetricTypeCounter:
+		if value, err := strconv.ParseInt(metricValue, 10, 64); err != nil {
+			http.Error(res, "Bad metric value!", http.StatusBadRequest)
+		} else {
+			mr.Repository.UpdateCounter(metricName, value)
+		}
+	default:
+		http.Error(res, "Bad metric type!", http.StatusBadRequest)
+	}
+	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	res.WriteHeader(http.StatusOK)
 }
