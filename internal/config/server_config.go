@@ -8,6 +8,7 @@ import (
 
 type ServerConfig struct {
 	ServerAddress *serveraddress.ServerAddress
+	LogLevel      string
 }
 
 func NewServerConfig() (*ServerConfig, error) {
@@ -22,6 +23,7 @@ func NewServerConfig() (*ServerConfig, error) {
 
 func (config *ServerConfig) parseFlags() error {
 	flag.Var(config.ServerAddress, "a", "Net address host:port")
+	flag.StringVar(&config.LogLevel, "l", "info", "Log level")
 	flag.Parse()
 
 	err := env.Parse(config.ServerAddress)

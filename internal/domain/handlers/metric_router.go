@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
@@ -37,12 +38,12 @@ func NewMetricRouter(repository Repository) *MetricRouter {
 	var mr MetricRouter
 	router := chi.NewRouter()
 	router.Route("/", func(r chi.Router) {
-		r.Get("/", mr.RootHandler)
+		r.Get("/", logger.LoggingHandler(mr.RootHandler))
 		router.Route("/value", func(r chi.Router) {
-			r.Get("/{metricType}/{metricName}", mr.GetMetricValueHandler)
+			r.Get("/{metricType}/{metricName}", logger.LoggingHandler(mr.GetMetricValueHandler))
 		})
 		router.Route("/update", func(r chi.Router) {
-			r.Post("/{metricType}/{metricName}/{metricValue}", mr.UpdateMetricHandler)
+			r.Post("/{metricType}/{metricName}/{metricValue}", logger.LoggingHandler(mr.UpdateMetricHandler))
 		})
 	})
 	mr.Router = router
