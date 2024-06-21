@@ -294,25 +294,25 @@ func TestUpdateMetricHandlerJSON(t *testing.T) {
 			want: want{
 				statusCode:  http.StatusOK,
 				contentType: "application/json",
-				respBody:    `[{"id":"test","type":"gauge","value":13.5}]`,
+				respBody:    `{"id":"test","type":"gauge","value":13.5}`,
 			},
 			contentType: "application/json",
-			json:        `[{"id":"test","type":"gauge","value":13.5}]`,
+			json:        `{"id":"test","type":"gauge","value":13.5}`,
 		},
 		{
 			name: "test update counter status ok",
 			want: want{
 				statusCode:  http.StatusOK,
 				contentType: "application/json",
-				respBody:    `[{"id":"test","type":"counter","delta":13}]`,
+				respBody:    `{"id":"test","type":"counter","delta":13}`,
 			},
 			contentType: "application/json",
-			json:        `[{"id":"test","type":"counter","delta":13}]`,
+			json:        `{"id":"test","type":"counter","delta":13}`,
 		},
 		{
 			name: "test update two metrics status ok",
 			want: want{
-				statusCode:  http.StatusOK,
+				statusCode:  http.StatusBadRequest,
 				contentType: "application/json",
 				respBody:    `[{"id":"test","type":"gauge","value":13.5},{"id":"test2","type":"counter","delta":13}]`,
 			},
@@ -326,17 +326,27 @@ func TestUpdateMetricHandlerJSON(t *testing.T) {
 				contentType: "text/plain; charset=utf-8",
 			},
 			contentType: "text/plain",
-			json:        `[{"id":"test","type":"counter","delta":13}]`,
+			json:        `{"id":"test","type":"counter","delta":13}`,
 		},
 		{
 			name: "test update with empty value",
 			want: want{
-				statusCode:  http.StatusOK,
+				statusCode:  http.StatusBadRequest,
 				contentType: "application/json",
-				respBody:    `[]`,
+				respBody:    ``,
 			},
 			contentType: "application/json",
-			json:        `[{"id":"test","type":"counter"}]`,
+			json:        `{"id":"test","type":"counter"}`,
+		},
+		{
+			name: "test bad metric type",
+			want: want{
+				statusCode:  http.StatusBadRequest,
+				contentType: "application/json",
+				respBody:    ``,
+			},
+			contentType: "application/json",
+			json:        `{"id":"test","type":"badType","delta":13}`,
 		},
 		{
 			name: "test bad request body",

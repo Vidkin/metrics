@@ -140,61 +140,38 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 
 func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Type") != "application/json" {
-		logger.Log.Info(
-			"content-type is not allowed",
-			zap.String("content-type", req.Header.Get("Content-Type")))
 		http.Error(res, "only application/json content-type allowed", http.StatusBadRequest)
 		return
 	}
 
-	var metrics []models.Metrics
+	var metric models.Metrics
 	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&metrics); err != nil {
-		logger.Log.Info("can't decode request body", zap.Error(err))
+	if err := dec.Decode(&metric); err != nil {
 		http.Error(res, "can't decode request body", http.StatusBadRequest)
 		return
 	}
 
-	for _, metric := range metrics {
-		if metric.MType == MetricTypeGauge {
-			if metric.Value == nil {
-				continue
-			}
-			mr.Repository.UpdateGauge(metric.ID, *metric.Value)
-
+	if metric.MType == MetricTypeGauge {
+		if metric.Value == nil {
+			http.Error(res, "empty metric value", http.StatusBadRequest)
+			return
 		}
-		if metric.MType == MetricTypeCounter {
-			if metric.Delta == nil {
-				continue
-			}
-			mr.Repository.UpdateCounter(metric.ID, *metric.Delta)
+		mr.Repository.UpdateGauge(metric.ID, *metric.Value)
+	} else if metric.MType == MetricTypeCounter {
+		if metric.Delta == nil {
+			http.Error(res, "empty metric delta", http.StatusBadRequest)
+			return
 		}
-	}
-
-	gauges := mr.Repository.GetGauges()
-	counters := mr.Repository.GetCounters()
-	respMetrics := make([]models.Metrics, 0, len(gauges)+len(counters))
-
-	for k, v := range gauges {
-		respMetrics = append(respMetrics, models.Metrics{
-			ID:    k,
-			MType: MetricTypeGauge,
-			Value: &v,
-		})
-	}
-
-	for k, v := range counters {
-		respMetrics = append(respMetrics, models.Metrics{
-			ID:    k,
-			MType: MetricTypeCounter,
-			Delta: &v,
-		})
+		mr.Repository.UpdateCounter(metric.ID, *metric.Delta)
+	} else {
+		http.Error(res, "bad metric type", http.StatusBadRequest)
+		return
 	}
 
 	res.Header().Set("Content-Type", "application/json")
 
 	enc := json.NewEncoder(res)
-	if err := enc.Encode(respMetrics); err != nil {
+	if err := enc.Encode(metric); err != nil {
 		logger.Log.Info("error encoding response", zap.Error(err))
 		http.Error(res, "error encoding response", http.StatusInternalServerError)
 		return
@@ -203,9 +180,6 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 
 func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Type") != "application/json" {
-		logger.Log.Info(
-			"content-type is not allowed",
-			zap.String("content-type", req.Header.Get("Content-Type")))
 		http.Error(res, "only application/json content-type allowed", http.StatusBadRequest)
 		return
 	}
@@ -214,7 +188,6 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&metric); err != nil {
-		logger.Log.Info("can't decode request body", zap.Error(err))
 		http.Error(res, "can't decode request body", http.StatusBadRequest)
 		return
 	}
@@ -226,10 +199,6 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 
 	if metric.MType == MetricTypeCounter {
 		if v, ok := mr.Repository.GetCounter(metric.ID); !ok {
-			logger.Log.Info(
-				"metric not found",
-				zap.String("type", metric.MType),
-				zap.String("name", metric.ID))
 			http.Error(res, "metric not found", http.StatusNotFound)
 			return
 		} else {
@@ -237,19 +206,12 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 		}
 	} else if metric.MType == MetricTypeGauge {
 		if v, ok := mr.Repository.GetGauge(metric.ID); !ok {
-			logger.Log.Info(
-				"metric not found",
-				zap.String("type", metric.MType),
-				zap.String("name", metric.ID))
 			http.Error(res, "metric not found", http.StatusNotFound)
 			return
 		} else {
 			respMetric.Value = &v
 		}
 	} else {
-		logger.Log.Info(
-			"bad metric type",
-			zap.String("type", metric.MType))
 		http.Error(res, "bad metric type", http.StatusBadRequest)
 		return
 	}
