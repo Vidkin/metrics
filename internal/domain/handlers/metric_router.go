@@ -211,6 +211,7 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 	}
 
 	var metric models.Metrics
+
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&metric); err != nil {
 		logger.Log.Info("can't decode request body", zap.Error(err))
@@ -222,6 +223,7 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 		ID:    metric.ID,
 		MType: metric.MType,
 	}
+
 	if metric.MType == MetricTypeCounter {
 		if v, ok := mr.Repository.GetCounter(metric.ID); !ok {
 			logger.Log.Info(
@@ -233,8 +235,7 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 		} else {
 			respMetric.Delta = &v
 		}
-	}
-	if metric.MType == MetricTypeGauge {
+	} else if metric.MType == MetricTypeGauge {
 		if v, ok := mr.Repository.GetGauge(metric.ID); !ok {
 			logger.Log.Info(
 				"metric not found",
@@ -245,14 +246,19 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 		} else {
 			respMetric.Value = &v
 		}
+	} else {
+		logger.Log.Info(
+			"bad metric type",
+			zap.String("type", metric.MType))
+		http.Error(res, "bad metric type", http.StatusBadRequest)
+		return
 	}
 
+	res.Header().Set("Content-Type", "application/json")
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(respMetric); err != nil {
 		logger.Log.Info("error encoding response metric", zap.Error(err))
 		http.Error(res, "error encoding response metric", http.StatusInternalServerError)
 		return
 	}
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusOK)
 }

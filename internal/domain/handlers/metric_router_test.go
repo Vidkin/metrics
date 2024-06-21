@@ -368,3 +368,127 @@ func TestUpdateMetricHandlerJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestGetMetricValueHandlerJSON(t *testing.T) {
+	type want struct {
+		contentType string
+		statusCode  int
+		respBody    string
+	}
+
+	var tests = []struct {
+		name        string
+		json        string
+		contentType string
+		want        want
+		repository  Repository
+	}{
+		{
+			name: "test get counter metric status ok",
+			want: want{
+				statusCode:  http.StatusOK,
+				contentType: "application/json",
+				respBody:    `{"id":"test","type":"counter","delta":12}`,
+			},
+			repository: &repository.MemStorage{
+				Gauge:   map[string]float64{},
+				Counter: map[string]int64{"test": 12},
+			},
+			contentType: "application/json",
+			json:        `{"id":"test","type":"counter"}`,
+		},
+		{
+			name: "test get gauge metric status ok",
+			want: want{
+				statusCode:  http.StatusOK,
+				contentType: "application/json",
+				respBody:    `{"id":"test","type":"gauge","value":12.5}`,
+			},
+			repository: &repository.MemStorage{
+				Gauge:   map[string]float64{"test": 12.5},
+				Counter: map[string]int64{},
+			},
+			contentType: "application/json",
+			json:        `{"id":"test","type":"gauge"}`,
+		},
+		{
+			name: "test bad content-type",
+			want: want{
+				statusCode:  http.StatusBadRequest,
+				contentType: "text/plain; charset=utf-8",
+			},
+			repository: &repository.MemStorage{
+				Gauge:   map[string]float64{"test": 12.5},
+				Counter: map[string]int64{},
+			},
+			contentType: "text/plain",
+			json:        `{"id":"test","type":"gauge"}`,
+		},
+		{
+			name: "test bad metric type",
+			want: want{
+				statusCode:  http.StatusBadRequest,
+				contentType: "application/json",
+				respBody:    `[]`,
+			},
+			repository: &repository.MemStorage{
+				Gauge:   map[string]float64{"test": 12.5},
+				Counter: map[string]int64{},
+			},
+			contentType: "application/json",
+			json:        `{"id":"test","type":"badType"}`,
+		},
+		{
+			name: "test metric not found",
+			want: want{
+				statusCode:  http.StatusNotFound,
+				contentType: "application/json",
+				respBody:    `[]`,
+			},
+			repository: &repository.MemStorage{
+				Gauge:   map[string]float64{"test": 12.5},
+				Counter: map[string]int64{},
+			},
+			contentType: "application/json",
+			json:        `{"id":"unknownMetric","type":"gauge"}`,
+		},
+		{
+			name: "test bad request body",
+			want: want{
+				statusCode:  http.StatusBadRequest,
+				contentType: "text/plain; charset=utf-8",
+			},
+			repository: &repository.MemStorage{
+				Gauge:   map[string]float64{"test": 12.5},
+				Counter: map[string]int64{},
+			},
+			contentType: "application/json",
+			json:        ``,
+		},
+	}
+
+	serverRepository := repository.New()
+	metricRouter := NewMetricRouter(serverRepository)
+	ts := httptest.NewServer(metricRouter.Router)
+	defer ts.Close()
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			clear(serverRepository.Gauge)
+			clear(serverRepository.Counter)
+			for k, v := range test.repository.GetGauges() {
+				serverRepository.UpdateGauge(k, v)
+			}
+			for k, v := range test.repository.GetCounters() {
+				serverRepository.UpdateCounter(k, v)
+			}
+			resp, respBody := testJSONRequest(t, ts, http.MethodPost, "/value", test.json, test.contentType)
+			defer resp.Body.Close()
+			assert.Equal(t, test.want.statusCode, resp.StatusCode)
+			if test.want.statusCode == http.StatusOK {
+				assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
+				assert.JSONEq(t, test.want.respBody, respBody)
+			}
+		})
+	}
+}
