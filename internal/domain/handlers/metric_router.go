@@ -191,14 +191,14 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 		})
 	}
 
+	res.Header().Set("Content-Type", "application/json")
+
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(respMetrics); err != nil {
 		logger.Log.Info("error encoding response", zap.Error(err))
 		http.Error(res, "error encoding response", http.StatusInternalServerError)
 		return
 	}
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *http.Request) {

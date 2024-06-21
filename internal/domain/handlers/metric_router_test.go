@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,6 +16,23 @@ func testRequest(t *testing.T, ts *httptest.Server, method,
 	req, err := http.NewRequest(method, ts.URL+path, nil)
 	require.NoError(t, err)
 
+	resp, err := ts.Client().Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	return resp, string(respBody)
+}
+
+func testJSONRequest(t *testing.T, ts *httptest.Server, method,
+	path string, json string, contentType string) (*http.Response, string) {
+	jsonBytes := []byte(json)
+	req, err := http.NewRequest(method, ts.URL+path, bytes.NewBuffer(jsonBytes))
+	require.NoError(t, err)
+
+	req.Header.Set("Content-Type", contentType)
 	resp, err := ts.Client().Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -253,6 +271,99 @@ func TestRootHandler(t *testing.T) {
 			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
 			if test.want.statusCode != http.StatusNotFound {
 				assert.Equal(t, test.want.value, value)
+			}
+		})
+	}
+}
+
+func TestUpdateMetricHandlerJSON(t *testing.T) {
+	type want struct {
+		contentType string
+		statusCode  int
+		respBody    string
+	}
+
+	var tests = []struct {
+		name        string
+		json        string
+		contentType string
+		want        want
+	}{
+		{
+			name: "test update gauge status ok",
+			want: want{
+				statusCode:  http.StatusOK,
+				contentType: "application/json",
+				respBody:    `[{"id":"test","type":"gauge","value":13.5}]`,
+			},
+			contentType: "application/json",
+			json:        `[{"id":"test","type":"gauge","value":13.5}]`,
+		},
+		{
+			name: "test update counter status ok",
+			want: want{
+				statusCode:  http.StatusOK,
+				contentType: "application/json",
+				respBody:    `[{"id":"test","type":"counter","delta":13}]`,
+			},
+			contentType: "application/json",
+			json:        `[{"id":"test","type":"counter","delta":13}]`,
+		},
+		{
+			name: "test update two metrics status ok",
+			want: want{
+				statusCode:  http.StatusOK,
+				contentType: "application/json",
+				respBody:    `[{"id":"test","type":"gauge","value":13.5},{"id":"test2","type":"counter","delta":13}]`,
+			},
+			contentType: "application/json",
+			json:        `[{"id":"test","type":"gauge","value":13.5},{"id":"test2","type":"counter","delta":13}]`,
+		},
+		{
+			name: "test bad content-type",
+			want: want{
+				statusCode:  http.StatusBadRequest,
+				contentType: "text/plain; charset=utf-8",
+			},
+			contentType: "text/plain",
+			json:        `[{"id":"test","type":"counter","delta":13}]`,
+		},
+		{
+			name: "test update with empty value",
+			want: want{
+				statusCode:  http.StatusOK,
+				contentType: "application/json",
+				respBody:    `[]`,
+			},
+			contentType: "application/json",
+			json:        `[{"id":"test","type":"counter"}]`,
+		},
+		{
+			name: "test bad request body",
+			want: want{
+				statusCode:  http.StatusBadRequest,
+				contentType: "text/plain; charset=utf-8",
+			},
+			contentType: "application/json",
+			json:        ``,
+		},
+	}
+
+	serverRepository := repository.New()
+	metricRouter := NewMetricRouter(serverRepository)
+	ts := httptest.NewServer(metricRouter.Router)
+	defer ts.Close()
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			clear(serverRepository.Gauge)
+			clear(serverRepository.Counter)
+			resp, respBody := testJSONRequest(t, ts, http.MethodPost, "/update", test.json, test.contentType)
+			defer resp.Body.Close()
+			assert.Equal(t, test.want.statusCode, resp.StatusCode)
+			if test.want.statusCode == http.StatusOK {
+				assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
+				assert.JSONEq(t, test.want.respBody, respBody)
 			}
 		})
 	}
