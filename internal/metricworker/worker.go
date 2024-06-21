@@ -1,12 +1,13 @@
 package metricworker
 
 import (
+	"encoding/json"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/domain/handlers"
+	"github.com/Vidkin/metrics/internal/models"
 	"github.com/go-resty/resty/v2"
 	"math/rand/v2"
 	"runtime"
-	"strconv"
 	"time"
 )
 
@@ -94,11 +95,14 @@ func (mw *MetricWorker) CollectMetrics() {
 	mw.repository.UpdateCounter(CounterMetricPollCount, 1)
 }
 
-func (mw *MetricWorker) SendMetric(url string, metricType string, metricName string, metricValue string) (int, error) {
-	url += metricType + "/" + metricName + "/" + metricValue
-
+func (mw *MetricWorker) SendMetric(url string, metric models.Metrics) (int, error) {
+	body, err := json.Marshal(metric)
+	if err != nil {
+		return 0, err
+	}
 	resp, err := mw.client.R().
-		SetHeader("Content-Type", "text/plain; charset=utf-8").
+		SetHeader("Content-Type", "application/json").
+		SetBody(body).
 		Post(url)
 
 	if err != nil {
@@ -110,15 +114,25 @@ func (mw *MetricWorker) SendMetric(url string, metricType string, metricName str
 
 func (mw *MetricWorker) SendMetrics(url string) {
 	for metricName, metricValue := range mw.repository.GetGauges() {
-		valueAsString := strconv.FormatFloat(metricValue, 'g', -1, 64)
-		_, err := mw.SendMetric(url, MetricTypeGauge, metricName, valueAsString)
+		_, err := mw.SendMetric(
+			url,
+			models.Metrics{
+				MType: MetricTypeGauge,
+				ID:    metricName,
+				Value: &metricValue,
+			})
 		if err != nil {
 			continue
 		}
 	}
 	for metricName, metricValue := range mw.repository.GetCounters() {
-		valueAsString := strconv.FormatInt(metricValue, 10)
-		_, err := mw.SendMetric(url, MetricTypeCounter, metricName, valueAsString)
+		_, err := mw.SendMetric(
+			url,
+			models.Metrics{
+				MType: MetricTypeCounter,
+				ID:    metricName,
+				Delta: &metricValue,
+			})
 		if err != nil {
 			continue
 		}
