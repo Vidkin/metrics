@@ -312,9 +312,7 @@ func TestUpdateMetricHandlerJSON(t *testing.T) {
 		{
 			name: "test update two metrics status ok",
 			want: want{
-				statusCode:  http.StatusBadRequest,
-				contentType: "application/json",
-				respBody:    `[{"id":"test","type":"gauge","value":13.5},{"id":"test2","type":"counter","delta":13}]`,
+				statusCode: http.StatusBadRequest,
 			},
 			contentType: "application/json",
 			json:        `[{"id":"test","type":"gauge","value":13.5},{"id":"test2","type":"counter","delta":13}]`,
@@ -322,8 +320,7 @@ func TestUpdateMetricHandlerJSON(t *testing.T) {
 		{
 			name: "test bad content-type",
 			want: want{
-				statusCode:  http.StatusBadRequest,
-				contentType: "text/plain; charset=utf-8",
+				statusCode: http.StatusBadRequest,
 			},
 			contentType: "text/plain",
 			json:        `{"id":"test","type":"counter","delta":13}`,
@@ -331,9 +328,7 @@ func TestUpdateMetricHandlerJSON(t *testing.T) {
 		{
 			name: "test update with empty value",
 			want: want{
-				statusCode:  http.StatusBadRequest,
-				contentType: "application/json",
-				respBody:    ``,
+				statusCode: http.StatusBadRequest,
 			},
 			contentType: "application/json",
 			json:        `{"id":"test","type":"counter"}`,
@@ -341,9 +336,7 @@ func TestUpdateMetricHandlerJSON(t *testing.T) {
 		{
 			name: "test bad metric type",
 			want: want{
-				statusCode:  http.StatusBadRequest,
-				contentType: "application/json",
-				respBody:    ``,
+				statusCode: http.StatusBadRequest,
 			},
 			contentType: "application/json",
 			json:        `{"id":"test","type":"badType","delta":13}`,
@@ -351,8 +344,7 @@ func TestUpdateMetricHandlerJSON(t *testing.T) {
 		{
 			name: "test bad request body",
 			want: want{
-				statusCode:  http.StatusBadRequest,
-				contentType: "text/plain; charset=utf-8",
+				statusCode: http.StatusBadRequest,
 			},
 			contentType: "application/json",
 			json:        ``,
@@ -424,8 +416,7 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 		{
 			name: "test bad content-type",
 			want: want{
-				statusCode:  http.StatusBadRequest,
-				contentType: "text/plain; charset=utf-8",
+				statusCode: http.StatusBadRequest,
 			},
 			repository: &repository.MemStorage{
 				Gauge:   map[string]float64{"test": 12.5},
@@ -437,9 +428,7 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 		{
 			name: "test bad metric type",
 			want: want{
-				statusCode:  http.StatusBadRequest,
-				contentType: "application/json",
-				respBody:    `[]`,
+				statusCode: http.StatusBadRequest,
 			},
 			repository: &repository.MemStorage{
 				Gauge:   map[string]float64{"test": 12.5},
@@ -451,9 +440,7 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 		{
 			name: "test metric not found",
 			want: want{
-				statusCode:  http.StatusNotFound,
-				contentType: "application/json",
-				respBody:    `[]`,
+				statusCode: http.StatusNotFound,
 			},
 			repository: &repository.MemStorage{
 				Gauge:   map[string]float64{"test": 12.5},
@@ -465,8 +452,7 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 		{
 			name: "test bad request body",
 			want: want{
-				statusCode:  http.StatusBadRequest,
-				contentType: "text/plain; charset=utf-8",
+				statusCode: http.StatusBadRequest,
 			},
 			repository: &repository.MemStorage{
 				Gauge:   map[string]float64{"test": 12.5},

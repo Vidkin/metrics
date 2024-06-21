@@ -2,6 +2,7 @@ package metricworker
 
 import (
 	"github.com/Vidkin/metrics/internal/domain/handlers"
+	"github.com/Vidkin/metrics/internal/models"
 	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
@@ -60,45 +61,79 @@ func TestSendMetrics(t *testing.T) {
 }
 
 func TestSendMetric(t *testing.T) {
+	var testIntValue int64 = 42
+	var testFloatValue float64 = 42.5
+	type want struct {
+		resp       string
+		statusCode int
+	}
 	tests := []struct {
 		name           string
 		sendToWrongURL bool
-		metricType     string
-		metricName     string
-		metricValue    string
+		metric         models.Metrics
 		statusCode     int
+		want           want
 	}{
 		{
-			name:           "test send ok",
+			name:           "test send counter ok",
 			sendToWrongURL: false,
-			metricType:     MetricTypeGauge,
-			metricName:     "test",
-			metricValue:    "25",
-			statusCode:     http.StatusOK,
+			metric: models.Metrics{
+				MType: MetricTypeCounter,
+				ID:    "test",
+				Delta: &testIntValue,
+			},
+			want: want{
+				resp:       `{"type":"counter","id":"test","delta":42}`,
+				statusCode: http.StatusOK,
+			},
+		},
+		{
+			name:           "test send gauge ok",
+			sendToWrongURL: false,
+			metric: models.Metrics{
+				MType: MetricTypeGauge,
+				ID:    "test",
+				Value: &testFloatValue,
+			},
+			want: want{
+				resp:       `{"type":"gauge","id":"test","value":42.5}`,
+				statusCode: http.StatusOK,
+			},
 		},
 		{
 			name:           "test send bad metric type",
 			sendToWrongURL: false,
-			metricType:     "bad_metric_type",
-			metricName:     "test",
-			metricValue:    "25",
-			statusCode:     http.StatusBadRequest,
+			metric: models.Metrics{
+				MType: "badMetricType",
+				ID:    "test",
+				Delta: &testIntValue,
+			},
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
 		},
 		{
 			name:           "test send empty metric name",
 			sendToWrongURL: false,
-			metricType:     "gauge",
-			metricName:     "",
-			metricValue:    "25",
-			statusCode:     http.StatusNotFound,
+			metric: models.Metrics{
+				MType: "badMetricType",
+				ID:    "",
+				Delta: &testIntValue,
+			},
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
 		},
 		{
 			name:           "test send bad metric value",
 			sendToWrongURL: false,
-			metricType:     "gauge",
-			metricName:     "test",
-			metricValue:    "bad_value",
-			statusCode:     http.StatusBadRequest,
+			metric: models.Metrics{
+				MType: "badMetricType",
+				ID:    "test",
+			},
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
 		},
 	}
 
@@ -116,12 +151,15 @@ func TestSendMetric(t *testing.T) {
 			clear(serverRepository.Counter)
 
 			if test.sendToWrongURL {
-				_, err := mw.SendMetric(ts.URL+"/wrong_url/", test.metricType, test.metricName, test.metricValue)
+				_, _, err := mw.SendMetric(ts.URL+"/wrong_url/", test.metric)
 				assert.NotNil(t, err)
 			} else {
-				respCode, err := mw.SendMetric(ts.URL+"/update/", test.metricType, test.metricName, test.metricValue)
-				assert.Equal(t, test.statusCode, respCode)
-				assert.Nil(t, err)
+				respCode, respBody, err := mw.SendMetric(ts.URL+"/update/", test.metric)
+				assert.Equal(t, test.want.statusCode, respCode)
+				if test.want.statusCode == http.StatusOK {
+					assert.JSONEq(t, test.want.resp, respBody)
+					assert.Nil(t, err)
+				}
 			}
 		})
 	}

@@ -95,10 +95,10 @@ func (mw *MetricWorker) CollectMetrics() {
 	mw.repository.UpdateCounter(CounterMetricPollCount, 1)
 }
 
-func (mw *MetricWorker) SendMetric(url string, metric models.Metrics) (int, error) {
+func (mw *MetricWorker) SendMetric(url string, metric models.Metrics) (int, string, error) {
 	body, err := json.Marshal(metric)
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 	resp, err := mw.client.R().
 		SetHeader("Content-Type", "application/json").
@@ -106,15 +106,15 @@ func (mw *MetricWorker) SendMetric(url string, metric models.Metrics) (int, erro
 		Post(url)
 
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 
-	return resp.StatusCode(), nil
+	return resp.StatusCode(), string(resp.Body()), nil
 }
 
 func (mw *MetricWorker) SendMetrics(url string) {
 	for metricName, metricValue := range mw.repository.GetGauges() {
-		_, err := mw.SendMetric(
+		_, _, err := mw.SendMetric(
 			url,
 			models.Metrics{
 				MType: MetricTypeGauge,
@@ -126,7 +126,7 @@ func (mw *MetricWorker) SendMetrics(url string) {
 		}
 	}
 	for metricName, metricValue := range mw.repository.GetCounters() {
-		_, err := mw.SendMetric(
+		_, _, err := mw.SendMetric(
 			url,
 			models.Metrics{
 				MType: MetricTypeCounter,
