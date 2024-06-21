@@ -62,7 +62,7 @@ func TestSendMetrics(t *testing.T) {
 
 func TestSendMetric(t *testing.T) {
 	var testIntValue int64 = 42
-	var testFloatValue float64 = 42.5
+	var testFloatValue = 42.5
 	type want struct {
 		resp       string
 		statusCode int
