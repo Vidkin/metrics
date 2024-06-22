@@ -16,6 +16,7 @@ func main() {
 	memoryStorage := repository.New()
 	memStats := &runtime.MemStats{}
 	client := resty.New()
+	client.SetDoNotParseResponse(true)
 	mw := metricworker.New(memoryStorage, memStats, client, agentConfig)
 
 	mw.Poll()

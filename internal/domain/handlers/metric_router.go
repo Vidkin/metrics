@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Vidkin/metrics/internal/domain/middleware"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/models"
 	"github.com/go-chi/chi/v5"
@@ -40,15 +41,25 @@ type Repository interface {
 func NewMetricRouter(repository Repository) *MetricRouter {
 	var mr MetricRouter
 	router := chi.NewRouter()
+
+	router.Use(middleware.Logging)
+	router.Use(middleware.Gzip)
+
 	router.Route("/", func(r chi.Router) {
-		r.Get("/", logger.LoggingHandler(mr.RootHandler))
+		r.Get("/", mr.RootHandler)
 		router.Route("/value", func(r chi.Router) {
-			r.Post("/", logger.LoggingHandler(mr.GetMetricValueHandlerJSON))
-			r.Get("/{metricType}/{metricName}", logger.LoggingHandler(mr.GetMetricValueHandler))
+			r.Post("/", mr.GetMetricValueHandlerJSON)
+			r.Get(
+				"/{metricType}/{metricName}",
+				mr.GetMetricValueHandler)
 		})
 		router.Route("/update", func(r chi.Router) {
-			r.Post("/", logger.LoggingHandler(mr.UpdateMetricHandlerJSON))
-			r.Post("/{metricType}/{metricName}/{metricValue}", logger.LoggingHandler(mr.UpdateMetricHandler))
+			r.Post(
+				"/",
+				mr.UpdateMetricHandlerJSON)
+			r.Post(
+				"/{metricType}/{metricName}/{metricValue}",
+				mr.UpdateMetricHandler)
 		})
 	})
 	mr.Router = router
@@ -169,6 +180,7 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 	}
 
 	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
 
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(metric); err != nil {
@@ -217,6 +229,8 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 	}
 
 	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(respMetric); err != nil {
 		logger.Log.Info("error encoding response metric", zap.Error(err))

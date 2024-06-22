@@ -1,13 +1,17 @@
 package metricworker
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/domain/handlers"
 	"github.com/Vidkin/metrics/internal/models"
 	"github.com/go-resty/resty/v2"
+	"io"
 	"math/rand/v2"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -100,16 +104,48 @@ func (mw *MetricWorker) SendMetric(url string, metric models.Metrics) (int, stri
 	if err != nil {
 		return 0, "", err
 	}
+
+	buf := bytes.NewBuffer(nil)
+	zb := gzip.NewWriter(buf)
+	_, err = zb.Write(body)
+	if err != nil {
+		return 0, "", err
+	}
+
+	err = zb.Close()
+	if err != nil {
+		return 0, "", err
+	}
+
 	resp, err := mw.client.R().
 		SetHeader("Content-Type", "application/json").
-		SetBody(body).
+		SetHeader("Content-Encoding", "gzip").
+		SetHeader("Accept-Encoding", "gzip").
+		SetBody(buf).
 		Post(url)
 
 	if err != nil {
 		return 0, "", err
 	}
+	defer resp.RawBody().Close()
 
-	return resp.StatusCode(), string(resp.Body()), nil
+	contentEncoding := resp.Header().Get("Content-Encoding")
+	var or io.ReadCloser
+	if strings.Contains(contentEncoding, "gzip") {
+		cr, err := gzip.NewReader(resp.RawBody())
+		if err != nil {
+			return 0, "", err
+		}
+		or = cr
+	} else {
+		or = resp.RawBody()
+	}
+	respBody, err := io.ReadAll(or)
+	if err != nil {
+		return 0, "", err
+	}
+
+	return resp.StatusCode(), string(respBody), nil
 }
 
 func (mw *MetricWorker) SendMetrics(url string) {
