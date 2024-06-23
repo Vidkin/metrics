@@ -7,8 +7,11 @@ import (
 )
 
 type ServerConfig struct {
-	ServerAddress *serveraddress.ServerAddress
-	LogLevel      string
+	ServerAddress   *serveraddress.ServerAddress
+	StoreInterval   int    `env:"STORE_INTERVAL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	Restore         bool   `env:"RESTORE"`
+	LogLevel        string
 }
 
 func NewServerConfig() (*ServerConfig, error) {
@@ -24,9 +27,12 @@ func NewServerConfig() (*ServerConfig, error) {
 func (config *ServerConfig) parseFlags() error {
 	flag.Var(config.ServerAddress, "a", "Net address host:port")
 	flag.StringVar(&config.LogLevel, "l", "info", "Log level")
+	flag.IntVar(&config.StoreInterval, "i", 300, "Config store interval")
+	flag.StringVar(&config.FileStoragePath, "f", "/tmp/metrics-db.json", "Config file storage path")
+	flag.BoolVar(&config.Restore, "r", true, "Restore config on startup")
 	flag.Parse()
 
-	err := env.Parse(config.ServerAddress)
+	err := env.Parse(config)
 	if err != nil {
 		return err
 	}
