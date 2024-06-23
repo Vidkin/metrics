@@ -68,6 +68,9 @@ func NewMetricRouter(repository Repository) *MetricRouter {
 }
 
 func (mr *MetricRouter) RootHandler(res http.ResponseWriter, _ *http.Request) {
+	res.Header().Set("Content-Type", "text/html")
+	res.WriteHeader(http.StatusOK)
+
 	for k, v := range mr.Repository.GetGauges() {
 		_, err := io.WriteString(res, fmt.Sprintf("%s = %v\n", k, v))
 		if err != nil {
@@ -80,8 +83,6 @@ func (mr *MetricRouter) RootHandler(res http.ResponseWriter, _ *http.Request) {
 			continue
 		}
 	}
-	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http.Request) {
@@ -115,7 +116,6 @@ func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http
 		http.Error(res, "Bad metric type!", http.StatusBadRequest)
 	}
 	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
@@ -146,7 +146,6 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 		http.Error(res, "Bad metric type!", http.StatusBadRequest)
 	}
 	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *http.Request) {

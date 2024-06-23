@@ -13,18 +13,30 @@ import (
 )
 
 func testRequest(t *testing.T, ts *httptest.Server, method,
-	path string) (*http.Response, string) {
+	path string, acceptEncoding bool) (*http.Response, string) {
 	req, err := http.NewRequest(method, ts.URL+path, nil)
 	require.NoError(t, err)
 
+	if acceptEncoding == true {
+		req.Header.Set("Accept-Encoding", "gzip")
+	} else {
+		req.Header.Set("Accept-Encoding", "")
+	}
 	resp, err := ts.Client().Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	return resp, string(respBody)
+	if acceptEncoding {
+		dec, err := gzip.NewReader(resp.Body)
+		require.NoError(t, err)
+		respBody, err := io.ReadAll(dec)
+		require.NoError(t, err)
+		return resp, string(respBody)
+	} else {
+		respBody, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		return resp, string(respBody)
+	}
 }
 
 func testJSONRequest(t *testing.T, ts *httptest.Server, method,
@@ -114,7 +126,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			resp, _ := testRequest(t, ts, http.MethodPost, test.url)
+			resp, _ := testRequest(t, ts, http.MethodPost, test.url, false)
 			defer resp.Body.Close()
 			assert.Equal(t, test.want.statusCode, resp.StatusCode)
 			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
@@ -202,7 +214,7 @@ func TestGetMetricValueHandler(t *testing.T) {
 			for k, v := range test.repository.GetCounters() {
 				serverRepository.UpdateCounter(k, v)
 			}
-			resp, value := testRequest(t, ts, http.MethodGet, test.url)
+			resp, value := testRequest(t, ts, http.MethodGet, test.url, false)
 			defer resp.Body.Close()
 
 			assert.Equal(t, test.want.statusCode, resp.StatusCode)
@@ -222,12 +234,14 @@ func TestRootHandler(t *testing.T) {
 	}
 
 	var tests = []struct {
-		name       string
-		want       want
-		repository Repository
+		name           string
+		acceptEncoding bool
+		want           want
+		repository     Repository
 	}{
 		{
-			name: "test get all known metrics ok",
+			name:           "test get all known metrics with encoding",
+			acceptEncoding: false,
 			repository: &repository.MemStorage{
 				Gauge:   map[string]float64{"param1": 17.34},
 				Counter: map[string]int64{"param2": 2},
@@ -235,7 +249,20 @@ func TestRootHandler(t *testing.T) {
 			want: want{
 				statusCode:  http.StatusOK,
 				value:       "param1 = 17.34\nparam2 = 2\n",
-				contentType: "text/plain; charset=utf-8",
+				contentType: "text/html",
+			},
+		},
+		{
+			name:           "test get all known metrics without encoding",
+			acceptEncoding: false,
+			repository: &repository.MemStorage{
+				Gauge:   map[string]float64{"param1": 17.34},
+				Counter: map[string]int64{"param2": 2},
+			},
+			want: want{
+				statusCode:  http.StatusOK,
+				value:       "param1 = 17.34\nparam2 = 2\n",
+				contentType: "text/html",
 			},
 		},
 		{
@@ -247,7 +274,7 @@ func TestRootHandler(t *testing.T) {
 			want: want{
 				statusCode:  http.StatusOK,
 				value:       "",
-				contentType: "text/plain; charset=utf-8",
+				contentType: "text/html",
 			},
 		},
 	}
@@ -267,14 +294,13 @@ func TestRootHandler(t *testing.T) {
 			for k, v := range test.repository.GetCounters() {
 				serverRepository.UpdateCounter(k, v)
 			}
-			resp, value := testRequest(t, ts, http.MethodGet, "")
+
+			resp, value := testRequest(t, ts, http.MethodGet, "", test.acceptEncoding)
 			defer resp.Body.Close()
 
 			assert.Equal(t, test.want.statusCode, resp.StatusCode)
 			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
-			if test.want.statusCode != http.StatusNotFound {
-				assert.Equal(t, test.want.value, value)
-			}
+			assert.Equal(t, test.want.value, value)
 		})
 	}
 }
