@@ -72,13 +72,13 @@ func (mr *MetricRouter) RootHandler(res http.ResponseWriter, _ *http.Request) {
 	res.WriteHeader(http.StatusOK)
 
 	for k, v := range mr.Repository.GetGauges() {
-		_, err := io.WriteString(res, fmt.Sprintf("%s = %v<br>", k, v))
+		_, err := io.WriteString(res, fmt.Sprintf("%s = %v\n", k, v))
 		if err != nil {
 			continue
 		}
 	}
 	for k, v := range mr.Repository.GetCounters() {
-		_, err := io.WriteString(res, fmt.Sprintf("%s = %d<br>", k, v))
+		_, err := io.WriteString(res, fmt.Sprintf("%s = %d\n", k, v))
 		if err != nil {
 			continue
 		}
