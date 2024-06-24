@@ -119,8 +119,8 @@ func TestUpdateMetricHandler(t *testing.T) {
 		},
 	}
 
-	serverRepository := repository.New()
-	metricRouter := NewMetricRouter(serverRepository)
+	serverRepository := repository.NewMemoryStorage("")
+	metricRouter := NewMetricRouter(serverRepository, 300)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -199,8 +199,8 @@ func TestGetMetricValueHandler(t *testing.T) {
 		},
 	}
 
-	serverRepository := repository.New()
-	metricRouter := NewMetricRouter(serverRepository)
+	serverRepository := repository.NewMemoryStorage("")
+	metricRouter := NewMetricRouter(serverRepository, 300)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -279,8 +279,8 @@ func TestRootHandler(t *testing.T) {
 		},
 	}
 
-	serverRepository := repository.New()
-	metricRouter := NewMetricRouter(serverRepository)
+	serverRepository := repository.NewMemoryStorage("")
+	metricRouter := NewMetricRouter(serverRepository, 300)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -380,8 +380,8 @@ func TestUpdateMetricHandlerJSON(t *testing.T) {
 		},
 	}
 
-	serverRepository := repository.New()
-	metricRouter := NewMetricRouter(serverRepository)
+	serverRepository := repository.NewMemoryStorage("")
+	metricRouter := NewMetricRouter(serverRepository, 300)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -492,8 +492,8 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 		},
 	}
 
-	serverRepository := repository.New()
-	metricRouter := NewMetricRouter(serverRepository)
+	serverRepository := repository.NewMemoryStorage("")
+	metricRouter := NewMetricRouter(serverRepository, 300)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -519,8 +519,8 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 }
 
 func TestGzipCompression(t *testing.T) {
-	serverRepository := repository.New()
-	metricRouter := NewMetricRouter(serverRepository)
+	serverRepository := repository.NewMemoryStorage("")
+	metricRouter := NewMetricRouter(serverRepository, 300)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 

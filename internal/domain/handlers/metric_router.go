@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 const (
@@ -23,8 +24,10 @@ const (
 )
 
 type MetricRouter struct {
-	Repository Repository
-	Router     chi.Router
+	Repository    Repository
+	Router        chi.Router
+	LastStoreTime time.Time
+	StoreInterval int
 }
 
 type Repository interface {
@@ -36,9 +39,14 @@ type Repository interface {
 
 	GetGauge(metricName string) (float64, bool)
 	GetCounter(metricName string) (int64, bool)
+
+	Save() error
+	Load() error
+	SaveGauge(metricName string, metricValue float64) error
+	SaveCounter(metricName string, metricValue int64) error
 }
 
-func NewMetricRouter(repository Repository) *MetricRouter {
+func NewMetricRouter(repository Repository, storeInterval int) *MetricRouter {
 	var mr MetricRouter
 	router := chi.NewRouter()
 
@@ -49,21 +57,17 @@ func NewMetricRouter(repository Repository) *MetricRouter {
 		r.Get("/", mr.RootHandler)
 		router.Route("/value", func(r chi.Router) {
 			r.Post("/", mr.GetMetricValueHandlerJSON)
-			r.Get(
-				"/{metricType}/{metricName}",
-				mr.GetMetricValueHandler)
+			r.Get("/{metricType}/{metricName}", mr.GetMetricValueHandler)
 		})
 		router.Route("/update", func(r chi.Router) {
-			r.Post(
-				"/",
-				mr.UpdateMetricHandlerJSON)
-			r.Post(
-				"/{metricType}/{metricName}/{metricValue}",
-				mr.UpdateMetricHandler)
+			r.Post("/", mr.UpdateMetricHandlerJSON)
+			r.Post("/{metricType}/{metricName}/{metricValue}", mr.UpdateMetricHandler)
 		})
 	})
 	mr.Router = router
 	mr.Repository = repository
+	mr.StoreInterval = storeInterval
+	mr.LastStoreTime = time.Now()
 	return &mr
 }
 
@@ -119,6 +123,14 @@ func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http
 }
 
 func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
+	if time.Since(mr.LastStoreTime).Seconds() > float64(mr.StoreInterval) {
+		if err := mr.Repository.Save(); err != nil {
+			logger.Log.Info("error saving metrics", zap.Error(err))
+			http.Error(res, "error saving gauge metric", http.StatusInternalServerError)
+			return
+		}
+		mr.LastStoreTime = time.Now()
+	}
 	metricType := chi.URLParam(req, ParamMetricType)
 	metricName := chi.URLParam(req, ParamMetricName)
 	metricValue := chi.URLParam(req, ParamMetricValue)
@@ -132,15 +144,31 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 		if value, err := strconv.ParseFloat(metricValue, 64); err != nil {
 			logger.Log.Info("can't convert metric value", zap.Error(err))
 			http.Error(res, "Bad metric value!", http.StatusBadRequest)
+			return
 		} else {
 			mr.Repository.UpdateGauge(metricName, value)
+			if mr.StoreInterval == 0 {
+				if err := mr.Repository.SaveGauge(metricName, value); err != nil {
+					logger.Log.Info("error saving gauge metric", zap.Error(err))
+					http.Error(res, "error saving gauge metric", http.StatusInternalServerError)
+					return
+				}
+			}
 		}
 	case MetricTypeCounter:
 		if value, err := strconv.ParseInt(metricValue, 10, 64); err != nil {
 			logger.Log.Info("can't convert metric value", zap.Error(err))
 			http.Error(res, "Bad metric value!", http.StatusBadRequest)
+			return
 		} else {
 			mr.Repository.UpdateCounter(metricName, value)
+			if mr.StoreInterval == 0 {
+				if err := mr.Repository.SaveCounter(metricName, value); err != nil {
+					logger.Log.Info("error saving counter metric", zap.Error(err))
+					http.Error(res, "error saving counter metric", http.StatusInternalServerError)
+					return
+				}
+			}
 		}
 	default:
 		http.Error(res, "Bad metric type!", http.StatusBadRequest)
@@ -152,6 +180,15 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 	if req.Header.Get("Content-Type") != "application/json" {
 		http.Error(res, "only application/json content-type allowed", http.StatusBadRequest)
 		return
+	}
+
+	if time.Since(mr.LastStoreTime).Seconds() > float64(mr.StoreInterval) {
+		if err := mr.Repository.Save(); err != nil {
+			logger.Log.Info("error saving metrics", zap.Error(err))
+			http.Error(res, "error saving gauge metric", http.StatusInternalServerError)
+			return
+		}
+		mr.LastStoreTime = time.Now()
 	}
 
 	var metric models.Metrics
@@ -167,12 +204,26 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 			return
 		}
 		mr.Repository.UpdateGauge(metric.ID, *metric.Value)
+		if mr.StoreInterval == 0 {
+			if err := mr.Repository.SaveGauge(metric.ID, *metric.Value); err != nil {
+				logger.Log.Info("error saving gauge metric", zap.Error(err))
+				http.Error(res, "error saving gauge metric", http.StatusInternalServerError)
+				return
+			}
+		}
 	} else if metric.MType == MetricTypeCounter {
 		if metric.Delta == nil {
 			http.Error(res, "empty metric delta", http.StatusBadRequest)
 			return
 		}
 		mr.Repository.UpdateCounter(metric.ID, *metric.Delta)
+		if mr.StoreInterval == 0 {
+			if err := mr.Repository.SaveCounter(metric.ID, *metric.Delta); err != nil {
+				logger.Log.Info("error saving counter metric", zap.Error(err))
+				http.Error(res, "error saving counter metric", http.StatusInternalServerError)
+				return
+			}
+		}
 	} else {
 		http.Error(res, "bad metric type", http.StatusBadRequest)
 		return

@@ -35,10 +35,10 @@ func TestSendMetrics(t *testing.T) {
 		},
 	}
 
-	serverRepository := repository.New()
+	serverRepository := repository.NewMemoryStorage("")
 	client := resty.New()
 	client.SetDoNotParseResponse(true)
-	metricRouter := handlers.NewMetricRouter(serverRepository)
+	metricRouter := handlers.NewMetricRouter(serverRepository, 300)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -138,10 +138,10 @@ func TestSendMetric(t *testing.T) {
 		},
 	}
 
-	serverRepository := repository.New()
+	serverRepository := repository.NewMemoryStorage("")
 	client := resty.New()
 	client.SetDoNotParseResponse(true)
-	metricRouter := handlers.NewMetricRouter(serverRepository)
+	metricRouter := handlers.NewMetricRouter(serverRepository, 300)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
