@@ -34,12 +34,6 @@ func run() error {
 		if err := memStorage.Load(); err != nil {
 			logger.Log.Info("error load saved metrics", zap.Error(err))
 		}
-		for k, v := range memStorage.GetGauges() {
-			logger.Log.Info("gauges", zap.Float64(k, v))
-		}
-		for k, v := range memStorage.GetCounters() {
-			logger.Log.Info("gauges", zap.Int64(k, v))
-		}
 	}
 	metricRouter := handlers.NewMetricRouter(memStorage, serverConfig.StoreInterval)
 

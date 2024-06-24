@@ -241,7 +241,13 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 		ID:    metric.ID,
 		MType: metric.MType,
 	}
-
+	logger.Log.Info("WANT METRIC", zap.String(metric.ID, metric.ID))
+	for k, v := range mr.Repository.GetGauges() {
+		logger.Log.Info("gauges", zap.Float64(k, v))
+	}
+	for k, v := range mr.Repository.GetCounters() {
+		logger.Log.Info("gauges", zap.Int64(k, v))
+	}
 	if metric.MType == MetricTypeCounter {
 		if v, ok := mr.Repository.GetCounter(metric.ID); !ok {
 			http.Error(res, "metric not found", http.StatusNotFound)
