@@ -260,17 +260,11 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 	}
 
 	if metric.MType == MetricTypeCounter {
-		if v, ok := mr.Repository.GetCounter(metric.ID); !ok {
-			http.Error(res, "metric not found", http.StatusNotFound)
-			return
-		} else {
+		if v, ok := mr.Repository.GetCounter(metric.ID); ok {
 			respMetric.Delta = &v
 		}
 	} else if metric.MType == MetricTypeGauge {
-		if v, ok := mr.Repository.GetGauge(metric.ID); !ok {
-			http.Error(res, "metric not found", http.StatusNotFound)
-			return
-		} else {
+		if v, ok := mr.Repository.GetGauge(metric.ID); ok {
 			respMetric.Value = &v
 		}
 	} else {

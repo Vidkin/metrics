@@ -467,16 +467,18 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 			json:        `{"id":"test","type":"badType"}`,
 		},
 		{
-			name: "test metric not found",
+			name: "test metric without value",
 			want: want{
-				statusCode: http.StatusNotFound,
+				statusCode:  http.StatusOK,
+				contentType: "application/json",
+				respBody:    `{"id":"test2","type":"gauge"}`,
 			},
 			repository: &repository.MemStorage{
 				Gauge:   map[string]float64{"test": 12.5},
 				Counter: map[string]int64{},
 			},
 			contentType: "application/json",
-			json:        `{"id":"unknownMetric","type":"gauge"}`,
+			json:        `{"id":"test2","type":"gauge"}`,
 		},
 		{
 			name: "test bad request body",
