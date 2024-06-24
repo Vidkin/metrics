@@ -166,13 +166,6 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 		http.Error(res, "Bad metric type!", http.StatusBadRequest)
 	}
 	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	if time.Since(mr.LastStoreTime).Seconds() > float64(mr.StoreInterval) {
-		if err := mr.Repository.Save(); err != nil {
-			logger.Log.Info("error saving metrics", zap.Error(err))
-			http.Error(res, "error saving gauge metric", http.StatusInternalServerError)
-			return
-		}
-	}
 }
 
 func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *http.Request) {
@@ -227,14 +220,6 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 		logger.Log.Info("error encoding response", zap.Error(err))
 		http.Error(res, "error encoding response", http.StatusInternalServerError)
 		return
-	}
-
-	if time.Since(mr.LastStoreTime).Seconds() > float64(mr.StoreInterval) {
-		if err := mr.Repository.Save(); err != nil {
-			logger.Log.Info("error saving metrics", zap.Error(err))
-			http.Error(res, "error saving gauge metric", http.StatusInternalServerError)
-			return
-		}
 	}
 }
 
