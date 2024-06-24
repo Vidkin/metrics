@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/domain/handlers"
 	"github.com/Vidkin/metrics/internal/logger"
@@ -41,7 +40,6 @@ func run() error {
 
 	go func() {
 		for {
-			fmt.Println(time.Now())
 			err = metricRouter.Repository.Save()
 			if err != nil {
 				logger.Log.Info("error saving metrics", zap.Error(err))

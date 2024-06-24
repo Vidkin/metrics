@@ -55,12 +55,15 @@ func (m *MemStorage) Save() error {
 
 	enc := json.NewEncoder(file)
 
-	metrics := make(map[string]interface{})
+	metrics := make(map[string]map[string]interface{})
+	metrics["gauge"] = make(map[string]interface{})
+	metrics["counter"] = make(map[string]interface{})
+
 	for k, v := range m.Gauge {
-		metrics[k] = v
+		metrics["gauge"][k] = v
 	}
 	for k, v := range m.Counter {
-		metrics[k] = v
+		metrics["counter"][k] = v
 	}
 	return enc.Encode(metrics)
 }
@@ -72,7 +75,8 @@ func (m *MemStorage) SaveCounter(metricName string, metricValue int64) error {
 	}
 	defer file.Close()
 
-	metrics := make(map[string]interface{})
+	metrics := make(map[string]map[string]interface{})
+	metrics["counter"] = make(map[string]interface{})
 
 	if err != nil && err != io.EOF {
 		dec := json.NewDecoder(file)
@@ -81,7 +85,7 @@ func (m *MemStorage) SaveCounter(metricName string, metricValue int64) error {
 		}
 	}
 
-	metrics[metricName] = metricValue
+	metrics["counter"][metricName] = metricValue
 	enc := json.NewEncoder(file)
 	return enc.Encode(metrics)
 }
@@ -93,7 +97,8 @@ func (m *MemStorage) SaveGauge(metricName string, metricValue float64) error {
 	}
 	defer file.Close()
 
-	metrics := make(map[string]interface{})
+	metrics := make(map[string]map[string]interface{})
+	metrics["gauge"] = make(map[string]interface{})
 
 	if err != nil && err != io.EOF {
 		dec := json.NewDecoder(file)
@@ -102,7 +107,7 @@ func (m *MemStorage) SaveGauge(metricName string, metricValue float64) error {
 		}
 	}
 
-	metrics[metricName] = metricValue
+	metrics["gauge"][metricName] = metricValue
 	enc := json.NewEncoder(file)
 	return enc.Encode(metrics)
 }
@@ -118,18 +123,19 @@ func (m *MemStorage) Load() error {
 	defer file.Close()
 
 	dec := json.NewDecoder(file)
-	metrics := make(map[string]interface{})
+	metrics := make(map[string]map[string]interface{})
+	metrics["counter"] = make(map[string]interface{})
+	metrics["gauge"] = make(map[string]interface{})
+
 	if err := dec.Decode(&metrics); err != nil {
 		return err
 	}
 
-	for k, v := range metrics {
-		switch metrics[k].(type) {
-		case int64:
-			m.UpdateCounter(k, v.(int64))
-		case float64:
-			m.UpdateGauge(k, v.(float64))
-		}
+	for k, v := range metrics["counter"] {
+		m.UpdateCounter(k, int64(v.(float64)))
+	}
+	for k, v := range metrics["gauge"] {
+		m.UpdateGauge(k, v.(float64))
 	}
 	return nil
 }
