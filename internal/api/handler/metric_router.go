@@ -98,6 +98,7 @@ func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http
 		return
 	}
 
+	res.WriteHeader(http.StatusOK)
 	_, err := res.Write([]byte(metric.ValueAsString()))
 	if err != nil {
 		logger.Log.Info("can't write metric value", zap.Error(err))
@@ -158,6 +159,7 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 	}
 
 	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *http.Request) {
