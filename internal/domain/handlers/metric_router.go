@@ -3,9 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/Vidkin/metrics/internal/domain/middleware"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/models"
+	middleware2 "github.com/Vidkin/metrics/pkg/middleware"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"io"
@@ -50,8 +50,8 @@ func NewMetricRouter(repository Repository, storeInterval int) *MetricRouter {
 	var mr MetricRouter
 	router := chi.NewRouter()
 
-	router.Use(middleware.Logging)
-	router.Use(middleware.Gzip)
+	router.Use(middleware2.Logging)
+	router.Use(middleware2.Gzip)
 
 	router.Route("/", func(r chi.Router) {
 		r.Get("/", mr.RootHandler)
