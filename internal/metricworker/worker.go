@@ -67,39 +67,52 @@ func New(repository handler.Repository, memStats *runtime.MemStats, client *rest
 	}
 }
 
-func (mw *MetricWorker) CollectMetrics() {
-	mw.repository.UpdateGauge(GaugeMetricAlloc, float64(mw.memStats.Alloc))
-	mw.repository.UpdateGauge(GaugeMetricBuckHashSys, float64(mw.memStats.BuckHashSys))
-	mw.repository.UpdateGauge(GaugeMetricFrees, float64(mw.memStats.Frees))
-	mw.repository.UpdateGauge(GaugeMetricGCCPUFraction, mw.memStats.GCCPUFraction)
-	mw.repository.UpdateGauge(GaugeMetricGCSys, float64(mw.memStats.GCSys))
-	mw.repository.UpdateGauge(GaugeMetricHeapAlloc, float64(mw.memStats.HeapAlloc))
-	mw.repository.UpdateGauge(GaugeMetricHeapIdle, float64(mw.memStats.HeapIdle))
-	mw.repository.UpdateGauge(GaugeMetricHeapInuse, float64(mw.memStats.HeapInuse))
-	mw.repository.UpdateGauge(GaugeMetricHeapObjects, float64(mw.memStats.HeapObjects))
-	mw.repository.UpdateGauge(GaugeMetricHeapReleased, float64(mw.memStats.HeapReleased))
-	mw.repository.UpdateGauge(GaugeMetricHeapSys, float64(mw.memStats.HeapSys))
-	mw.repository.UpdateGauge(GaugeMetricLastGC, float64(mw.memStats.LastGC))
-	mw.repository.UpdateGauge(GaugeMetricLookups, float64(mw.memStats.Lookups))
-	mw.repository.UpdateGauge(GaugeMetricMCacheInuse, float64(mw.memStats.MCacheInuse))
-	mw.repository.UpdateGauge(GaugeMetricMCacheSys, float64(mw.memStats.MCacheSys))
-	mw.repository.UpdateGauge(GaugeMetricMSpanInuse, float64(mw.memStats.MSpanInuse))
-	mw.repository.UpdateGauge(GaugeMetricMSpanSys, float64(mw.memStats.MSpanSys))
-	mw.repository.UpdateGauge(GaugeMetricMallocs, float64(mw.memStats.Mallocs))
-	mw.repository.UpdateGauge(GaugeMetricNextGC, float64(mw.memStats.NextGC))
-	mw.repository.UpdateGauge(GaugeMetricNumForcedGC, float64(mw.memStats.NumForcedGC))
-	mw.repository.UpdateGauge(GaugeMetricNumGC, float64(mw.memStats.NumGC))
-	mw.repository.UpdateGauge(GaugeMetricOtherSys, float64(mw.memStats.OtherSys))
-	mw.repository.UpdateGauge(GaugeMetricPauseTotalNs, float64(mw.memStats.PauseTotalNs))
-	mw.repository.UpdateGauge(GaugeMetricStackInuse, float64(mw.memStats.StackInuse))
-	mw.repository.UpdateGauge(GaugeMetricStackSys, float64(mw.memStats.StackSys))
-	mw.repository.UpdateGauge(GaugeMetricSys, float64(mw.memStats.Sys))
-	mw.repository.UpdateGauge(GaugeMetricTotalAlloc, float64(mw.memStats.TotalAlloc))
-	mw.repository.UpdateGauge(GaugeMetricRandomValue, rand.Float64())
-	mw.repository.UpdateCounter(CounterMetricPollCount, 1)
+func (mw *MetricWorker) CollectMetrics(count int64) {
+	gaugeMetrics := map[string]float64{
+		GaugeMetricAlloc:         float64(mw.memStats.Alloc),
+		GaugeMetricBuckHashSys:   float64(mw.memStats.BuckHashSys),
+		GaugeMetricFrees:         float64(mw.memStats.Frees),
+		GaugeMetricMCacheSys:     float64(mw.memStats.MCacheSys),
+		GaugeMetricMSpanInuse:    float64(mw.memStats.MSpanInuse),
+		GaugeMetricNumForcedGC:   float64(mw.memStats.NumForcedGC),
+		GaugeMetricGCCPUFraction: mw.memStats.GCCPUFraction,
+		GaugeMetricGCSys:         float64(mw.memStats.GCSys),
+		GaugeMetricHeapAlloc:     float64(mw.memStats.HeapAlloc),
+		GaugeMetricHeapIdle:      float64(mw.memStats.HeapIdle),
+		GaugeMetricHeapInuse:     float64(mw.memStats.HeapInuse),
+		GaugeMetricHeapObjects:   float64(mw.memStats.HeapObjects),
+		GaugeMetricHeapReleased:  float64(mw.memStats.HeapReleased),
+		GaugeMetricHeapSys:       float64(mw.memStats.HeapSys),
+		GaugeMetricLastGC:        float64(mw.memStats.LastGC),
+		GaugeMetricLookups:       float64(mw.memStats.Lookups),
+		GaugeMetricMCacheInuse:   float64(mw.memStats.MCacheInuse),
+		GaugeMetricMSpanSys:      float64(mw.memStats.MSpanSys),
+		GaugeMetricMallocs:       float64(mw.memStats.Mallocs),
+		GaugeMetricNextGC:        float64(mw.memStats.NextGC),
+		GaugeMetricNumGC:         float64(mw.memStats.NumGC),
+		GaugeMetricOtherSys:      float64(mw.memStats.OtherSys),
+		GaugeMetricPauseTotalNs:  float64(mw.memStats.PauseTotalNs),
+		GaugeMetricStackInuse:    float64(mw.memStats.StackInuse),
+		GaugeMetricStackSys:      float64(mw.memStats.StackSys),
+		GaugeMetricSys:           float64(mw.memStats.Sys),
+		GaugeMetricTotalAlloc:    float64(mw.memStats.TotalAlloc),
+		GaugeMetricRandomValue:   rand.Float64(),
+	}
+	for k, v := range gaugeMetrics {
+		mw.repository.UpdateMetric(&model.Metric{
+			ID:    k,
+			MType: MetricTypeGauge,
+			Value: &v,
+		})
+	}
+	mw.repository.UpdateMetric(&model.Metric{
+		ID:    CounterMetricPollCount,
+		MType: MetricTypeCounter,
+		Delta: &count,
+	})
 }
 
-func (mw *MetricWorker) SendMetric(url string, metric model.Metric) (int, string, error) {
+func (mw *MetricWorker) SendMetric(url string, metric *model.Metric) (int, string, error) {
 	body, err := json.Marshal(metric)
 	if err != nil {
 		return 0, "", err
@@ -149,26 +162,8 @@ func (mw *MetricWorker) SendMetric(url string, metric model.Metric) (int, string
 }
 
 func (mw *MetricWorker) SendMetrics(url string) {
-	for metricName, metricValue := range mw.repository.GetGauges() {
-		_, _, err := mw.SendMetric(
-			url,
-			model.Metric{
-				MType: MetricTypeGauge,
-				ID:    metricName,
-				Value: &metricValue,
-			})
-		if err != nil {
-			continue
-		}
-	}
-	for metricName, metricValue := range mw.repository.GetCounters() {
-		_, _, err := mw.SendMetric(
-			url,
-			model.Metric{
-				MType: MetricTypeCounter,
-				ID:    metricName,
-				Delta: &metricValue,
-			})
+	for _, metric := range mw.repository.GetMetrics() {
+		_, _, err := mw.SendMetric(url, metric)
 		if err != nil {
 			continue
 		}
@@ -178,16 +173,17 @@ func (mw *MetricWorker) SendMetrics(url string) {
 func (mw *MetricWorker) Poll() {
 	startTime := time.Now()
 	var url = "http://" + mw.config.ServerAddress.Address + "/update/"
-
+	var count int64 = 0
 	for {
 		currentTime := time.Now()
 		runtime.ReadMemStats(mw.memStats)
-		mw.CollectMetrics()
+		mw.CollectMetrics(count)
 
 		if currentTime.Sub(startTime).Seconds() >= float64(mw.config.ReportInterval) {
 			startTime = currentTime
 			mw.SendMetrics(url)
 		}
 		time.Sleep(time.Duration(mw.config.PollInterval) * time.Second)
+		count++
 	}
 }

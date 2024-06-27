@@ -208,11 +208,8 @@ func TestGetMetricValueHandler(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
-			for k, v := range test.repository.GetGauges() {
-				serverRepository.UpdateGauge(k, v)
-			}
-			for k, v := range test.repository.GetCounters() {
-				serverRepository.UpdateCounter(k, v)
+			for _, metric := range test.repository.GetMetrics() {
+				serverRepository.UpdateMetric(metric)
 			}
 			resp, value := testRequest(t, ts, http.MethodGet, test.url, false)
 			defer resp.Body.Close()
@@ -288,11 +285,8 @@ func TestRootHandler(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
-			for k, v := range test.repository.GetGauges() {
-				serverRepository.UpdateGauge(k, v)
-			}
-			for k, v := range test.repository.GetCounters() {
-				serverRepository.UpdateCounter(k, v)
+			for _, metric := range test.repository.GetMetrics() {
+				serverRepository.UpdateMetric(metric)
 			}
 
 			resp, value := testRequest(t, ts, http.MethodGet, "", test.acceptEncoding)
@@ -501,11 +495,8 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
-			for k, v := range test.repository.GetGauges() {
-				serverRepository.UpdateGauge(k, v)
-			}
-			for k, v := range test.repository.GetCounters() {
-				serverRepository.UpdateCounter(k, v)
+			for _, metric := range test.repository.GetMetrics() {
+				serverRepository.UpdateMetric(metric)
 			}
 			resp, respBody := testJSONRequest(t, ts, http.MethodPost, "/value", test.json, test.contentType)
 			defer resp.Body.Close()

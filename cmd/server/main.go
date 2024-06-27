@@ -38,14 +38,16 @@ func run() error {
 
 	logger.Log.Info("Running server", zap.String("address", serverConfig.ServerAddress.Address))
 
-	go func() {
-		for {
-			err = metricRouter.Repository.Save()
-			if err != nil {
-				logger.Log.Info("error saving metrics", zap.Error(err))
+	if serverConfig.StoreInterval > 0 {
+		go func() {
+			for {
+				err = metricRouter.Repository.Save()
+				if err != nil {
+					logger.Log.Info("error saving metrics", zap.Error(err))
+				}
+				time.Sleep(time.Duration(serverConfig.StoreInterval) * time.Second)
 			}
-			time.Sleep(time.Duration(serverConfig.StoreInterval) * time.Second)
-		}
-	}()
+		}()
+	}
 	return http.ListenAndServe(serverConfig.ServerAddress.Address, metricRouter.Router)
 }

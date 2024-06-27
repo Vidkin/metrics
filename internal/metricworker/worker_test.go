@@ -153,10 +153,10 @@ func TestSendMetric(t *testing.T) {
 			clear(serverRepository.Counter)
 
 			if test.sendToWrongURL {
-				_, _, err := mw.SendMetric(ts.URL+"/wrong_url/", test.metric)
+				_, _, err := mw.SendMetric(ts.URL+"/wrong_url/", &test.metric)
 				assert.NotNil(t, err)
 			} else {
-				respCode, respBody, err := mw.SendMetric(ts.URL+"/update/", test.metric)
+				respCode, respBody, err := mw.SendMetric(ts.URL+"/update/", &test.metric)
 				assert.Equal(t, test.want.statusCode, respCode)
 				if test.want.statusCode == http.StatusOK {
 					assert.JSONEq(t, test.want.resp, respBody)
