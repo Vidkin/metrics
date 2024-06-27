@@ -1,10 +1,10 @@
-package handlers
+package handler
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/Vidkin/metrics/internal/logger"
-	"github.com/Vidkin/metrics/internal/models"
+	"github.com/Vidkin/metrics/internal/model"
 	middleware2 "github.com/Vidkin/metrics/pkg/middleware"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -174,7 +174,7 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 		return
 	}
 
-	var metric models.Metrics
+	var metric model.Metric
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&metric); err != nil {
 		http.Error(res, "can't decode request body", http.StatusBadRequest)
@@ -229,7 +229,7 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 		return
 	}
 
-	var metric models.Metrics
+	var metric model.Metric
 
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&metric); err != nil {
@@ -237,7 +237,7 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 		return
 	}
 
-	respMetric := models.Metrics{
+	respMetric := model.Metric{
 		ID:    metric.ID,
 		MType: metric.MType,
 	}

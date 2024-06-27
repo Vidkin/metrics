@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/Vidkin/metrics/internal/api/handler"
 	"github.com/Vidkin/metrics/internal/config"
-	"github.com/Vidkin/metrics/internal/domain/handlers"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/repository"
 	"go.uber.org/zap"
@@ -34,7 +34,7 @@ func run() error {
 			logger.Log.Info("error load saved metrics", zap.Error(err))
 		}
 	}
-	metricRouter := handlers.NewMetricRouter(memStorage, serverConfig.StoreInterval)
+	metricRouter := handler.NewMetricRouter(memStorage, serverConfig.StoreInterval)
 
 	logger.Log.Info("Running server", zap.String("address", serverConfig.ServerAddress.Address))
 

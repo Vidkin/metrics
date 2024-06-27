@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"github.com/Vidkin/metrics/internal/api/handler"
 	"github.com/Vidkin/metrics/internal/config"
-	"github.com/Vidkin/metrics/internal/domain/handlers"
-	"github.com/Vidkin/metrics/internal/models"
+	"github.com/Vidkin/metrics/internal/model"
 	"github.com/go-resty/resty/v2"
 	"io"
 	"math/rand/v2"
@@ -52,13 +52,13 @@ const (
 )
 
 type MetricWorker struct {
-	repository handlers.Repository
+	repository handler.Repository
 	memStats   *runtime.MemStats
 	client     *resty.Client
 	config     *config.AgentConfig
 }
 
-func New(repository handlers.Repository, memStats *runtime.MemStats, client *resty.Client, config *config.AgentConfig) *MetricWorker {
+func New(repository handler.Repository, memStats *runtime.MemStats, client *resty.Client, config *config.AgentConfig) *MetricWorker {
 	return &MetricWorker{
 		repository: repository,
 		memStats:   memStats,
@@ -99,7 +99,7 @@ func (mw *MetricWorker) CollectMetrics() {
 	mw.repository.UpdateCounter(CounterMetricPollCount, 1)
 }
 
-func (mw *MetricWorker) SendMetric(url string, metric models.Metrics) (int, string, error) {
+func (mw *MetricWorker) SendMetric(url string, metric model.Metric) (int, string, error) {
 	body, err := json.Marshal(metric)
 	if err != nil {
 		return 0, "", err
@@ -152,7 +152,7 @@ func (mw *MetricWorker) SendMetrics(url string) {
 	for metricName, metricValue := range mw.repository.GetGauges() {
 		_, _, err := mw.SendMetric(
 			url,
-			models.Metrics{
+			model.Metric{
 				MType: MetricTypeGauge,
 				ID:    metricName,
 				Value: &metricValue,
@@ -164,7 +164,7 @@ func (mw *MetricWorker) SendMetrics(url string) {
 	for metricName, metricValue := range mw.repository.GetCounters() {
 		_, _, err := mw.SendMetric(
 			url,
-			models.Metrics{
+			model.Metric{
 				MType: MetricTypeCounter,
 				ID:    metricName,
 				Delta: &metricValue,

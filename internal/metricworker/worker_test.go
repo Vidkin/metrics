@@ -1,8 +1,8 @@
 package metricworker
 
 import (
-	"github.com/Vidkin/metrics/internal/domain/handlers"
-	"github.com/Vidkin/metrics/internal/models"
+	"github.com/Vidkin/metrics/internal/api/handler"
+	"github.com/Vidkin/metrics/internal/model"
 	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +15,7 @@ func TestSendMetrics(t *testing.T) {
 	tests := []struct {
 		name           string
 		sendToWrongURL bool
-		repository     handlers.Repository
+		repository     handler.Repository
 	}{
 		{
 			name:           "test send ok",
@@ -38,7 +38,7 @@ func TestSendMetrics(t *testing.T) {
 	serverRepository := repository.NewMemoryStorage("")
 	client := resty.New()
 	client.SetDoNotParseResponse(true)
-	metricRouter := handlers.NewMetricRouter(serverRepository, 300)
+	metricRouter := handler.NewMetricRouter(serverRepository, 300)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -71,14 +71,14 @@ func TestSendMetric(t *testing.T) {
 	tests := []struct {
 		name           string
 		sendToWrongURL bool
-		metric         models.Metrics
+		metric         model.Metric
 		statusCode     int
 		want           want
 	}{
 		{
 			name:           "test send counter ok",
 			sendToWrongURL: false,
-			metric: models.Metrics{
+			metric: model.Metric{
 				MType: MetricTypeCounter,
 				ID:    "test",
 				Delta: &testIntValue,
@@ -91,7 +91,7 @@ func TestSendMetric(t *testing.T) {
 		{
 			name:           "test send gauge ok",
 			sendToWrongURL: false,
-			metric: models.Metrics{
+			metric: model.Metric{
 				MType: MetricTypeGauge,
 				ID:    "test",
 				Value: &testFloatValue,
@@ -104,7 +104,7 @@ func TestSendMetric(t *testing.T) {
 		{
 			name:           "test send bad metric type",
 			sendToWrongURL: false,
-			metric: models.Metrics{
+			metric: model.Metric{
 				MType: "badMetricType",
 				ID:    "test",
 				Delta: &testIntValue,
@@ -116,7 +116,7 @@ func TestSendMetric(t *testing.T) {
 		{
 			name:           "test send empty metric name",
 			sendToWrongURL: false,
-			metric: models.Metrics{
+			metric: model.Metric{
 				MType: "badMetricType",
 				ID:    "",
 				Delta: &testIntValue,
@@ -128,7 +128,7 @@ func TestSendMetric(t *testing.T) {
 		{
 			name:           "test send bad metric value",
 			sendToWrongURL: false,
-			metric: models.Metrics{
+			metric: model.Metric{
 				MType: "badMetricType",
 				ID:    "test",
 			},
@@ -141,7 +141,7 @@ func TestSendMetric(t *testing.T) {
 	serverRepository := repository.NewMemoryStorage("")
 	client := resty.New()
 	client.SetDoNotParseResponse(true)
-	metricRouter := handlers.NewMetricRouter(serverRepository, 300)
+	metricRouter := handler.NewMetricRouter(serverRepository, 300)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
