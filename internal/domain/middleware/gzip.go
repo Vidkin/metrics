@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	"github.com/Vidkin/metrics/internal/domain/handlers/compress"
 	"github.com/Vidkin/metrics/internal/logger"
+	"github.com/Vidkin/metrics/pkg/compress"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
