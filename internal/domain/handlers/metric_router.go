@@ -133,33 +133,33 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 
 	switch metricType {
 	case MetricTypeGauge:
-		if value, err := strconv.ParseFloat(metricValue, 64); err != nil {
+		value, err := strconv.ParseFloat(metricValue, 64)
+		if err != nil {
 			logger.Log.Info("can't convert metric value", zap.Error(err))
 			http.Error(res, "Bad metric value!", http.StatusBadRequest)
 			return
-		} else {
-			mr.Repository.UpdateGauge(metricName, value)
-			if mr.StoreInterval == 0 {
-				if err := mr.Repository.SaveGauge(metricName, value); err != nil {
-					logger.Log.Info("error saving gauge metric", zap.Error(err))
-					http.Error(res, "error saving gauge metric", http.StatusInternalServerError)
-					return
-				}
+		}
+		mr.Repository.UpdateGauge(metricName, value)
+		if mr.StoreInterval == 0 {
+			if err := mr.Repository.SaveGauge(metricName, value); err != nil {
+				logger.Log.Info("error saving gauge metric", zap.Error(err))
+				http.Error(res, "error saving gauge metric", http.StatusInternalServerError)
+				return
 			}
 		}
 	case MetricTypeCounter:
-		if value, err := strconv.ParseInt(metricValue, 10, 64); err != nil {
+		value, err := strconv.ParseInt(metricValue, 10, 64)
+		if err != nil {
 			logger.Log.Info("can't convert metric value", zap.Error(err))
 			http.Error(res, "Bad metric value!", http.StatusBadRequest)
 			return
-		} else {
-			mr.Repository.UpdateCounter(metricName, value)
-			if mr.StoreInterval == 0 {
-				if err := mr.Repository.SaveCounter(metricName, value); err != nil {
-					logger.Log.Info("error saving counter metric", zap.Error(err))
-					http.Error(res, "error saving counter metric", http.StatusInternalServerError)
-					return
-				}
+		}
+		mr.Repository.UpdateCounter(metricName, value)
+		if mr.StoreInterval == 0 {
+			if err := mr.Repository.SaveCounter(metricName, value); err != nil {
+				logger.Log.Info("error saving counter metric", zap.Error(err))
+				http.Error(res, "error saving counter metric", http.StatusInternalServerError)
+				return
 			}
 		}
 	default:
