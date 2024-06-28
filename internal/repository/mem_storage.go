@@ -15,6 +15,9 @@ const (
 type MemStorage struct {
 	Gauge           map[string]float64
 	Counter         map[string]int64
+	gaugeMetrics    []*model.Metric
+	counterMetrics  []*model.Metric
+	allMetrics      []*model.Metric
 	FileStoragePath string
 }
 
@@ -22,6 +25,8 @@ func NewMemoryStorage(fileStoragePath string) *MemStorage {
 	var m MemStorage
 	m.Gauge = make(map[string]float64)
 	m.Counter = make(map[string]int64)
+	m.gaugeMetrics = make([]*model.Metric, 0)
+	m.counterMetrics = make([]*model.Metric, 0)
 	m.FileStoragePath = fileStoragePath
 	return &m
 }
@@ -68,33 +73,34 @@ func (m *MemStorage) GetMetric(mType string, name string) (*model.Metric, bool) 
 }
 
 func (m *MemStorage) GetMetrics() []*model.Metric {
-	gauge := m.GetGauges()
-	counter := m.GetCounters()
-	return append(gauge, counter...)
+	m.allMetrics = m.allMetrics[:0]
+	m.allMetrics = append(m.allMetrics, m.GetGauges()...)
+	m.allMetrics = append(m.allMetrics, m.GetCounters()...)
+	return m.allMetrics
 }
 
 func (m *MemStorage) GetGauges() []*model.Metric {
-	metrics := make([]*model.Metric, 0, len(m.Gauge))
+	m.gaugeMetrics = m.gaugeMetrics[:0]
 	for k, v := range m.Gauge {
-		metrics = append(metrics, &model.Metric{
+		m.gaugeMetrics = append(m.gaugeMetrics, &model.Metric{
 			ID:    k,
 			Value: &v,
 			MType: MetricTypeGauge,
 		})
 	}
-	return metrics
+	return m.gaugeMetrics
 }
 
 func (m *MemStorage) GetCounters() []*model.Metric {
-	metrics := make([]*model.Metric, 0, len(m.Counter))
+	m.counterMetrics = m.counterMetrics[:0]
 	for k, v := range m.Counter {
-		metrics = append(metrics, &model.Metric{
+		m.counterMetrics = append(m.counterMetrics, &model.Metric{
 			ID:    k,
 			Delta: &v,
 			MType: MetricTypeCounter,
 		})
 	}
-	return metrics
+	return m.counterMetrics
 }
 
 func (m *MemStorage) SaveMetric(metric *model.Metric) error {
