@@ -31,7 +31,7 @@ func (m *MemStorage) UpdateMetric(metric *model.Metric) {
 	case MetricTypeGauge:
 		m.Gauge[metric.ID] = *metric.Value
 	case MetricTypeCounter:
-		m.Counter[metric.ID] = *metric.Delta
+		m.Counter[metric.ID] += *metric.Delta
 	}
 }
 
