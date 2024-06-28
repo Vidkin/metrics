@@ -27,6 +27,7 @@ func NewMemoryStorage(fileStoragePath string) *MemStorage {
 	m.Counter = make(map[string]int64)
 	m.gaugeMetrics = make([]*model.Metric, 0)
 	m.counterMetrics = make([]*model.Metric, 0)
+	m.allMetrics = make([]*model.Metric, 0)
 	m.FileStoragePath = fileStoragePath
 	return &m
 }

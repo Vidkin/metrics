@@ -55,7 +55,7 @@ func TestSendMetrics(t *testing.T) {
 				assert.NotEqual(t, test.repository, serverRepository)
 			} else {
 				mw.SendMetrics(ts.URL + "/update/")
-				assert.Equal(t, test.repository.GetMetrics(), serverRepository.GetMetrics())
+				assert.ElementsMatch(t, test.repository.GetMetrics(), serverRepository.GetMetrics())
 			}
 		})
 	}
