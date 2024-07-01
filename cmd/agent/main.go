@@ -9,11 +9,15 @@ import (
 )
 
 func main() {
-	agentConfig := config.NewAgentConfig()
-
-	var memoryStorage = repository.New()
+	agentConfig, err := config.NewAgentConfig()
+	if err != nil {
+		panic(err)
+	}
+	memoryStorage := repository.NewMemoryStorage("")
 	memStats := &runtime.MemStats{}
 	client := resty.New()
+	client.SetDoNotParseResponse(true)
+	mw := metricworker.New(memoryStorage, memStats, client, agentConfig)
 
-	metricworker.Poll(client, memoryStorage, memStats, agentConfig)
+	mw.Poll()
 }

@@ -1,7 +1,8 @@
 package metricworker
 
 import (
-	"github.com/Vidkin/metrics/internal/domain/handlers"
+	"github.com/Vidkin/metrics/internal/api/handler"
+	"github.com/Vidkin/metrics/internal/model"
 	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ func TestSendMetrics(t *testing.T) {
 	tests := []struct {
 		name           string
 		sendToWrongURL bool
-		repository     handlers.Repository
+		repository     handler.Repository
 	}{
 		{
 			name:           "test send ok",
@@ -34,78 +35,117 @@ func TestSendMetrics(t *testing.T) {
 		},
 	}
 
-	serverRepository := repository.New()
-	metricRouter := handlers.NewMetricRouter(serverRepository)
+	serverRepository := repository.NewMemoryStorage("")
+	client := resty.New()
+	client.SetDoNotParseResponse(true)
+	metricRouter := handler.NewMetricRouter(serverRepository, 300)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
-	client := resty.New()
+	mw := New(nil, nil, client, nil)
 
 	for _, test := range tests {
+		mw.repository = test.repository
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
 
 			if test.sendToWrongURL {
-				SendMetrics(client, ts.URL+"/wrong_url/", test.repository)
+				mw.SendMetrics(ts.URL + "/wrong_url/")
 				assert.NotEqual(t, test.repository, serverRepository)
 			} else {
-				SendMetrics(client, ts.URL+"/update/", test.repository)
-				assert.Equal(t, test.repository, serverRepository)
+				mw.SendMetrics(ts.URL + "/update/")
+				assert.ElementsMatch(t, test.repository.GetMetrics(), serverRepository.GetMetrics())
 			}
 		})
 	}
 }
 
 func TestSendMetric(t *testing.T) {
+	var testIntValue int64 = 42
+	var testFloatValue = 42.5
+	type want struct {
+		resp       string
+		statusCode int
+	}
 	tests := []struct {
 		name           string
 		sendToWrongURL bool
-		metricType     string
-		metricName     string
-		metricValue    string
+		metric         model.Metric
 		statusCode     int
+		want           want
 	}{
 		{
-			name:           "test send ok",
+			name:           "test send counter ok",
 			sendToWrongURL: false,
-			metricType:     MetricTypeGauge,
-			metricName:     "test",
-			metricValue:    "25",
-			statusCode:     http.StatusOK,
+			metric: model.Metric{
+				MType: MetricTypeCounter,
+				ID:    "test",
+				Delta: &testIntValue,
+			},
+			want: want{
+				resp:       `{"type":"counter","id":"test","delta":42}`,
+				statusCode: http.StatusOK,
+			},
+		},
+		{
+			name:           "test send gauge ok",
+			sendToWrongURL: false,
+			metric: model.Metric{
+				MType: MetricTypeGauge,
+				ID:    "test",
+				Value: &testFloatValue,
+			},
+			want: want{
+				resp:       `{"type":"gauge","id":"test","value":42.5}`,
+				statusCode: http.StatusOK,
+			},
 		},
 		{
 			name:           "test send bad metric type",
 			sendToWrongURL: false,
-			metricType:     "bad_metric_type",
-			metricName:     "test",
-			metricValue:    "25",
-			statusCode:     http.StatusBadRequest,
+			metric: model.Metric{
+				MType: "badMetricType",
+				ID:    "test",
+				Delta: &testIntValue,
+			},
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
 		},
 		{
 			name:           "test send empty metric name",
 			sendToWrongURL: false,
-			metricType:     "gauge",
-			metricName:     "",
-			metricValue:    "25",
-			statusCode:     http.StatusNotFound,
+			metric: model.Metric{
+				MType: "badMetricType",
+				ID:    "",
+				Delta: &testIntValue,
+			},
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
 		},
 		{
 			name:           "test send bad metric value",
 			sendToWrongURL: false,
-			metricType:     "gauge",
-			metricName:     "test",
-			metricValue:    "bad_value",
-			statusCode:     http.StatusBadRequest,
+			metric: model.Metric{
+				MType: "badMetricType",
+				ID:    "test",
+			},
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
 		},
 	}
 
-	serverRepository := repository.New()
-	metricRouter := handlers.NewMetricRouter(serverRepository)
+	serverRepository := repository.NewMemoryStorage("")
+	client := resty.New()
+	client.SetDoNotParseResponse(true)
+	metricRouter := handler.NewMetricRouter(serverRepository, 300)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
-	client := resty.New()
+	mw := New(nil, nil, client, nil)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -113,12 +153,15 @@ func TestSendMetric(t *testing.T) {
 			clear(serverRepository.Counter)
 
 			if test.sendToWrongURL {
-				_, err := SendMetric(client, ts.URL+"/wrong_url/", test.metricType, test.metricName, test.metricValue)
+				_, _, err := mw.SendMetric(ts.URL+"/wrong_url/", &test.metric)
 				assert.NotNil(t, err)
 			} else {
-				respCode, err := SendMetric(client, ts.URL+"/update/", test.metricType, test.metricName, test.metricValue)
-				assert.Equal(t, test.statusCode, respCode)
-				assert.Nil(t, err)
+				respCode, respBody, err := mw.SendMetric(ts.URL+"/update/", &test.metric)
+				assert.Equal(t, test.want.statusCode, respCode)
+				if test.want.statusCode == http.StatusOK {
+					assert.JSONEq(t, test.want.resp, respBody)
+					assert.Nil(t, err)
+				}
 			}
 		})
 	}
