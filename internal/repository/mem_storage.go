@@ -2,7 +2,7 @@ package repository
 
 import (
 	"encoding/json"
-	"github.com/Vidkin/metrics/internal/model"
+	me "github.com/Vidkin/metrics/internal/metric"
 	"io"
 	"os"
 )
@@ -15,9 +15,9 @@ const (
 type MemStorage struct {
 	Gauge           map[string]float64
 	Counter         map[string]int64
-	gaugeMetrics    []*model.Metric
-	counterMetrics  []*model.Metric
-	allMetrics      []*model.Metric
+	gaugeMetrics    []*me.Metric
+	counterMetrics  []*me.Metric
+	allMetrics      []*me.Metric
 	FileStoragePath string
 }
 
@@ -25,14 +25,14 @@ func NewMemoryStorage(fileStoragePath string) *MemStorage {
 	var m MemStorage
 	m.Gauge = make(map[string]float64)
 	m.Counter = make(map[string]int64)
-	m.gaugeMetrics = make([]*model.Metric, 0)
-	m.counterMetrics = make([]*model.Metric, 0)
-	m.allMetrics = make([]*model.Metric, 0)
+	m.gaugeMetrics = make([]*me.Metric, 0)
+	m.counterMetrics = make([]*me.Metric, 0)
+	m.allMetrics = make([]*me.Metric, 0)
 	m.FileStoragePath = fileStoragePath
 	return &m
 }
 
-func (m *MemStorage) UpdateMetric(metric *model.Metric) {
+func (m *MemStorage) UpdateMetric(metric *me.Metric) {
 	switch metric.MType {
 	case MetricTypeGauge:
 		m.Gauge[metric.ID] = *metric.Value
@@ -50,8 +50,8 @@ func (m *MemStorage) DeleteMetric(mType string, name string) {
 	}
 }
 
-func (m *MemStorage) GetMetric(mType string, name string) (*model.Metric, bool) {
-	var metric model.Metric
+func (m *MemStorage) GetMetric(mType string, name string) (*me.Metric, bool) {
+	var metric me.Metric
 	switch mType {
 	case MetricTypeGauge:
 		v, ok := m.Gauge[name]
@@ -73,17 +73,17 @@ func (m *MemStorage) GetMetric(mType string, name string) (*model.Metric, bool) 
 	return &metric, true
 }
 
-func (m *MemStorage) GetMetrics() []*model.Metric {
+func (m *MemStorage) GetMetrics() []*me.Metric {
 	m.allMetrics = m.allMetrics[:0]
 	m.allMetrics = append(m.allMetrics, m.GetGauges()...)
 	m.allMetrics = append(m.allMetrics, m.GetCounters()...)
 	return m.allMetrics
 }
 
-func (m *MemStorage) GetGauges() []*model.Metric {
+func (m *MemStorage) GetGauges() []*me.Metric {
 	m.gaugeMetrics = m.gaugeMetrics[:0]
 	for k, v := range m.Gauge {
-		m.gaugeMetrics = append(m.gaugeMetrics, &model.Metric{
+		m.gaugeMetrics = append(m.gaugeMetrics, &me.Metric{
 			ID:    k,
 			Value: &v,
 			MType: MetricTypeGauge,
@@ -92,10 +92,10 @@ func (m *MemStorage) GetGauges() []*model.Metric {
 	return m.gaugeMetrics
 }
 
-func (m *MemStorage) GetCounters() []*model.Metric {
+func (m *MemStorage) GetCounters() []*me.Metric {
 	m.counterMetrics = m.counterMetrics[:0]
 	for k, v := range m.Counter {
-		m.counterMetrics = append(m.counterMetrics, &model.Metric{
+		m.counterMetrics = append(m.counterMetrics, &me.Metric{
 			ID:    k,
 			Delta: &v,
 			MType: MetricTypeCounter,
@@ -104,14 +104,14 @@ func (m *MemStorage) GetCounters() []*model.Metric {
 	return m.counterMetrics
 }
 
-func (m *MemStorage) SaveMetric(metric *model.Metric) error {
+func (m *MemStorage) SaveMetric(metric *me.Metric) error {
 	file, err := os.OpenFile(m.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil && err != io.EOF {
 		return err
 	}
 	defer file.Close()
 
-	var metrics []model.Metric
+	var metrics []me.Metric
 	data, err := io.ReadAll(file)
 	if err != nil {
 		return err
@@ -185,7 +185,7 @@ func (m *MemStorage) Load() error {
 	}
 	defer file.Close()
 
-	var metrics []model.Metric
+	var metrics []me.Metric
 	data, err := io.ReadAll(file)
 	if err != nil {
 		return err

@@ -1,11 +1,12 @@
-package handler
+package router
 
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
-	"github.com/Vidkin/metrics/internal/model"
-	middleware2 "github.com/Vidkin/metrics/pkg/middleware"
+	"github.com/Vidkin/metrics/internal/metric"
+	"github.com/Vidkin/metrics/pkg/middleware"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"io"
@@ -31,25 +32,23 @@ type MetricRouter struct {
 }
 
 type Repository interface {
-	UpdateMetric(metric *model.Metric)
+	UpdateMetric(metric *metric.Metric)
 	DeleteMetric(mType string, name string)
-	SaveMetric(metric *model.Metric) error
+	SaveMetric(metric *metric.Metric) error
 
-	GetMetric(mType string, name string) (*model.Metric, bool)
-	GetMetrics() []*model.Metric
-	GetGauges() []*model.Metric
-	GetCounters() []*model.Metric
+	GetMetric(mType string, name string) (*metric.Metric, bool)
+	GetMetrics() []*metric.Metric
+	GetGauges() []*metric.Metric
+	GetCounters() []*metric.Metric
 
 	Save() error
 	Load() error
 }
 
-func NewMetricRouter(repository Repository, storeInterval int) *MetricRouter {
+func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *config.ServerConfig) *MetricRouter {
 	var mr MetricRouter
-	router := chi.NewRouter()
-
-	router.Use(middleware2.Logging)
-	router.Use(middleware2.Gzip)
+	router.Use(middleware.Logging)
+	router.Use(middleware.Gzip)
 
 	router.Route("/", func(r chi.Router) {
 		r.Get("/", mr.RootHandler)
@@ -64,7 +63,7 @@ func NewMetricRouter(repository Repository, storeInterval int) *MetricRouter {
 	})
 	mr.Router = router
 	mr.Repository = repository
-	mr.StoreInterval = storeInterval
+	mr.StoreInterval = serverConfig.StoreInterval
 	mr.LastStoreTime = time.Now()
 	return &mr
 }
@@ -122,7 +121,7 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 		return
 	}
 
-	metric := model.Metric{
+	metric := metric.Metric{
 		ID:    metricName,
 		MType: metricType,
 	}
@@ -168,7 +167,7 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 		return
 	}
 
-	var metric model.Metric
+	var metric metric.Metric
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&metric); err != nil {
 		http.Error(res, "can't decode request body", http.StatusBadRequest)
@@ -217,7 +216,7 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 		return
 	}
 
-	var metric model.Metric
+	var metric metric.Metric
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&metric); err != nil {
 		http.Error(res, "can't decode request body", http.StatusBadRequest)

@@ -2,12 +2,11 @@ package config
 
 import (
 	"flag"
-	"github.com/Vidkin/metrics/internal/serveraddress"
 	"github.com/caarlos0/env/v6"
 )
 
 type ServerConfig struct {
-	ServerAddress   *serveraddress.ServerAddress
+	ServerAddress   *ServerAddress
 	StoreInterval   int    `env:"STORE_INTERVAL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
@@ -16,7 +15,7 @@ type ServerConfig struct {
 
 func NewServerConfig() (*ServerConfig, error) {
 	var config ServerConfig
-	config.ServerAddress = serveraddress.New()
+	config.ServerAddress = New()
 	err := config.parseFlags()
 	if err != nil {
 		return nil, err

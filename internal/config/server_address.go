@@ -1,4 +1,4 @@
-package serveraddress
+package config
 
 import (
 	"errors"
