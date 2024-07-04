@@ -1,6 +1,8 @@
 package router
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/Vidkin/metrics/internal/config"
@@ -29,6 +31,7 @@ type MetricRouter struct {
 	Router        chi.Router
 	LastStoreTime time.Time
 	StoreInterval int
+	db            *sql.DB
 }
 
 type Repository interface {
@@ -45,13 +48,16 @@ type Repository interface {
 	Load() error
 }
 
-func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *config.ServerConfig) *MetricRouter {
+func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *config.ServerConfig, db *sql.DB) *MetricRouter {
 	var mr MetricRouter
 	router.Use(middleware.Logging)
 	router.Use(middleware.Gzip)
 
 	router.Route("/", func(r chi.Router) {
 		r.Get("/", mr.RootHandler)
+		router.Route("/ping", func(r chi.Router) {
+			r.Get("/", mr.PingDBHandler)
+		})
 		router.Route("/value", func(r chi.Router) {
 			r.Post("/", mr.GetMetricValueHandlerJSON)
 			r.Get("/{metricType}/{metricName}", mr.GetMetricValueHandler)
@@ -62,6 +68,7 @@ func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *confi
 		})
 	})
 	mr.Router = router
+	mr.db = db
 	mr.Repository = repository
 	mr.StoreInterval = serverConfig.StoreInterval
 	mr.LastStoreTime = time.Now()
@@ -80,6 +87,18 @@ func (mr *MetricRouter) RootHandler(res http.ResponseWriter, _ *http.Request) {
 			_, _ = io.WriteString(res, fmt.Sprintf("%s = %d\n", metric.ID, *metric.Delta))
 		}
 	}
+}
+
+func (mr *MetricRouter) PingDBHandler(res http.ResponseWriter, _ *http.Request) {
+	res.Header().Set("Content-Type", "text/plain")
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	if err := mr.db.PingContext(ctx); err != nil {
+		logger.Log.Info("couldn't connect to database")
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http.Request) {

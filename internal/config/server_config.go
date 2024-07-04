@@ -10,6 +10,7 @@ type ServerConfig struct {
 	StoreInterval   int    `env:"STORE_INTERVAL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
 	LogLevel        string
 }
 
@@ -28,6 +29,7 @@ func (config *ServerConfig) parseFlags() error {
 	flag.StringVar(&config.LogLevel, "l", "info", "Log level")
 	flag.IntVar(&config.StoreInterval, "i", 300, "Config store interval")
 	flag.StringVar(&config.FileStoragePath, "f", "/tmp/metrics-db.json", "Config file storage path")
+	flag.StringVar(&config.DatabaseDSN, "d", "", "Database DSN")
 	flag.BoolVar(&config.Restore, "r", true, "Restore config on startup")
 	flag.Parse()
 

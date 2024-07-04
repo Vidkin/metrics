@@ -42,7 +42,7 @@ func TestSendMetrics(t *testing.T) {
 	client.SetDoNotParseResponse(true)
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
-	metricRouter := router.NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+	metricRouter := router.NewMetricRouter(chiRouter, serverRepository, &serverConfig, nil)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -147,7 +147,7 @@ func TestSendMetric(t *testing.T) {
 	client.SetDoNotParseResponse(true)
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
-	metricRouter := router.NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+	metricRouter := router.NewMetricRouter(chiRouter, serverRepository, &serverConfig, nil)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 

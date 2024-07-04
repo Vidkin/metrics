@@ -124,7 +124,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 	serverRepository := repository.NewMemoryStorage("")
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
-	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig, nil)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -206,7 +206,7 @@ func TestGetMetricValueHandler(t *testing.T) {
 	serverRepository := repository.NewMemoryStorage("")
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
-	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig, nil)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -285,7 +285,7 @@ func TestRootHandler(t *testing.T) {
 	serverRepository := repository.NewMemoryStorage("")
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
-	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig, nil)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -385,7 +385,7 @@ func TestUpdateMetricHandlerJSON(t *testing.T) {
 	serverRepository := repository.NewMemoryStorage("")
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
-	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig, nil)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -499,7 +499,7 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 	serverRepository := repository.NewMemoryStorage("")
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
-	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig, nil)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -525,7 +525,7 @@ func TestGzipCompression(t *testing.T) {
 	serverRepository := repository.NewMemoryStorage("")
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
-	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig, nil)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
