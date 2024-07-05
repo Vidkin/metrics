@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"github.com/Vidkin/metrics/internal/logger"
 	me "github.com/Vidkin/metrics/internal/metric"
 	"github.com/golang-migrate/migrate/v4"
@@ -130,7 +129,6 @@ func (p *PostgresStorage) SaveMetric(ctx context.Context, metric *me.Metric) err
 		row = p.db.QueryRowContext(ctx, "SELECT metric_id FROM counter WHERE metric_name = $1", metric.ID)
 	}
 	if err := row.Scan(&id); err != nil && err != sql.ErrNoRows {
-		fmt.Println(metric.MType, metric.ID, err)
 		return err
 	}
 
