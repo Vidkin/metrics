@@ -90,9 +90,7 @@ func (mr *MetricRouter) RootHandler(res http.ResponseWriter, _ *http.Request) {
 
 func (mr *MetricRouter) PingDBHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain")
-	ctx, cancel := context.WithTimeout(req.Context(), 1*time.Second)
-	defer cancel()
-	if err := mr.Repository.Ping(ctx); err != nil {
+	if err := mr.Repository.Ping(req.Context()); err != nil {
 		logger.Log.Info("couldn't connect to database")
 		res.WriteHeader(http.StatusInternalServerError)
 		return
