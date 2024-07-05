@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/repository"
@@ -20,7 +19,6 @@ type ServerApp struct {
 	config     *config.ServerConfig
 	srv        *http.Server
 	repository router.Repository
-	db         *sql.DB
 }
 
 func initRepository(serverConfig *config.ServerConfig) (router.Repository, error) {
@@ -127,5 +125,5 @@ func (a *ServerApp) Stop() {
 		logger.Log.Info("error saving metrics", zap.Error(err))
 	}
 
-	defer a.db.Close()
+	a.repository.Close()
 }

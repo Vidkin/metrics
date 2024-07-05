@@ -44,6 +44,7 @@ type Repository interface {
 
 	Save(ctx context.Context) error
 	Load(ctx context.Context) error
+	Close() error
 
 	Ping(ctx context.Context) error
 }

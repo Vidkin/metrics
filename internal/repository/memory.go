@@ -115,3 +115,7 @@ func (m *MemoryStorage) Load(ctx context.Context) error {
 func (m *MemoryStorage) Ping(ctx context.Context) error {
 	return nil
 }
+
+func (m *MemoryStorage) Close() error {
+	return nil
+}

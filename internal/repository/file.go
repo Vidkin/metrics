@@ -199,3 +199,7 @@ func (f *FileStorage) Load(ctx context.Context) error {
 func (f *FileStorage) Ping(ctx context.Context) error {
 	return nil
 }
+
+func (f *FileStorage) Close() error {
+	return nil
+}

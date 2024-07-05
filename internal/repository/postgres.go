@@ -246,3 +246,7 @@ func (p *PostgresStorage) Load(ctx context.Context) error {
 func (p *PostgresStorage) Ping(ctx context.Context) error {
 	return p.db.PingContext(ctx)
 }
+
+func (p *PostgresStorage) Close() error {
+	return p.db.Close()
+}
