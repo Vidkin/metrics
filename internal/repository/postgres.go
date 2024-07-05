@@ -194,7 +194,6 @@ func (p *PostgresStorage) Load(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
 
 	p.allMetrics = p.allMetrics[:0]
 	for rows.Next() {
@@ -210,6 +209,7 @@ func (p *PostgresStorage) Load(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	rows.Close()
 
 	rows, err = p.db.QueryContext(ctx, "SELECT metric_name, metric_value from counter")
 	if err != nil {

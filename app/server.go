@@ -88,12 +88,12 @@ func (a *ServerApp) Run() {
 		go func() {
 			for {
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-				defer cancel()
 				err := a.repository.Save(ctx)
 				if err != nil {
 					logger.Log.Info("error saving metrics", zap.Error(err))
 				}
 				time.Sleep(time.Duration(a.config.StoreInterval) * time.Second)
+				cancel()
 			}
 		}()
 	}
