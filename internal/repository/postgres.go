@@ -36,9 +36,17 @@ func NewPostgresStorage(dbDSN string) (*PostgresStorage, error) {
 	}
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		logger.Log.Fatal("can't create postgres driver for migrations", zap.Error(err))
+		return nil, err
+	}
 	m, err := migrate.NewWithDatabaseInstance(
 		"file://../../migrations",
 		"postgres", driver)
+	if err != nil {
+		logger.Log.Fatal("can't create new migrate instance", zap.Error(err))
+		return nil, err
+	}
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		logger.Log.Fatal("can't exec migrations", zap.Error(err))
 		return nil, err
