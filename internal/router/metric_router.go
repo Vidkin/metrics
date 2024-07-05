@@ -2,7 +2,6 @@ package router
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/Vidkin/metrics/internal/config"
@@ -31,24 +30,25 @@ type MetricRouter struct {
 	Router        chi.Router
 	LastStoreTime time.Time
 	StoreInterval int
-	db            *sql.DB
 }
 
 type Repository interface {
 	UpdateMetric(metric *metric.Metric)
 	DeleteMetric(mType string, name string)
-	SaveMetric(metric *metric.Metric) error
+	SaveMetric(ctx context.Context, metric *metric.Metric) error
 
 	GetMetric(mType string, name string) (*metric.Metric, bool)
 	GetMetrics() []*metric.Metric
 	GetGauges() []*metric.Metric
 	GetCounters() []*metric.Metric
 
-	Save() error
-	Load() error
+	Save(ctx context.Context) error
+	Load(ctx context.Context) error
+
+	Ping(ctx context.Context) error
 }
 
-func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *config.ServerConfig, db *sql.DB) *MetricRouter {
+func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *config.ServerConfig) *MetricRouter {
 	var mr MetricRouter
 	router.Use(middleware.Logging)
 	router.Use(middleware.Gzip)
@@ -68,7 +68,6 @@ func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *confi
 		})
 	})
 	mr.Router = router
-	mr.db = db
 	mr.Repository = repository
 	mr.StoreInterval = serverConfig.StoreInterval
 	mr.LastStoreTime = time.Now()
@@ -89,11 +88,11 @@ func (mr *MetricRouter) RootHandler(res http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-func (mr *MetricRouter) PingDBHandler(res http.ResponseWriter, _ *http.Request) {
+func (mr *MetricRouter) PingDBHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain")
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(req.Context(), 1*time.Second)
 	defer cancel()
-	if err := mr.db.PingContext(ctx); err != nil {
+	if err := mr.Repository.Ping(ctx); err != nil {
 		logger.Log.Info("couldn't connect to database")
 		res.WriteHeader(http.StatusInternalServerError)
 		return
@@ -169,7 +168,7 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 
 	mr.Repository.UpdateMetric(&metric)
 	if mr.StoreInterval == 0 {
-		if err := mr.Repository.SaveMetric(&metric); err != nil {
+		if err := mr.Repository.SaveMetric(req.Context(), &metric); err != nil {
 			logger.Log.Info("error saving metric", zap.Error(err))
 			http.Error(res, "error saving  metric", http.StatusInternalServerError)
 			return
@@ -211,7 +210,7 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 
 	mr.Repository.UpdateMetric(&metric)
 	if mr.StoreInterval == 0 {
-		if err := mr.Repository.SaveMetric(&metric); err != nil {
+		if err := mr.Repository.SaveMetric(req.Context(), &metric); err != nil {
 			logger.Log.Info("error saving gauge metric", zap.Error(err))
 			http.Error(res, "error saving gauge metric", http.StatusInternalServerError)
 			return

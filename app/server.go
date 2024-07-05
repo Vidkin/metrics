@@ -8,7 +8,6 @@ import (
 	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/Vidkin/metrics/internal/router"
 	"github.com/go-chi/chi/v5"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
@@ -24,6 +23,38 @@ type ServerApp struct {
 	db         *sql.DB
 }
 
+func initRepository(serverConfig *config.ServerConfig) (router.Repository, error) {
+	if serverConfig.DatabaseDSN != "" {
+		postgresStorage, err := repository.NewPostgresStorage(serverConfig.DatabaseDSN)
+		if err != nil {
+			return nil, err
+		}
+		if serverConfig.Restore {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			if err := postgresStorage.Load(ctx); err != nil {
+				logger.Log.Info("error load saved metrics", zap.Error(err))
+			}
+		}
+		return postgresStorage, nil
+	}
+
+	if serverConfig.FileStoragePath != "" {
+		fileStorage := repository.NewFileStorage(serverConfig.FileStoragePath)
+		if serverConfig.Restore {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			if err := fileStorage.Load(ctx); err != nil {
+				logger.Log.Info("error load saved metrics", zap.Error(err))
+			}
+		}
+		return fileStorage, nil
+	}
+
+	memStorage := repository.NewMemoryStorage()
+	return memStorage, nil
+}
+
 func NewServerApp() (*ServerApp, error) {
 	serverConfig, err := config.NewServerConfig()
 	if err != nil {
@@ -33,22 +64,13 @@ func NewServerApp() (*ServerApp, error) {
 	if err := logger.Initialize(serverConfig.LogLevel); err != nil {
 		return nil, err
 	}
-
-	db, err := sql.Open("pgx", serverConfig.DatabaseDSN)
+	repo, err := initRepository(serverConfig)
 	if err != nil {
-		logger.Log.Error("error open sql connection", zap.Error(err))
 		return nil, err
 	}
-
-	memStorage := repository.NewMemoryStorage(serverConfig.FileStoragePath)
-	if serverConfig.Restore {
-		if err := memStorage.Load(); err != nil {
-			logger.Log.Info("error load saved metrics", zap.Error(err))
-		}
-	}
-
 	chiRouter := chi.NewRouter()
-	metricRouter := router.NewMetricRouter(chiRouter, memStorage, serverConfig, db)
+	metricRouter := router.NewMetricRouter(chiRouter, repo, serverConfig)
+
 	srv := &http.Server{
 		Addr:    serverConfig.ServerAddress.Address,
 		Handler: metricRouter.Router,
@@ -56,8 +78,7 @@ func NewServerApp() (*ServerApp, error) {
 	return &ServerApp{
 		config:     serverConfig,
 		srv:        srv,
-		repository: metricRouter.Repository,
-		db:         db,
+		repository: repo,
 	}, nil
 }
 
@@ -66,7 +87,9 @@ func (a *ServerApp) Run() {
 	if a.config.StoreInterval > 0 {
 		go func() {
 			for {
-				err := a.repository.Save()
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				defer cancel()
+				err := a.repository.Save(ctx)
 				if err != nil {
 					logger.Log.Info("error saving metrics", zap.Error(err))
 				}
@@ -99,7 +122,7 @@ func (a *ServerApp) Stop() {
 	}
 
 	logger.Log.Info("save metrics before exit")
-	err := a.repository.Save()
+	err := a.repository.Save(ctx)
 	if err != nil {
 		logger.Log.Info("error saving metrics", zap.Error(err))
 	}

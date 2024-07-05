@@ -1,6 +1,8 @@
 package metric
 
-import "strconv"
+import (
+	"strconv"
+)
 
 type Metric struct {
 	ID    string   `json:"id"`              // имя метрики

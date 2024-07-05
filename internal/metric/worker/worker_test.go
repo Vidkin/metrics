@@ -22,7 +22,7 @@ func TestSendMetrics(t *testing.T) {
 		{
 			name:           "test send ok",
 			sendToWrongURL: false,
-			repository: &repository.MemStorage{
+			repository: &repository.FileStorage{
 				Gauge:   map[string]float64{"param1": 45.21, "param2": 12},
 				Counter: map[string]int64{"param2": 1},
 			},
@@ -30,19 +30,19 @@ func TestSendMetrics(t *testing.T) {
 		{
 			name:           "test send to wrong url",
 			sendToWrongURL: true,
-			repository: &repository.MemStorage{
+			repository: &repository.FileStorage{
 				Gauge:   map[string]float64{"param1": 45.21, "param2": 12},
 				Counter: map[string]int64{"param2": 1},
 			},
 		},
 	}
 
-	serverRepository := repository.NewMemoryStorage("")
+	serverRepository := repository.NewMemoryStorage()
 	client := resty.New()
 	client.SetDoNotParseResponse(true)
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
-	metricRouter := router.NewMetricRouter(chiRouter, serverRepository, &serverConfig, nil)
+	metricRouter := router.NewMetricRouter(chiRouter, serverRepository, &serverConfig)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -142,12 +142,12 @@ func TestSendMetric(t *testing.T) {
 		},
 	}
 
-	serverRepository := repository.NewMemoryStorage("")
+	serverRepository := repository.NewMemoryStorage()
 	client := resty.New()
 	client.SetDoNotParseResponse(true)
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
-	metricRouter := router.NewMetricRouter(chiRouter, serverRepository, &serverConfig, nil)
+	metricRouter := router.NewMetricRouter(chiRouter, serverRepository, &serverConfig)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 

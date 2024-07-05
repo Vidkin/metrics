@@ -28,7 +28,7 @@ func (config *ServerConfig) parseFlags() error {
 	flag.Var(config.ServerAddress, "a", "Net address host:port")
 	flag.StringVar(&config.LogLevel, "l", "info", "Log level")
 	flag.IntVar(&config.StoreInterval, "i", 300, "Config store interval")
-	flag.StringVar(&config.FileStoragePath, "f", "/tmp/metrics-db.json", "Config file storage path")
+	flag.StringVar(&config.FileStoragePath, "f", "", "Config file storage path")
 	flag.StringVar(&config.DatabaseDSN, "d", "", "Database DSN")
 	flag.BoolVar(&config.Restore, "r", true, "Restore config on startup")
 	flag.Parse()

@@ -13,7 +13,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	memoryStorage := repository.NewMemoryStorage("")
+	memoryStorage := repository.NewFileStorage("")
 	memStats := &runtime.MemStats{}
 	client := resty.New()
 	client.SetDoNotParseResponse(true)
