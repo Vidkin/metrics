@@ -5,12 +5,11 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/Vidkin/metrics/internal/config"
-	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/metric"
 	"github.com/Vidkin/metrics/internal/router"
 	"github.com/go-resty/resty/v2"
-	"go.uber.org/zap"
 	"io"
 	"math/rand/v2"
 	"runtime"
@@ -109,7 +108,7 @@ func (mw *MetricWorker) CollectMetrics(count int64) {
 			Value: &v,
 		})
 		if err != nil {
-			logger.Log.Info("error update gauge metric", zap.Error(err))
+			fmt.Println("error update gauge metric", err)
 		}
 	}
 	err := mw.repository.UpdateMetric(ctx, &metric.Metric{
@@ -118,7 +117,7 @@ func (mw *MetricWorker) CollectMetrics(count int64) {
 		Delta: &count,
 	})
 	if err != nil {
-		logger.Log.Info("error update counter metric", zap.Error(err))
+		fmt.Println("error update counter metric", err)
 	}
 }
 

@@ -66,18 +66,26 @@ func NewPostgresStorage(dbDSN string) (*PostgresStorage, error) {
 func (p *PostgresStorage) UpdateMetric(ctx context.Context, metric *me.Metric) error {
 	switch metric.MType {
 	case MetricTypeGauge:
-		stmt, err := p.db.PrepareContext(ctx, "UPDATE gauge SET metric_value=$1 WHERE metric_name=$2")
+		_, err := p.GetMetric(ctx, metric.MType, metric.ID)
+		if errors.Is(err, sql.ErrNoRows) {
+			_, err := p.db.ExecContext(ctx, "INSERT INTO gauge (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Value)
+			return err
+		}
 		if err != nil {
 			return err
 		}
-		_, err = stmt.ExecContext(ctx, *metric.Value, metric.ID)
+		_, err = p.db.ExecContext(ctx, "UPDATE gauge SET metric_value=$1 WHERE metric_name=$2", *metric.Value, metric.ID)
 		return err
 	case MetricTypeCounter:
-		stmt, err := p.db.PrepareContext(ctx, "UPDATE counter SET metric_value=metric_value + $1 WHERE metric_name=$2")
+		_, err := p.GetMetric(ctx, metric.MType, metric.ID)
+		if errors.Is(err, sql.ErrNoRows) {
+			_, err := p.db.ExecContext(ctx, "INSERT INTO counter (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Delta)
+			return err
+		}
 		if err != nil {
 			return err
 		}
-		_, err = stmt.ExecContext(ctx, *metric.Delta, metric.ID)
+		_, err = p.db.ExecContext(ctx, "UPDATE counter SET metric_value=$1 WHERE metric_name=$2", *metric.Delta, metric.ID)
 		return err
 	default:
 		return errors.New("unknown metric type")
