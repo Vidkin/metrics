@@ -110,6 +110,9 @@ func (p *PostgresStorage) UpdateMetrics(ctx context.Context, metrics *[]me.Metri
 				return err
 			}
 			_, err = tx.ExecContext(ctx, "UPDATE gauge SET metric_value=$1 WHERE metric_name=$2", *metric.Value, metric.ID)
+			if err != nil {
+				return err
+			}
 		case MetricTypeCounter:
 			_, err := p.GetMetric(ctx, metric.MType, metric.ID)
 			if errors.Is(err, sql.ErrNoRows) {
@@ -120,6 +123,9 @@ func (p *PostgresStorage) UpdateMetrics(ctx context.Context, metrics *[]me.Metri
 				return err
 			}
 			_, err = tx.ExecContext(ctx, "UPDATE counter SET metric_value=$1 WHERE metric_name=$2", *metric.Delta, metric.ID)
+			if err != nil {
+				return err
+			}
 		default:
 			return errors.New("unknown metric type")
 		}
