@@ -35,6 +35,7 @@ type MetricRouter struct {
 
 type Repository interface {
 	UpdateMetric(ctx context.Context, metric *metric.Metric) error
+	UpdateMetrics(ctx context.Context, metrics *[]metric.Metric) error
 	DeleteMetric(ctx context.Context, mType string, name string) error
 
 	GetMetric(ctx context.Context, mType string, name string) (*metric.Metric, error)
@@ -63,6 +64,9 @@ func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *confi
 		router.Route("/update", func(r chi.Router) {
 			r.Post("/", mr.UpdateMetricHandlerJSON)
 			r.Post("/{metricType}/{metricName}/{metricValue}", mr.UpdateMetricHandler)
+		})
+		router.Route("/updates", func(r chi.Router) {
+			r.Post("/", mr.UpdatesMetricHandlerJSON)
 		})
 	})
 	mr.Router = router
@@ -273,6 +277,53 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 	if err := enc.Encode(respMetric); err != nil {
 		logger.Log.Info("error encoding response metric", zap.Error(err))
 		http.Error(res, "error encoding response metric", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (mr *MetricRouter) UpdatesMetricHandlerJSON(res http.ResponseWriter, req *http.Request) {
+	if req.Header.Get("Content-Type") != "application/json" {
+		http.Error(res, "only application/json content-type allowed", http.StatusBadRequest)
+		return
+	}
+
+	var metrics []metric.Metric
+	dec := json.NewDecoder(req.Body)
+	if err := dec.Decode(&metrics); err != nil {
+		http.Error(res, "can't decode request body", http.StatusBadRequest)
+		return
+	}
+
+	for _, m := range metrics {
+		if (m.Value == nil && m.Delta == nil) || (m.MType != MetricTypeCounter && m.MType != MetricTypeGauge) {
+			http.Error(res, "bad metric", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err := mr.Repository.UpdateMetrics(req.Context(), &metrics); err != nil {
+		logger.Log.Info("error update metrics", zap.Error(err))
+		http.Error(res, "error update metrics", http.StatusInternalServerError)
+		return
+	}
+
+	if t, ok := mr.Repository.(*repository.FileStorage); ok && (mr.StoreInterval == 0) {
+		for _, me := range metrics {
+			if err := t.SaveMetric(&me); err != nil {
+				logger.Log.Info("error saving metric", zap.Error(err))
+				http.Error(res, "error saving  metric", http.StatusInternalServerError)
+				return
+			}
+		}
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+
+	enc := json.NewEncoder(res)
+	if err := enc.Encode(metrics); err != nil {
+		logger.Log.Info("error encoding response", zap.Error(err))
+		http.Error(res, "error encoding response", http.StatusInternalServerError)
 		return
 	}
 }

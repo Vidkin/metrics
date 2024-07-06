@@ -59,7 +59,7 @@ func TestSendMetrics(t *testing.T) {
 				mw.SendMetrics(ts.URL + "/wrong_url/")
 				assert.NotEqual(t, test.repository, serverRepository)
 			} else {
-				mw.SendMetrics(ts.URL + "/update/")
+				mw.SendMetrics(ts.URL + "/updates/")
 				ctx := context.TODO()
 				testMetrics, _ := test.repository.GetMetrics(ctx)
 				serverMetrics, _ := serverRepository.GetMetrics(ctx)

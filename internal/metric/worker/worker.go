@@ -100,7 +100,8 @@ func (mw *MetricWorker) CollectMetrics(count int64) {
 		GaugeMetricTotalAlloc:    float64(mw.memStats.TotalAlloc),
 		GaugeMetricRandomValue:   rand.Float64(),
 	}
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 	for k, v := range gaugeMetrics {
 		err := mw.repository.UpdateMetric(ctx, &metric.Metric{
 			ID:    k,
@@ -170,20 +171,42 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 	return resp.StatusCode(), string(respBody), nil
 }
 
-func (mw *MetricWorker) SendMetrics(url string) {
-	ctx := context.TODO()
+func (mw *MetricWorker) SendMetrics(url string) (int, string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 	metrics, _ := mw.repository.GetMetrics(ctx)
-	for _, me := range metrics {
-		_, _, err := mw.SendMetric(url, me)
-		if err != nil {
-			continue
-		}
+
+	body, _ := json.Marshal(metrics)
+	buf := bytes.NewBuffer(nil)
+	zb := gzip.NewWriter(buf)
+	_, _ = zb.Write(body)
+	zb.Close()
+
+	resp, _ := mw.client.R().
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Content-Encoding", "gzip").
+		SetHeader("Accept-Encoding", "gzip").
+		SetBody(buf).
+		Post(url)
+
+	defer resp.RawBody().Close()
+
+	contentEncoding := resp.Header().Get("Content-Encoding")
+	var or io.ReadCloser
+	if strings.Contains(contentEncoding, "gzip") {
+		cr, _ := gzip.NewReader(resp.RawBody())
+		or = cr
+	} else {
+		or = resp.RawBody()
 	}
+	respBody, _ := io.ReadAll(or)
+
+	return resp.StatusCode(), string(respBody)
 }
 
 func (mw *MetricWorker) Poll() {
 	startTime := time.Now()
-	var url = "http://" + mw.config.ServerAddress.Address + "/update/"
+	var url = "http://" + mw.config.ServerAddress.Address + "/updates/"
 	var count int64 = 0
 	for {
 		currentTime := time.Now()

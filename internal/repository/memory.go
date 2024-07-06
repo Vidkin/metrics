@@ -39,6 +39,18 @@ func (m *MemoryStorage) UpdateMetric(_ context.Context, metric *me.Metric) error
 	return nil
 }
 
+func (m *MemoryStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) error {
+	for _, metric := range *metrics {
+		switch metric.MType {
+		case MetricTypeGauge:
+			m.Gauge[metric.ID] = *metric.Value
+		case MetricTypeCounter:
+			m.Counter[metric.ID] += *metric.Delta
+		}
+	}
+	return nil
+}
+
 func (m *MemoryStorage) DeleteMetric(_ context.Context, mType string, name string) error {
 	switch mType {
 	case MetricTypeGauge:

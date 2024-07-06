@@ -409,6 +409,85 @@ func TestUpdateMetricHandlerJSON(t *testing.T) {
 	}
 }
 
+func TestUpdateMetricsHandlerJSON(t *testing.T) {
+	type want struct {
+		contentType string
+		statusCode  int
+		respBody    string
+	}
+
+	var tests = []struct {
+		name        string
+		json        string
+		contentType string
+		want        want
+	}{
+		{
+			name: "test update metrics status ok",
+			want: want{
+				statusCode:  http.StatusOK,
+				contentType: "application/json",
+				respBody:    `[{"id":"test","type":"gauge","value":13.5},{"id":"test1","type":"counter","delta":13}]`,
+			},
+			contentType: "application/json",
+			json:        `[{"id":"test","type":"gauge","value":13.5},{"id":"test1","type":"counter","delta":13}]`,
+		},
+		{
+			name: "test bad content-type",
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+			contentType: "text/plain",
+			json:        `[{"id":"test","type":"counter","delta":13}]`,
+		},
+		{
+			name: "test update with empty value",
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+			contentType: "application/json",
+			json:        `[{"id":"test","type":"counter"}]`,
+		},
+		{
+			name: "test bad metric type",
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+			contentType: "application/json",
+			json:        `[{"id":"test","type":"badType","delta":13}]`,
+		},
+		{
+			name: "test bad request body",
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+			contentType: "application/json",
+			json:        ``,
+		},
+	}
+
+	serverRepository := repository.NewMemoryStorage()
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 300}
+	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+	ts := httptest.NewServer(metricRouter.Router)
+	defer ts.Close()
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			clear(serverRepository.Gauge)
+			clear(serverRepository.Counter)
+			resp, respBody := testJSONRequest(t, ts, http.MethodPost, "/updates", test.json, test.contentType)
+			defer resp.Body.Close()
+			assert.Equal(t, test.want.statusCode, resp.StatusCode)
+			if test.want.statusCode == http.StatusOK {
+				assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
+				assert.JSONEq(t, test.want.respBody, respBody)
+			}
+		})
+	}
+}
+
 func TestGetMetricValueHandlerJSON(t *testing.T) {
 	type want struct {
 		contentType string

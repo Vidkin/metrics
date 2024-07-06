@@ -92,6 +92,43 @@ func (p *PostgresStorage) UpdateMetric(ctx context.Context, metric *me.Metric) e
 	}
 }
 
+func (p *PostgresStorage) UpdateMetrics(ctx context.Context, metrics *[]me.Metric) error {
+	tx, err := p.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, metric := range *metrics {
+		switch metric.MType {
+		case MetricTypeGauge:
+			_, err := p.GetMetric(ctx, metric.MType, metric.ID)
+			if errors.Is(err, sql.ErrNoRows) {
+				_, err := tx.ExecContext(ctx, "INSERT INTO gauge (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Value)
+				return err
+			}
+			if err != nil {
+				return err
+			}
+			_, err = tx.ExecContext(ctx, "UPDATE gauge SET metric_value=$1 WHERE metric_name=$2", *metric.Value, metric.ID)
+			return err
+		case MetricTypeCounter:
+			_, err := p.GetMetric(ctx, metric.MType, metric.ID)
+			if errors.Is(err, sql.ErrNoRows) {
+				_, err := tx.ExecContext(ctx, "INSERT INTO counter (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Delta)
+				return err
+			}
+			if err != nil {
+				return err
+			}
+			_, err = tx.ExecContext(ctx, "UPDATE counter SET metric_value=$1 WHERE metric_name=$2", *metric.Delta, metric.ID)
+			return err
+		default:
+			return errors.New("unknown metric type")
+		}
+	}
+	return tx.Commit()
+}
+
 func (p *PostgresStorage) DeleteMetric(ctx context.Context, mType string, name string) error {
 	switch mType {
 	case MetricTypeGauge:
