@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/metric"
 	"github.com/Vidkin/metrics/internal/repository"
@@ -59,7 +60,10 @@ func TestSendMetrics(t *testing.T) {
 				assert.NotEqual(t, test.repository, serverRepository)
 			} else {
 				mw.SendMetrics(ts.URL + "/update/")
-				assert.ElementsMatch(t, test.repository.GetMetrics(), serverRepository.GetMetrics())
+				ctx := context.TODO()
+				testMetrics, _ := test.repository.GetMetrics(ctx)
+				serverMetrics, _ := serverRepository.GetMetrics(ctx)
+				assert.ElementsMatch(t, testMetrics, serverMetrics)
 			}
 		})
 	}

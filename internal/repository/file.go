@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	me "github.com/Vidkin/metrics/internal/metric"
 	"io"
 	"os"
@@ -28,31 +29,33 @@ func NewFileStorage(fileStoragePath string) *FileStorage {
 	return &f
 }
 
-func (f *FileStorage) UpdateMetric(metric *me.Metric) {
+func (f *FileStorage) UpdateMetric(_ context.Context, metric *me.Metric) error {
 	switch metric.MType {
 	case MetricTypeGauge:
 		f.Gauge[metric.ID] = *metric.Value
 	case MetricTypeCounter:
 		f.Counter[metric.ID] += *metric.Delta
 	}
+	return nil
 }
 
-func (f *FileStorage) DeleteMetric(mType string, name string) {
+func (f *FileStorage) DeleteMetric(_ context.Context, mType string, name string) error {
 	switch mType {
 	case MetricTypeGauge:
 		delete(f.Gauge, name)
 	case MetricTypeCounter:
 		delete(f.Counter, name)
 	}
+	return nil
 }
 
-func (f *FileStorage) GetMetric(mType string, name string) (*me.Metric, bool) {
+func (f *FileStorage) GetMetric(_ context.Context, mType string, name string) (*me.Metric, error) {
 	var metric me.Metric
 	switch mType {
 	case MetricTypeGauge:
 		v, ok := f.Gauge[name]
 		if !ok {
-			return nil, false
+			return nil, errors.New("metric not found")
 		}
 		metric.ID = name
 		metric.MType = MetricTypeGauge
@@ -60,23 +63,29 @@ func (f *FileStorage) GetMetric(mType string, name string) (*me.Metric, bool) {
 	case MetricTypeCounter:
 		v, ok := f.Counter[name]
 		if !ok {
-			return nil, false
+			return nil, errors.New("metric not found")
 		}
 		metric.ID = name
 		metric.MType = MetricTypeCounter
 		metric.Delta = &v
 	}
-	return &metric, true
+	return &metric, nil
 }
 
-func (f *FileStorage) GetMetrics() []*me.Metric {
+func (f *FileStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) {
 	f.allMetrics = f.allMetrics[:0]
-	f.allMetrics = append(f.allMetrics, f.GetGauges()...)
-	f.allMetrics = append(f.allMetrics, f.GetCounters()...)
-	return f.allMetrics
+	if _, err := f.GetGauges(ctx); err != nil {
+		return nil, err
+	}
+	if _, err := f.GetCounters(ctx); err != nil {
+		return nil, err
+	}
+	f.allMetrics = append(f.allMetrics, f.gaugeMetrics...)
+	f.allMetrics = append(f.allMetrics, f.counterMetrics...)
+	return f.allMetrics, nil
 }
 
-func (f *FileStorage) GetGauges() []*me.Metric {
+func (f *FileStorage) GetGauges(_ context.Context) ([]*me.Metric, error) {
 	f.gaugeMetrics = f.gaugeMetrics[:0]
 	for k, v := range f.Gauge {
 		f.gaugeMetrics = append(f.gaugeMetrics, &me.Metric{
@@ -85,10 +94,10 @@ func (f *FileStorage) GetGauges() []*me.Metric {
 			MType: MetricTypeGauge,
 		})
 	}
-	return f.gaugeMetrics
+	return f.gaugeMetrics, nil
 }
 
-func (f *FileStorage) GetCounters() []*me.Metric {
+func (f *FileStorage) GetCounters(_ context.Context) ([]*me.Metric, error) {
 	f.counterMetrics = f.counterMetrics[:0]
 	for k, v := range f.Counter {
 		f.counterMetrics = append(f.counterMetrics, &me.Metric{
@@ -97,10 +106,10 @@ func (f *FileStorage) GetCounters() []*me.Metric {
 			MType: MetricTypeCounter,
 		})
 	}
-	return f.counterMetrics
+	return f.counterMetrics, nil
 }
 
-func (f *FileStorage) SaveMetric(ctx context.Context, metric *me.Metric) error {
+func (f *FileStorage) SaveMetric(metric *me.Metric) error {
 	file, err := os.OpenFile(f.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil && err != io.EOF {
 		return err
@@ -120,12 +129,12 @@ func (f *FileStorage) SaveMetric(ctx context.Context, metric *me.Metric) error {
 	}
 
 	found := false
-	for index, me := range metrics {
-		if me.ID == metric.ID && me.MType == metric.MType {
-			if me.MType == MetricTypeCounter {
+	for index, met := range metrics {
+		if met.ID == metric.ID && met.MType == metric.MType {
+			if met.MType == MetricTypeCounter {
 				metrics[index].Delta = metric.Delta
 			}
-			if me.MType == MetricTypeGauge {
+			if met.MType == MetricTypeGauge {
 				metrics[index].Value = metric.Value
 			}
 			found = true
@@ -156,8 +165,14 @@ func (f *FileStorage) Save(ctx context.Context) error {
 	}
 	defer file.Close()
 
-	gauge := f.GetGauges()
-	counter := f.GetCounters()
+	gauge, err := f.GetGauges(ctx)
+	if err != nil {
+		return err
+	}
+	counter, err := f.GetCounters(ctx)
+	if err != nil {
+		return err
+	}
 	metrics := append(gauge, counter...)
 
 	b, err := json.Marshal(metrics)
@@ -191,12 +206,14 @@ func (f *FileStorage) Load(ctx context.Context) error {
 	}
 
 	for _, metric := range metrics {
-		f.UpdateMetric(&metric)
+		if err := f.UpdateMetric(ctx, &metric); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (f *FileStorage) Ping(ctx context.Context) error {
+func (f *FileStorage) Ping(_ context.Context) error {
 	return nil
 }
 

@@ -23,18 +23,7 @@ type ServerApp struct {
 
 func initRepository(serverConfig *config.ServerConfig) (router.Repository, error) {
 	if serverConfig.DatabaseDSN != "" {
-		postgresStorage, err := repository.NewPostgresStorage(serverConfig.DatabaseDSN)
-		if err != nil {
-			return nil, err
-		}
-		if serverConfig.Restore {
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-			if err := postgresStorage.Load(ctx); err != nil {
-				logger.Log.Info("error load saved metrics", zap.Error(err))
-			}
-		}
-		return postgresStorage, nil
+		return repository.NewPostgresStorage(serverConfig.DatabaseDSN)
 	}
 
 	if serverConfig.FileStoragePath != "" {
@@ -82,11 +71,12 @@ func NewServerApp() (*ServerApp, error) {
 
 func (a *ServerApp) Run() {
 	logger.Log.Info("running server", zap.String("address", a.config.ServerAddress.Address))
-	if a.config.StoreInterval > 0 {
+
+	if t, ok := a.repository.(*repository.FileStorage); ok && a.config.StoreInterval > 0 {
 		go func() {
 			for {
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-				err := a.repository.Save(ctx)
+				err := t.Save(ctx)
 				if err != nil {
 					logger.Log.Info("error saving metrics", zap.Error(err))
 				}
@@ -120,10 +110,11 @@ func (a *ServerApp) Stop() {
 	}
 
 	logger.Log.Info("save metrics before exit")
-	err := a.repository.Save(ctx)
-	if err != nil {
-		logger.Log.Info("error saving metrics", zap.Error(err))
+	if t, ok := a.repository.(*repository.FileStorage); ok {
+		err := t.Save(ctx)
+		if err != nil {
+			logger.Log.Info("error saving metrics", zap.Error(err))
+		}
 	}
-
 	a.repository.Close()
 }

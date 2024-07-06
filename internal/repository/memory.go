@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	me "github.com/Vidkin/metrics/internal/metric"
 )
 
@@ -28,31 +29,33 @@ func NewMemoryStorage() *MemoryStorage {
 	return &m
 }
 
-func (m *MemoryStorage) UpdateMetric(metric *me.Metric) {
+func (m *MemoryStorage) UpdateMetric(_ context.Context, metric *me.Metric) error {
 	switch metric.MType {
 	case MetricTypeGauge:
 		m.Gauge[metric.ID] = *metric.Value
 	case MetricTypeCounter:
 		m.Counter[metric.ID] += *metric.Delta
 	}
+	return nil
 }
 
-func (m *MemoryStorage) DeleteMetric(mType string, name string) {
+func (m *MemoryStorage) DeleteMetric(_ context.Context, mType string, name string) error {
 	switch mType {
 	case MetricTypeGauge:
 		delete(m.Gauge, name)
 	case MetricTypeCounter:
 		delete(m.Counter, name)
 	}
+	return nil
 }
 
-func (m *MemoryStorage) GetMetric(mType string, name string) (*me.Metric, bool) {
+func (m *MemoryStorage) GetMetric(_ context.Context, mType string, name string) (*me.Metric, error) {
 	var metric me.Metric
 	switch mType {
 	case MetricTypeGauge:
 		v, ok := m.Gauge[name]
 		if !ok {
-			return nil, false
+			return nil, errors.New("metric not found")
 		}
 		metric.ID = name
 		metric.MType = MetricTypeGauge
@@ -60,23 +63,29 @@ func (m *MemoryStorage) GetMetric(mType string, name string) (*me.Metric, bool) 
 	case MetricTypeCounter:
 		v, ok := m.Counter[name]
 		if !ok {
-			return nil, false
+			return nil, errors.New("metric not found")
 		}
 		metric.ID = name
 		metric.MType = MetricTypeCounter
 		metric.Delta = &v
 	}
-	return &metric, true
+	return &metric, nil
 }
 
-func (m *MemoryStorage) GetMetrics() []*me.Metric {
+func (m *MemoryStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) {
 	m.allMetrics = m.allMetrics[:0]
-	m.allMetrics = append(m.allMetrics, m.GetGauges()...)
-	m.allMetrics = append(m.allMetrics, m.GetCounters()...)
-	return m.allMetrics
+	if _, err := m.GetGauges(ctx); err != nil {
+		return nil, err
+	}
+	if _, err := m.GetCounters(ctx); err != nil {
+		return nil, err
+	}
+	m.allMetrics = append(m.allMetrics, m.gaugeMetrics...)
+	m.allMetrics = append(m.allMetrics, m.counterMetrics...)
+	return m.allMetrics, nil
 }
 
-func (m *MemoryStorage) GetGauges() []*me.Metric {
+func (m *MemoryStorage) GetGauges(_ context.Context) ([]*me.Metric, error) {
 	m.gaugeMetrics = m.gaugeMetrics[:0]
 	for k, v := range m.Gauge {
 		m.gaugeMetrics = append(m.gaugeMetrics, &me.Metric{
@@ -85,10 +94,10 @@ func (m *MemoryStorage) GetGauges() []*me.Metric {
 			MType: MetricTypeGauge,
 		})
 	}
-	return m.gaugeMetrics
+	return m.gaugeMetrics, nil
 }
 
-func (m *MemoryStorage) GetCounters() []*me.Metric {
+func (m *MemoryStorage) GetCounters(_ context.Context) ([]*me.Metric, error) {
 	m.counterMetrics = m.counterMetrics[:0]
 	for k, v := range m.Counter {
 		m.counterMetrics = append(m.counterMetrics, &me.Metric{
@@ -97,22 +106,10 @@ func (m *MemoryStorage) GetCounters() []*me.Metric {
 			MType: MetricTypeCounter,
 		})
 	}
-	return m.counterMetrics
+	return m.counterMetrics, nil
 }
 
-func (m *MemoryStorage) SaveMetric(ctx context.Context, metric *me.Metric) error {
-	return nil
-}
-
-func (m *MemoryStorage) Save(ctx context.Context) error {
-	return nil
-}
-
-func (m *MemoryStorage) Load(ctx context.Context) error {
-	return nil
-}
-
-func (m *MemoryStorage) Ping(ctx context.Context) error {
+func (m *MemoryStorage) Ping(_ context.Context) error {
 	return nil
 }
 

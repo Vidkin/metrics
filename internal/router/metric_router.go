@@ -7,6 +7,7 @@ import (
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/metric"
+	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/Vidkin/metrics/pkg/middleware"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -33,19 +34,15 @@ type MetricRouter struct {
 }
 
 type Repository interface {
-	UpdateMetric(metric *metric.Metric)
-	DeleteMetric(mType string, name string)
-	SaveMetric(ctx context.Context, metric *metric.Metric) error
+	UpdateMetric(ctx context.Context, metric *metric.Metric) error
+	DeleteMetric(ctx context.Context, mType string, name string) error
 
-	GetMetric(mType string, name string) (*metric.Metric, bool)
-	GetMetrics() []*metric.Metric
-	GetGauges() []*metric.Metric
-	GetCounters() []*metric.Metric
+	GetMetric(ctx context.Context, mType string, name string) (*metric.Metric, error)
+	GetMetrics(ctx context.Context) ([]*metric.Metric, error)
+	GetGauges(ctx context.Context) ([]*metric.Metric, error)
+	GetCounters(ctx context.Context) ([]*metric.Metric, error)
 
-	Save(ctx context.Context) error
-	Load(ctx context.Context) error
 	Close() error
-
 	Ping(ctx context.Context) error
 }
 
@@ -75,16 +72,23 @@ func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *confi
 	return &mr
 }
 
-func (mr *MetricRouter) RootHandler(res http.ResponseWriter, _ *http.Request) {
+func (mr *MetricRouter) RootHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/html")
-	res.WriteHeader(http.StatusOK)
 
-	for _, metric := range mr.Repository.GetMetrics() {
-		if metric.MType == MetricTypeGauge {
-			_, _ = io.WriteString(res, fmt.Sprintf("%s = %v\n", metric.ID, *metric.Value))
+	metrics, err := mr.Repository.GetMetrics(req.Context())
+	if err != nil {
+		logger.Log.Info("error get metrics", zap.Error(err))
+		http.Error(res, "error get metrics", http.StatusInternalServerError)
+		return
+	}
+
+	res.WriteHeader(http.StatusOK)
+	for _, me := range metrics {
+		if me.MType == MetricTypeGauge {
+			_, _ = io.WriteString(res, fmt.Sprintf("%s = %v\n", me.ID, *me.Value))
 		}
-		if metric.MType == MetricTypeCounter {
-			_, _ = io.WriteString(res, fmt.Sprintf("%s = %d\n", metric.ID, *metric.Delta))
+		if me.MType == MetricTypeCounter {
+			_, _ = io.WriteString(res, fmt.Sprintf("%s = %d\n", me.ID, *me.Delta))
 		}
 	}
 }
@@ -108,14 +112,15 @@ func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http
 		return
 	}
 
-	metric, ok := mr.Repository.GetMetric(metricType, metricName)
-	if !ok {
-		http.Error(res, "Metric not found", http.StatusNotFound)
+	me, err := mr.Repository.GetMetric(req.Context(), metricType, metricName)
+	if err != nil {
+		logger.Log.Info("metric not found", zap.Error(err))
+		http.Error(res, "metric not found", http.StatusNotFound)
 		return
 	}
 
 	res.WriteHeader(http.StatusOK)
-	_, err := res.Write([]byte(metric.ValueAsString()))
+	_, err = res.Write([]byte(me.ValueAsString()))
 	if err != nil {
 		logger.Log.Info("can't write metric value", zap.Error(err))
 		http.Error(res, "Can't write metric value", http.StatusInternalServerError)
@@ -138,7 +143,7 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 		return
 	}
 
-	metric := metric.Metric{
+	me := metric.Metric{
 		ID:    metricName,
 		MType: metricType,
 	}
@@ -151,12 +156,12 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 
 	if metricType == MetricTypeGauge {
 		floatValue, err = strconv.ParseFloat(metricValue, 64)
-		metric.Value = &floatValue
+		me.Value = &floatValue
 	}
 
 	if metricType == MetricTypeCounter {
 		intValue, err = strconv.ParseInt(metricValue, 10, 64)
-		metric.Delta = &intValue
+		me.Delta = &intValue
 	}
 
 	if err != nil {
@@ -165,9 +170,13 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 		return
 	}
 
-	mr.Repository.UpdateMetric(&metric)
-	if mr.StoreInterval == 0 {
-		if err := mr.Repository.SaveMetric(req.Context(), &metric); err != nil {
+	if err = mr.Repository.UpdateMetric(req.Context(), &me); err != nil {
+		http.Error(res, "Bad metric value!", http.StatusInternalServerError)
+		return
+	}
+
+	if t, ok := mr.Repository.(*repository.FileStorage); ok && (mr.StoreInterval == 0) {
+		if err := t.SaveMetric(&me); err != nil {
 			logger.Log.Info("error saving metric", zap.Error(err))
 			http.Error(res, "error saving  metric", http.StatusInternalServerError)
 			return
@@ -184,21 +193,21 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 		return
 	}
 
-	var metric metric.Metric
+	var me metric.Metric
 	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&metric); err != nil {
+	if err := dec.Decode(&me); err != nil {
 		http.Error(res, "can't decode request body", http.StatusBadRequest)
 		return
 	}
 
-	switch metric.MType {
+	switch me.MType {
 	case MetricTypeGauge:
-		if metric.Value == nil {
+		if me.Value == nil {
 			http.Error(res, "empty metric value", http.StatusBadRequest)
 			return
 		}
 	case MetricTypeCounter:
-		if metric.Delta == nil {
+		if me.Delta == nil {
 			http.Error(res, "empty metric delta", http.StatusBadRequest)
 			return
 		}
@@ -207,11 +216,16 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 		return
 	}
 
-	mr.Repository.UpdateMetric(&metric)
-	if mr.StoreInterval == 0 {
-		if err := mr.Repository.SaveMetric(req.Context(), &metric); err != nil {
-			logger.Log.Info("error saving gauge metric", zap.Error(err))
-			http.Error(res, "error saving gauge metric", http.StatusInternalServerError)
+	if err := mr.Repository.UpdateMetric(req.Context(), &me); err != nil {
+		logger.Log.Info("error update metric", zap.Error(err))
+		http.Error(res, "error update metric", http.StatusInternalServerError)
+		return
+	}
+
+	if t, ok := mr.Repository.(*repository.FileStorage); ok && (mr.StoreInterval == 0) {
+		if err := t.SaveMetric(&me); err != nil {
+			logger.Log.Info("error saving metric", zap.Error(err))
+			http.Error(res, "error saving  metric", http.StatusInternalServerError)
 			return
 		}
 	}
@@ -220,7 +234,7 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 	res.WriteHeader(http.StatusOK)
 
 	enc := json.NewEncoder(res)
-	if err := enc.Encode(metric); err != nil {
+	if err := enc.Encode(me); err != nil {
 		logger.Log.Info("error encoding response", zap.Error(err))
 		http.Error(res, "error encoding response", http.StatusInternalServerError)
 		return
@@ -233,20 +247,21 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 		return
 	}
 
-	var metric metric.Metric
+	var me metric.Metric
 	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&metric); err != nil {
+	if err := dec.Decode(&me); err != nil {
 		http.Error(res, "can't decode request body", http.StatusBadRequest)
 		return
 	}
 
-	if metric.MType != MetricTypeGauge && metric.MType != MetricTypeCounter {
+	if me.MType != MetricTypeGauge && me.MType != MetricTypeCounter {
 		http.Error(res, "Bad metric type!", http.StatusBadRequest)
 		return
 	}
 
-	respMetric, ok := mr.Repository.GetMetric(metric.MType, metric.ID)
-	if !ok {
+	respMetric, err := mr.Repository.GetMetric(req.Context(), me.MType, me.ID)
+	if err != nil {
+		logger.Log.Info("metric not found", zap.Error(err))
 		http.Error(res, "metric not found", http.StatusNotFound)
 		return
 	}

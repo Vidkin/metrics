@@ -3,6 +3,7 @@ package router
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/go-chi/chi/v5"
@@ -214,8 +215,10 @@ func TestGetMetricValueHandler(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
-			for _, metric := range test.repository.GetMetrics() {
-				serverRepository.UpdateMetric(metric)
+			ctx := context.TODO()
+			metrics, _ := test.repository.GetMetrics(ctx)
+			for _, metric := range metrics {
+				serverRepository.UpdateMetric(ctx, metric)
 			}
 			resp, value := testRequest(t, ts, http.MethodGet, test.url, false)
 			defer resp.Body.Close()
@@ -293,8 +296,10 @@ func TestRootHandler(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
-			for _, metric := range test.repository.GetMetrics() {
-				serverRepository.UpdateMetric(metric)
+			ctx := context.TODO()
+			metrics, _ := test.repository.GetMetrics(ctx)
+			for _, metric := range metrics {
+				serverRepository.UpdateMetric(ctx, metric)
 			}
 
 			resp, value := testRequest(t, ts, http.MethodGet, "", test.acceptEncoding)
@@ -507,8 +512,10 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
-			for _, metric := range test.repository.GetMetrics() {
-				serverRepository.UpdateMetric(metric)
+			ctx := context.TODO()
+			metrics, _ := test.repository.GetMetrics(ctx)
+			for _, metric := range metrics {
+				serverRepository.UpdateMetric(ctx, metric)
 			}
 			resp, respBody := testJSONRequest(t, ts, http.MethodPost, "/value", test.json, test.contentType)
 			defer resp.Body.Close()

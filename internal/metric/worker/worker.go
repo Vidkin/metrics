@@ -3,11 +3,14 @@ package worker
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"github.com/Vidkin/metrics/internal/config"
+	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/metric"
 	"github.com/Vidkin/metrics/internal/router"
 	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
 	"io"
 	"math/rand/v2"
 	"runtime"
@@ -98,18 +101,25 @@ func (mw *MetricWorker) CollectMetrics(count int64) {
 		GaugeMetricTotalAlloc:    float64(mw.memStats.TotalAlloc),
 		GaugeMetricRandomValue:   rand.Float64(),
 	}
+	ctx := context.Background()
 	for k, v := range gaugeMetrics {
-		mw.repository.UpdateMetric(&metric.Metric{
+		err := mw.repository.UpdateMetric(ctx, &metric.Metric{
 			ID:    k,
 			MType: MetricTypeGauge,
 			Value: &v,
 		})
+		if err != nil {
+			logger.Log.Info("error update gauge metric", zap.Error(err))
+		}
 	}
-	mw.repository.UpdateMetric(&metric.Metric{
+	err := mw.repository.UpdateMetric(ctx, &metric.Metric{
 		ID:    CounterMetricPollCount,
 		MType: MetricTypeCounter,
 		Delta: &count,
 	})
+	if err != nil {
+		logger.Log.Info("error update counter metric", zap.Error(err))
+	}
 }
 
 func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, string, error) {
@@ -162,8 +172,10 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 }
 
 func (mw *MetricWorker) SendMetrics(url string) {
-	for _, metric := range mw.repository.GetMetrics() {
-		_, _, err := mw.SendMetric(url, metric)
+	ctx := context.TODO()
+	metrics, _ := mw.repository.GetMetrics(ctx)
+	for _, me := range metrics {
+		_, _, err := mw.SendMetric(url, me)
 		if err != nil {
 			continue
 		}
