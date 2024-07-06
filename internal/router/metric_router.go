@@ -237,8 +237,14 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 
+	actualMetric, err := mr.Repository.GetMetric(req.Context(), me.MType, me.ID)
+	if err != nil {
+		logger.Log.Info("error get actual metric value", zap.Error(err))
+		http.Error(res, "error get actual metric value", http.StatusInternalServerError)
+		return
+	}
 	enc := json.NewEncoder(res)
-	if err := enc.Encode(me); err != nil {
+	if err := enc.Encode(actualMetric); err != nil {
 		logger.Log.Info("error encoding response", zap.Error(err))
 		http.Error(res, "error encoding response", http.StatusInternalServerError)
 		return
@@ -320,8 +326,14 @@ func (mr *MetricRouter) UpdatesMetricHandlerJSON(res http.ResponseWriter, req *h
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 
+	actualMetrics, err := mr.Repository.GetMetrics(req.Context())
+	if err != nil {
+		logger.Log.Info("error get actual metrics", zap.Error(err))
+		http.Error(res, "error get actual metrics", http.StatusInternalServerError)
+		return
+	}
 	enc := json.NewEncoder(res)
-	if err := enc.Encode(metrics); err != nil {
+	if err := enc.Encode(actualMetrics); err != nil {
 		logger.Log.Info("error encoding response", zap.Error(err))
 		http.Error(res, "error encoding response", http.StatusInternalServerError)
 		return
