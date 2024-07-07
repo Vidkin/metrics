@@ -323,6 +323,16 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 			}
 		}
 	}
+	for i, m := range metrics {
+		var updated *metric.Metric
+		updated, err := mr.Repository.GetMetric(req.Context(), m.MType, m.ID)
+		if err != nil {
+			logger.Log.Info("error get updated metric", zap.Error(err))
+			http.Error(res, "error get updated metric", http.StatusInternalServerError)
+			return
+		}
+		metrics[i] = *updated
+	}
 
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
