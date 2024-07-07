@@ -66,7 +66,7 @@ func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *confi
 			r.Post("/{metricType}/{metricName}/{metricValue}", mr.UpdateMetricHandler)
 		})
 		router.Route("/updates", func(r chi.Router) {
-			r.Post("/", mr.UpdatesMetricHandlerJSON)
+			r.Post("/", mr.UpdateMetricsHandlerJSON)
 		})
 	})
 	mr.Router = router
@@ -166,6 +166,11 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 	if metricType == MetricTypeCounter {
 		intValue, err = strconv.ParseInt(metricValue, 10, 64)
 		me.Delta = &intValue
+
+		cm, err := mr.Repository.GetMetric(req.Context(), MetricTypeCounter, me.ID)
+		if err == nil {
+			*me.Delta += *cm.Delta
+		}
 	}
 
 	if err != nil {
@@ -214,6 +219,10 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 		if me.Delta == nil {
 			http.Error(res, "empty metric delta", http.StatusBadRequest)
 			return
+		}
+		cm, err := mr.Repository.GetMetric(req.Context(), MetricTypeCounter, me.ID)
+		if err == nil {
+			*me.Delta += *cm.Delta
 		}
 	default:
 		http.Error(res, "bad metric type", http.StatusBadRequest)
@@ -287,7 +296,7 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 	}
 }
 
-func (mr *MetricRouter) UpdatesMetricHandlerJSON(res http.ResponseWriter, req *http.Request) {
+func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Type") != "application/json" {
 		http.Error(res, "only application/json content-type allowed", http.StatusBadRequest)
 		return
@@ -304,6 +313,12 @@ func (mr *MetricRouter) UpdatesMetricHandlerJSON(res http.ResponseWriter, req *h
 		if (m.Value == nil && m.Delta == nil) || (m.MType != MetricTypeCounter && m.MType != MetricTypeGauge) {
 			http.Error(res, "bad metric", http.StatusBadRequest)
 			return
+		}
+		if m.MType == MetricTypeCounter {
+			cm, err := mr.Repository.GetMetric(req.Context(), MetricTypeCounter, m.ID)
+			if err == nil {
+				*m.Delta += *cm.Delta
+			}
 		}
 	}
 
@@ -326,14 +341,8 @@ func (mr *MetricRouter) UpdatesMetricHandlerJSON(res http.ResponseWriter, req *h
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 
-	actualMetrics, err := mr.Repository.GetMetrics(req.Context())
-	if err != nil {
-		logger.Log.Info("error get actual metrics", zap.Error(err))
-		http.Error(res, "error get actual metrics", http.StatusInternalServerError)
-		return
-	}
 	enc := json.NewEncoder(res)
-	if err := enc.Encode(actualMetrics); err != nil {
+	if err := enc.Encode(metrics); err != nil {
 		logger.Log.Info("error encoding response", zap.Error(err))
 		http.Error(res, "error encoding response", http.StatusInternalServerError)
 		return
