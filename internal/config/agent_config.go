@@ -14,11 +14,13 @@ type AgentConfig struct {
 	ServerAddress  *ServerAddress
 	ReportInterval int `env:"REPORT_INTERVAL"`
 	PollInterval   int `env:"POLL_INTERVAL"`
+	LogLevel       string
 }
 
 func NewAgentConfig() (*AgentConfig, error) {
 	var config AgentConfig
 	config.ServerAddress = New()
+	config.LogLevel = "info"
 	err := config.parseFlags()
 	if err != nil {
 		return nil, err

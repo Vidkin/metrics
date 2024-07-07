@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/Vidkin/metrics/internal/logger"
 	me "github.com/Vidkin/metrics/internal/metric"
+	"go.uber.org/zap"
 	"io"
 	"os"
 )
@@ -124,6 +126,7 @@ func (f *FileStorage) GetCounters(_ context.Context) ([]*me.Metric, error) {
 func (f *FileStorage) SaveMetric(metric *me.Metric) error {
 	file, err := os.OpenFile(f.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil && err != io.EOF {
+		logger.Log.Info("error open file", zap.Error(err))
 		return err
 	}
 	defer file.Close()
@@ -131,6 +134,7 @@ func (f *FileStorage) SaveMetric(metric *me.Metric) error {
 	var metrics []me.Metric
 	data, err := io.ReadAll(file)
 	if err != nil {
+		logger.Log.Info("error read file", zap.Error(err))
 		return err
 	}
 
@@ -160,11 +164,13 @@ func (f *FileStorage) SaveMetric(metric *me.Metric) error {
 
 	b, err := json.Marshal(metrics)
 	if err != nil {
+		logger.Log.Info("error marshal metrics", zap.Error(err))
 		return err
 	}
 
 	err = os.WriteFile(f.FileStoragePath, b, 0666)
 	if err != nil {
+		logger.Log.Info("error write file", zap.Error(err))
 		return err
 	}
 	return nil
@@ -173,26 +179,31 @@ func (f *FileStorage) SaveMetric(metric *me.Metric) error {
 func (f *FileStorage) Save(ctx context.Context) error {
 	file, err := os.OpenFile(f.FileStoragePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
+		logger.Log.Info("error open file", zap.Error(err))
 		return err
 	}
 	defer file.Close()
 
 	gauge, err := f.GetGauges(ctx)
 	if err != nil {
+		logger.Log.Info("error get gauges", zap.Error(err))
 		return err
 	}
 	counter, err := f.GetCounters(ctx)
 	if err != nil {
+		logger.Log.Info("error get counters", zap.Error(err))
 		return err
 	}
 	metrics := append(gauge, counter...)
 
 	b, err := json.Marshal(metrics)
 	if err != nil {
+		logger.Log.Info("error marshal metrics", zap.Error(err))
 		return err
 	}
 	_, err = file.Write(b)
 	if err != nil {
+		logger.Log.Info("error write file", zap.Error(err))
 		return err
 	}
 	return nil
@@ -204,6 +215,7 @@ func (f *FileStorage) Load(ctx context.Context) error {
 		if err == io.EOF {
 			return nil
 		}
+		logger.Log.Info("error open file", zap.Error(err))
 		return err
 	}
 	defer file.Close()
@@ -211,6 +223,7 @@ func (f *FileStorage) Load(ctx context.Context) error {
 	var metrics []me.Metric
 	data, err := io.ReadAll(file)
 	if err != nil {
+		logger.Log.Info("error read file", zap.Error(err))
 		return err
 	}
 	if err := json.Unmarshal(data, &metrics); err != nil {

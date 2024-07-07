@@ -5,11 +5,12 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/Vidkin/metrics/internal/config"
+	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/metric"
 	"github.com/Vidkin/metrics/internal/router"
 	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
 	"io"
 	"math/rand/v2"
 	"runtime"
@@ -109,7 +110,7 @@ func (mw *MetricWorker) CollectMetrics(count int64) {
 			Value: &v,
 		})
 		if err != nil {
-			fmt.Println("error update gauge metric", err)
+			logger.Log.Info("error update gauge metric", zap.Error(err))
 		}
 	}
 	err := mw.repository.UpdateMetric(ctx, &metric.Metric{
@@ -118,13 +119,14 @@ func (mw *MetricWorker) CollectMetrics(count int64) {
 		Delta: &count,
 	})
 	if err != nil {
-		fmt.Println("error update counter metric", err)
+		logger.Log.Info("error update counter metric", zap.Error(err))
 	}
 }
 
 func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, string, error) {
 	body, err := json.Marshal(metric)
 	if err != nil {
+		logger.Log.Info("error marshal body", zap.Error(err))
 		return 0, "", err
 	}
 
@@ -132,11 +134,13 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 	zb := gzip.NewWriter(buf)
 	_, err = zb.Write(body)
 	if err != nil {
+		logger.Log.Info("error gzip body", zap.Error(err))
 		return 0, "", err
 	}
 
 	err = zb.Close()
 	if err != nil {
+		logger.Log.Info("error close gzip buffer", zap.Error(err))
 		return 0, "", err
 	}
 
@@ -148,6 +152,7 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 		Post(url)
 
 	if err != nil {
+		logger.Log.Info("error post request", zap.Error(err))
 		return 0, "", err
 	}
 	defer resp.RawBody().Close()
@@ -157,6 +162,7 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 	if strings.Contains(contentEncoding, "gzip") {
 		cr, err := gzip.NewReader(resp.RawBody())
 		if err != nil {
+			logger.Log.Info("error init gzip reader", zap.Error(err))
 			return 0, "", err
 		}
 		or = cr
@@ -165,6 +171,7 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 	}
 	respBody, err := io.ReadAll(or)
 	if err != nil {
+		logger.Log.Info("error read response body", zap.Error(err))
 		return 0, "", err
 	}
 
@@ -189,6 +196,7 @@ func (mw *MetricWorker) SendMetrics(url string) (int, string, error) {
 		SetBody(buf).
 		Post(url)
 	if err != nil {
+		logger.Log.Info("error post request", zap.Error(err))
 		return 0, "", err
 	}
 	defer resp.RawBody().Close()
