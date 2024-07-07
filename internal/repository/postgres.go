@@ -150,13 +150,15 @@ func (p *PostgresStorage) DeleteMetric(ctx context.Context, mType string, name s
 		if err != nil {
 			return err
 		}
-		_, err = stmt.ExecContext(ctx, name)
+		defer stmt.Close()
+		_, err = p.db.ExecContext(ctx, "DELETE from gauge WHERE metric_name=$1", name)
 		return err
 	case MetricTypeCounter:
 		stmt, err := p.db.PrepareContext(ctx, "DELETE from counter WHERE metric_name=$1")
 		if err != nil {
 			return err
 		}
+		defer stmt.Close()
 		_, err = stmt.ExecContext(ctx, name)
 		return err
 	default:
@@ -171,6 +173,7 @@ func (p *PostgresStorage) GetMetric(ctx context.Context, mType string, name stri
 		if err != nil {
 			return nil, err
 		}
+		defer stmt.Close()
 		row := stmt.QueryRowContext(ctx, name)
 		var m me.Metric
 		err = row.Scan(&m.ID, &m.Value)
@@ -184,6 +187,7 @@ func (p *PostgresStorage) GetMetric(ctx context.Context, mType string, name stri
 		if err != nil {
 			return nil, err
 		}
+		defer stmt.Close()
 		row := stmt.QueryRowContext(ctx, name)
 		var m me.Metric
 		err = row.Scan(&m.ID, &m.Delta)
@@ -216,6 +220,7 @@ func (p *PostgresStorage) GetGauges(ctx context.Context) ([]*me.Metric, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer stmt.Close()
 	rows, err := stmt.QueryContext(ctx)
 	if err != nil {
 		return nil, err
@@ -242,6 +247,7 @@ func (p *PostgresStorage) GetCounters(ctx context.Context) ([]*me.Metric, error)
 	if err != nil {
 		return nil, err
 	}
+	defer stmt.Close()
 	rows, err := stmt.QueryContext(ctx)
 	if err != nil {
 		return nil, err
