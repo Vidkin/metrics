@@ -171,7 +171,7 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 	return resp.StatusCode(), string(respBody), nil
 }
 
-func (mw *MetricWorker) SendMetrics(url string) (int, string) {
+func (mw *MetricWorker) SendMetrics(url string) (int, string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	metrics, _ := mw.repository.GetMetrics(ctx)
@@ -182,13 +182,15 @@ func (mw *MetricWorker) SendMetrics(url string) (int, string) {
 	_, _ = zb.Write(body)
 	zb.Close()
 
-	resp, _ := mw.client.R().
+	resp, err := mw.client.R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Accept-Encoding", "gzip").
 		SetBody(buf).
 		Post(url)
-
+	if err != nil {
+		return 0, "", err
+	}
 	defer resp.RawBody().Close()
 
 	contentEncoding := resp.Header().Get("Content-Encoding")
@@ -201,7 +203,7 @@ func (mw *MetricWorker) SendMetrics(url string) (int, string) {
 	}
 	respBody, _ := io.ReadAll(or)
 
-	return resp.StatusCode(), string(respBody)
+	return resp.StatusCode(), string(respBody), nil
 }
 
 func (mw *MetricWorker) Poll() {
