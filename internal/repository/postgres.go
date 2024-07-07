@@ -101,7 +101,9 @@ func (p *PostgresStorage) UpdateMetrics(ctx context.Context, metrics *[]me.Metri
 	for _, metric := range *metrics {
 		switch metric.MType {
 		case MetricTypeGauge:
-			_, err := p.GetMetric(ctx, metric.MType, metric.ID)
+			row := tx.QueryRowContext(ctx, "SELECT metric_id from gauge WHERE metric_name=$1", metric.ID)
+			var metricId int64
+			err = row.Scan(&metricId)
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
 					_, err := tx.ExecContext(ctx, "INSERT INTO gauge (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Value)
@@ -112,12 +114,14 @@ func (p *PostgresStorage) UpdateMetrics(ctx context.Context, metrics *[]me.Metri
 					return err
 				}
 			}
-			_, err = tx.ExecContext(ctx, "UPDATE gauge SET metric_value=$1 WHERE metric_name=$2", *metric.Value, metric.ID)
+			_, err = tx.ExecContext(ctx, "UPDATE gauge SET metric_value=$1 WHERE metric_id=$2", *metric.Value, metricId)
 			if err != nil {
 				return err
 			}
 		case MetricTypeCounter:
-			_, err := p.GetMetric(ctx, metric.MType, metric.ID)
+			row := tx.QueryRowContext(ctx, "SELECT metric_id from counter WHERE metric_name=$1", metric.ID)
+			var metricId int64
+			err = row.Scan(&metricId)
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
 					_, err := tx.ExecContext(ctx, "INSERT INTO counter (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Delta)
@@ -128,7 +132,7 @@ func (p *PostgresStorage) UpdateMetrics(ctx context.Context, metrics *[]me.Metri
 					return err
 				}
 			}
-			_, err = tx.ExecContext(ctx, "UPDATE counter SET metric_value=metric_value+$1 WHERE metric_name=$2", *metric.Delta, metric.ID)
+			_, err = tx.ExecContext(ctx, "UPDATE counter SET metric_value=metric_value+$1 WHERE metric_id=$2", *metric.Delta, metricId)
 			if err != nil {
 				return err
 			}
