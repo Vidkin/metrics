@@ -34,7 +34,7 @@ func (m *MemoryStorage) UpdateMetric(_ context.Context, metric *me.Metric) error
 	case MetricTypeGauge:
 		m.Gauge[metric.ID] = *metric.Value
 	case MetricTypeCounter:
-		m.Counter[metric.ID] = *metric.Delta
+		m.Counter[metric.ID] += *metric.Delta
 	}
 	return nil
 }
@@ -45,7 +45,7 @@ func (m *MemoryStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) e
 		case MetricTypeGauge:
 			m.Gauge[metric.ID] = *metric.Value
 		case MetricTypeCounter:
-			m.Counter[metric.ID] = *metric.Delta
+			m.Counter[metric.ID] += *metric.Delta
 		}
 	}
 	return nil

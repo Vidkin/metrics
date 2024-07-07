@@ -85,7 +85,7 @@ func (p *PostgresStorage) UpdateMetric(ctx context.Context, metric *me.Metric) e
 		if err != nil {
 			return err
 		}
-		_, err = p.db.ExecContext(ctx, "UPDATE counter SET metric_value=$1 WHERE metric_name=$2", *metric.Delta, metric.ID)
+		_, err = p.db.ExecContext(ctx, "UPDATE counter SET metric_value=metric_value+$1 WHERE metric_name=$2", *metric.Delta, metric.ID)
 		return err
 	default:
 		return errors.New("unknown metric type")
@@ -128,7 +128,7 @@ func (p *PostgresStorage) UpdateMetrics(ctx context.Context, metrics *[]me.Metri
 					return err
 				}
 			}
-			_, err = tx.ExecContext(ctx, "UPDATE counter SET metric_value=$1 WHERE metric_name=$2", *metric.Delta, metric.ID)
+			_, err = tx.ExecContext(ctx, "UPDATE counter SET metric_value=metric_value+$1 WHERE metric_name=$2", *metric.Delta, metric.ID)
 			if err != nil {
 				return err
 			}
