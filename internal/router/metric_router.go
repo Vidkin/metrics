@@ -16,6 +16,7 @@ import (
 	"go.uber.org/zap"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 )
@@ -230,10 +231,20 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 	}
 
 	if t, ok := mr.Repository.(*repository.FileStorage); ok && (mr.StoreInterval == 0) {
-		if err := t.SaveMetric(&me); err != nil {
-			logger.Log.Info("error saving metric", zap.Error(err))
-			http.Error(res, "error saving  metric", http.StatusInternalServerError)
-			return
+		for i := 0; i <= RequestRetryCount; i++ {
+			err := t.SaveMetric(&me)
+			if err != nil {
+				var pathErr *os.PathError
+				if errors.As(err, &pathErr) && i != RequestRetryCount {
+					logger.Log.Info("repository connection error", zap.Error(err))
+					time.Sleep(time.Duration(1+i*2) * time.Second)
+					continue
+				}
+				logger.Log.Info("error saving metric", zap.Error(err))
+				http.Error(res, "error saving metric", http.StatusInternalServerError)
+				return
+			}
+			break
 		}
 	}
 
@@ -289,10 +300,20 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 	}
 
 	if t, ok := mr.Repository.(*repository.FileStorage); ok && (mr.StoreInterval == 0) {
-		if err := t.SaveMetric(&me); err != nil {
-			logger.Log.Info("error saving metric", zap.Error(err))
-			http.Error(res, "error saving  metric", http.StatusInternalServerError)
-			return
+		for i := 0; i <= RequestRetryCount; i++ {
+			err := t.SaveMetric(&me)
+			if err != nil {
+				var pathErr *os.PathError
+				if errors.As(err, &pathErr) && i != RequestRetryCount {
+					logger.Log.Info("repository connection error", zap.Error(err))
+					time.Sleep(time.Duration(1+i*2) * time.Second)
+					continue
+				}
+				logger.Log.Info("error saving metric", zap.Error(err))
+				http.Error(res, "error saving metric", http.StatusInternalServerError)
+				return
+			}
+			break
 		}
 	}
 
@@ -420,10 +441,20 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 
 	if t, ok := mr.Repository.(*repository.FileStorage); ok && (mr.StoreInterval == 0) {
 		for _, me := range metrics {
-			if err := t.SaveMetric(&me); err != nil {
-				logger.Log.Info("error saving metric", zap.Error(err))
-				http.Error(res, "error saving  metric", http.StatusInternalServerError)
-				return
+			for i := 0; i <= RequestRetryCount; i++ {
+				err := t.SaveMetric(&me)
+				if err != nil {
+					var pathErr *os.PathError
+					if errors.As(err, &pathErr) && i != RequestRetryCount {
+						logger.Log.Info("repository connection error", zap.Error(err))
+						time.Sleep(time.Duration(1+i*2) * time.Second)
+						continue
+					}
+					logger.Log.Info("error saving metric", zap.Error(err))
+					http.Error(res, "error saving metric", http.StatusInternalServerError)
+					return
+				}
+				break
 			}
 		}
 	}

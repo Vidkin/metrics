@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/repository"
@@ -13,6 +14,10 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+)
+
+const (
+	RetryCount = 3
 )
 
 type ServerApp struct {
@@ -31,8 +36,19 @@ func initRepository(serverConfig *config.ServerConfig) (router.Repository, error
 		if serverConfig.Restore {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
-			if err := fileStorage.Load(ctx); err != nil {
-				logger.Log.Info("error load saved metrics", zap.Error(err))
+
+			for i := 0; i <= RetryCount; i++ {
+				err := fileStorage.Load(ctx)
+				if err != nil {
+					var pathErr *os.PathError
+					if errors.As(err, &pathErr) && i != RetryCount {
+						logger.Log.Info("repository connection error", zap.Error(err))
+						time.Sleep(time.Duration(1+i*2) * time.Second)
+						continue
+					}
+					logger.Log.Info("error load saved metrics", zap.Error(err))
+				}
+				break
 			}
 		}
 		return fileStorage, nil
@@ -76,9 +92,18 @@ func (a *ServerApp) Run() {
 		go func() {
 			for {
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-				err := t.Save(ctx)
-				if err != nil {
-					logger.Log.Info("error saving metrics", zap.Error(err))
+				for i := 0; i <= RetryCount; i++ {
+					err := t.Save(ctx)
+					if err != nil {
+						var pathErr *os.PathError
+						if errors.As(err, &pathErr) && i != RetryCount {
+							logger.Log.Info("repository connection error", zap.Error(err))
+							time.Sleep(time.Duration(1+i*2) * time.Second)
+							continue
+						}
+						logger.Log.Info("error saving metrics", zap.Error(err))
+					}
+					break
 				}
 				time.Sleep(time.Duration(a.config.StoreInterval) * time.Second)
 				cancel()
@@ -111,9 +136,18 @@ func (a *ServerApp) Stop() {
 
 	logger.Log.Info("save metrics before exit")
 	if t, ok := a.repository.(*repository.FileStorage); ok {
-		err := t.Save(ctx)
-		if err != nil {
-			logger.Log.Info("error saving metrics", zap.Error(err))
+		for i := 0; i <= RetryCount; i++ {
+			err := t.Save(ctx)
+			if err != nil {
+				var pathErr *os.PathError
+				if errors.As(err, &pathErr) && i != RetryCount {
+					logger.Log.Info("repository connection error", zap.Error(err))
+					time.Sleep(time.Duration(1+i*2) * time.Second)
+					continue
+				}
+				logger.Log.Info("error saving metrics", zap.Error(err))
+			}
+			break
 		}
 	}
 	a.repository.Close()
