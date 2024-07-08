@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/metric"
@@ -13,6 +14,7 @@ import (
 	"go.uber.org/zap"
 	"io"
 	"math/rand/v2"
+	"net/url"
 	"runtime"
 	"strings"
 	"time"
@@ -52,6 +54,8 @@ const (
 
 	MetricTypeCounter = "counter"
 	MetricTypeGauge   = "gauge"
+
+	RequestRetryCount = 3
 )
 
 type MetricWorker struct {
@@ -178,7 +182,7 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 	return resp.StatusCode(), string(respBody), nil
 }
 
-func (mw *MetricWorker) SendMetrics(url string) (int, string, error) {
+func (mw *MetricWorker) SendMetrics(serverUrl string) (int, string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	metrics, _ := mw.repository.GetMetrics(ctx)
@@ -189,15 +193,27 @@ func (mw *MetricWorker) SendMetrics(url string) (int, string, error) {
 	_, _ = zb.Write(body)
 	zb.Close()
 
-	resp, err := mw.client.R().
-		SetHeader("Content-Type", "application/json").
-		SetHeader("Content-Encoding", "gzip").
-		SetHeader("Accept-Encoding", "gzip").
-		SetBody(buf).
-		Post(url)
-	if err != nil {
-		logger.Log.Info("error post request", zap.Error(err))
-		return 0, "", err
+	var (
+		resp *resty.Response
+		err  error
+	)
+	for i := 0; i <= RequestRetryCount; i++ {
+		resp, err = mw.client.R().
+			SetHeader("Content-Type", "application/json").
+			SetHeader("Content-Encoding", "gzip").
+			SetHeader("Accept-Encoding", "gzip").
+			SetBody(buf).
+			Post(serverUrl)
+		if err != nil {
+			var urlErr *url.Error
+			if errors.As(err, &urlErr) && i != RequestRetryCount {
+				logger.Log.Info("error post request", zap.Error(err))
+				time.Sleep(time.Duration(1+i*2) * time.Second)
+				continue
+			}
+			logger.Log.Info("error post request", zap.Error(err))
+			return 0, "", err
+		}
 	}
 	defer resp.RawBody().Close()
 
@@ -210,7 +226,6 @@ func (mw *MetricWorker) SendMetrics(url string) (int, string, error) {
 		or = resp.RawBody()
 	}
 	respBody, _ := io.ReadAll(or)
-
 	return resp.StatusCode(), string(respBody), nil
 }
 
