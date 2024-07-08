@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
@@ -10,6 +11,8 @@ import (
 	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/Vidkin/metrics/pkg/middleware"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
@@ -24,6 +27,8 @@ const (
 
 	MetricTypeCounter = "counter"
 	MetricTypeGauge   = "gauge"
+
+	RequestRetryCount = 3
 )
 
 type MetricRouter struct {
@@ -79,11 +84,27 @@ func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *confi
 func (mr *MetricRouter) RootHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/html")
 
-	metrics, err := mr.Repository.GetMetrics(req.Context())
-	if err != nil {
-		logger.Log.Info("error get metrics", zap.Error(err))
-		http.Error(res, "error get metrics", http.StatusInternalServerError)
-		return
+	var (
+		metrics []*metric.Metric
+		err     error
+	)
+
+	for i := 0; i <= RequestRetryCount; i++ {
+		metrics, err = mr.Repository.GetMetrics(req.Context())
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+					logger.Log.Info("repository connection error", zap.Error(err))
+					time.Sleep(time.Duration(1+i*2) * time.Second)
+					continue
+				}
+			}
+			logger.Log.Info("error get metrics", zap.Error(err))
+			http.Error(res, "error get metrics", http.StatusInternalServerError)
+			return
+		}
+		break
 	}
 
 	res.WriteHeader(http.StatusOK)
@@ -116,11 +137,27 @@ func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http
 		return
 	}
 
-	me, err := mr.Repository.GetMetric(req.Context(), metricType, metricName)
-	if err != nil {
-		logger.Log.Info("metric not found", zap.Error(err))
-		http.Error(res, "metric not found", http.StatusNotFound)
-		return
+	var (
+		me  *metric.Metric
+		err error
+	)
+
+	for i := 0; i <= RequestRetryCount; i++ {
+		me, err = mr.Repository.GetMetric(req.Context(), metricType, metricName)
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+					logger.Log.Info("repository connection error", zap.Error(err))
+					time.Sleep(time.Duration(1+i*2) * time.Second)
+					continue
+				}
+			}
+			logger.Log.Info("metric not found", zap.Error(err))
+			http.Error(res, "metric not found", http.StatusNotFound)
+			return
+		}
+		break
 	}
 
 	res.WriteHeader(http.StatusOK)
@@ -174,9 +211,22 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 		return
 	}
 
-	if err = mr.Repository.UpdateMetric(req.Context(), &me); err != nil {
-		http.Error(res, "Bad metric value!", http.StatusInternalServerError)
-		return
+	for i := 0; i <= RequestRetryCount; i++ {
+		err := mr.Repository.UpdateMetric(req.Context(), &me)
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+					logger.Log.Info("repository connection error", zap.Error(err))
+					time.Sleep(time.Duration(1+i*2) * time.Second)
+					continue
+				}
+			}
+			logger.Log.Info("bad metric value", zap.Error(err))
+			http.Error(res, "bad metric value", http.StatusInternalServerError)
+			return
+		}
+		break
 	}
 
 	if t, ok := mr.Repository.(*repository.FileStorage); ok && (mr.StoreInterval == 0) {
@@ -220,10 +270,22 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 		return
 	}
 
-	if err := mr.Repository.UpdateMetric(req.Context(), &me); err != nil {
-		logger.Log.Info("error update metric", zap.Error(err))
-		http.Error(res, "error update metric", http.StatusInternalServerError)
-		return
+	for i := 0; i <= RequestRetryCount; i++ {
+		err := mr.Repository.UpdateMetric(req.Context(), &me)
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+					logger.Log.Info("repository connection error", zap.Error(err))
+					time.Sleep(time.Duration(1+i*2) * time.Second)
+					continue
+				}
+			}
+			logger.Log.Info("error update metric", zap.Error(err))
+			http.Error(res, "error update metric", http.StatusInternalServerError)
+			return
+		}
+		break
 	}
 
 	if t, ok := mr.Repository.(*repository.FileStorage); ok && (mr.StoreInterval == 0) {
@@ -234,11 +296,26 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 		}
 	}
 
-	actualMetric, err := mr.Repository.GetMetric(req.Context(), me.MType, me.ID)
-	if err != nil {
-		logger.Log.Info("error get actual metric value", zap.Error(err))
-		http.Error(res, "error get actual metric value", http.StatusInternalServerError)
-		return
+	var (
+		actualMetric *metric.Metric
+		err          error
+	)
+	for i := 0; i <= RequestRetryCount; i++ {
+		actualMetric, err = mr.Repository.GetMetric(req.Context(), me.MType, me.ID)
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+					logger.Log.Info("repository connection error", zap.Error(err))
+					time.Sleep(time.Duration(1+i*2) * time.Second)
+					continue
+				}
+			}
+			logger.Log.Info("error get actual metric value", zap.Error(err))
+			http.Error(res, "error get actual metric value", http.StatusInternalServerError)
+			return
+		}
+		break
 	}
 
 	res.Header().Set("Content-Type", "application/json")
@@ -270,11 +347,26 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 		return
 	}
 
-	respMetric, err := mr.Repository.GetMetric(req.Context(), me.MType, me.ID)
-	if err != nil {
-		logger.Log.Info("metric not found", zap.Error(err))
-		http.Error(res, "metric not found", http.StatusNotFound)
-		return
+	var (
+		respMetric *metric.Metric
+		err        error
+	)
+	for i := 0; i <= RequestRetryCount; i++ {
+		respMetric, err = mr.Repository.GetMetric(req.Context(), me.MType, me.ID)
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+					logger.Log.Info("repository connection error", zap.Error(err))
+					time.Sleep(time.Duration(1+i*2) * time.Second)
+					continue
+				}
+			}
+			logger.Log.Info("metric not found", zap.Error(err))
+			http.Error(res, "metric not found", http.StatusNotFound)
+			return
+		}
+		break
 	}
 
 	res.Header().Set("Content-Type", "application/json")
@@ -308,10 +400,22 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 		}
 	}
 
-	if err := mr.Repository.UpdateMetrics(req.Context(), &metrics); err != nil {
-		logger.Log.Info("error update metrics", zap.Error(err))
-		http.Error(res, "error update metrics", http.StatusInternalServerError)
-		return
+	for i := 0; i <= RequestRetryCount; i++ {
+		err := mr.Repository.UpdateMetrics(req.Context(), &metrics)
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+					logger.Log.Info("repository connection error", zap.Error(err))
+					time.Sleep(time.Duration(1+i*2) * time.Second)
+					continue
+				}
+			}
+			logger.Log.Info("error update metrics", zap.Error(err))
+			http.Error(res, "error update metrics", http.StatusInternalServerError)
+			return
+		}
+		break
 	}
 
 	if t, ok := mr.Repository.(*repository.FileStorage); ok && (mr.StoreInterval == 0) {
@@ -324,12 +428,26 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 		}
 	}
 	for i, m := range metrics {
-		var updated *metric.Metric
-		updated, err := mr.Repository.GetMetric(req.Context(), m.MType, m.ID)
-		if err != nil {
-			logger.Log.Info("error get updated metric", zap.Error(err))
-			http.Error(res, "error get updated metric", http.StatusInternalServerError)
-			return
+		var (
+			updated *metric.Metric
+			err     error
+		)
+		for i := 0; i <= RequestRetryCount; i++ {
+			updated, err = mr.Repository.GetMetric(req.Context(), m.MType, m.ID)
+			if err != nil {
+				var pgErr *pgconn.PgError
+				if errors.As(err, &pgErr) {
+					if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+						logger.Log.Info("repository connection error", zap.Error(err))
+						time.Sleep(time.Duration(1+i*2) * time.Second)
+						continue
+					}
+				}
+				logger.Log.Info("error get updated metric", zap.Error(err))
+				http.Error(res, "error get updated metric", http.StatusInternalServerError)
+				return
+			}
+			break
 		}
 		metrics[i] = *updated
 	}

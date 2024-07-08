@@ -214,6 +214,7 @@ func (mw *MetricWorker) SendMetrics(serverUrl string) (int, string, error) {
 			logger.Log.Info("error post request", zap.Error(err))
 			return 0, "", err
 		}
+		break
 	}
 	defer resp.RawBody().Close()
 
