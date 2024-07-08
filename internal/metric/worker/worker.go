@@ -182,7 +182,7 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 	return resp.StatusCode(), string(respBody), nil
 }
 
-func (mw *MetricWorker) SendMetrics(serverUrl string) (int, string, error) {
+func (mw *MetricWorker) SendMetrics(serverURL string) (int, string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	metrics, _ := mw.repository.GetMetrics(ctx)
@@ -203,7 +203,7 @@ func (mw *MetricWorker) SendMetrics(serverUrl string) (int, string, error) {
 			SetHeader("Content-Encoding", "gzip").
 			SetHeader("Accept-Encoding", "gzip").
 			SetBody(buf).
-			Post(serverUrl)
+			Post(serverURL)
 		if err != nil {
 			var urlErr *url.Error
 			if errors.As(err, &urlErr) && i != RequestRetryCount {
