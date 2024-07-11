@@ -11,12 +11,14 @@ type ServerConfig struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
+	RetryCount      int
 	LogLevel        string
 }
 
 func NewServerConfig() (*ServerConfig, error) {
 	var config ServerConfig
-	config.ServerAddress = New()
+	config.ServerAddress = NewServerAddress()
+	config.RetryCount = 3
 	err := config.parseFlags()
 	if err != nil {
 		return nil, err
@@ -30,7 +32,7 @@ func (config *ServerConfig) parseFlags() error {
 	flag.IntVar(&config.StoreInterval, "i", 300, "Config store interval")
 	flag.StringVar(&config.FileStoragePath, "f", "", "Config file storage path")
 	flag.StringVar(&config.DatabaseDSN, "d", "", "Database DSN")
-	flag.BoolVar(&config.Restore, "r", true, "Restore config on startup")
+	flag.BoolVar(&config.Restore, "r", true, "Restore metrics on startup")
 	flag.Parse()
 
 	err := env.Parse(config)

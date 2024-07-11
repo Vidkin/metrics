@@ -19,7 +19,7 @@ type AgentConfig struct {
 
 func NewAgentConfig() (*AgentConfig, error) {
 	var config AgentConfig
-	config.ServerAddress = New()
+	config.ServerAddress = NewServerAddress()
 	config.LogLevel = "info"
 	err := config.parseFlags()
 	if err != nil {

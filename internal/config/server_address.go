@@ -17,7 +17,7 @@ type ServerAddress struct {
 	Address string `env:"ADDRESS"`
 }
 
-func New() *ServerAddress {
+func NewServerAddress() *ServerAddress {
 	return &ServerAddress{
 		Host: DefaultServerAddress,
 		Port: DefaultServerPort,

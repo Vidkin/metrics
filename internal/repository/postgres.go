@@ -7,10 +7,7 @@ import (
 	"errors"
 	"github.com/Vidkin/metrics/internal/logger"
 	me "github.com/Vidkin/metrics/internal/metric"
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 )
@@ -23,44 +20,6 @@ type PostgresStorage struct {
 	counterMetrics []*me.Metric
 	allMetrics     []*me.Metric
 	db             *sql.DB
-}
-
-func NewPostgresStorage(dbDSN string) (*PostgresStorage, error) {
-	var p PostgresStorage
-	p.gaugeMetrics = make([]*me.Metric, 0)
-	p.counterMetrics = make([]*me.Metric, 0)
-	p.allMetrics = make([]*me.Metric, 0)
-
-	db, err := sql.Open("pgx", dbDSN)
-	if err != nil {
-		logger.Log.Fatal("error open sql connection", zap.Error(err))
-		return nil, err
-	}
-
-	driver, err := postgres.WithInstance(db, &postgres.Config{})
-	if err != nil {
-		logger.Log.Fatal("can't create postgres driver for migrations", zap.Error(err))
-		return nil, err
-	}
-
-	d, err := iofs.New(migrations, "migrations")
-	if err != nil {
-		logger.Log.Fatal("can't get migrations from FS", zap.Error(err))
-		return nil, err
-	}
-
-	m, err := migrate.NewWithInstance("iofs", d, "postgres", driver)
-	if err != nil {
-		logger.Log.Fatal("can't create new migrate instance", zap.Error(err))
-		return nil, err
-	}
-
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		logger.Log.Fatal("can't exec migrations", zap.Error(err))
-		return nil, err
-	}
-	p.db = db
-	return &p, nil
 }
 
 func (p *PostgresStorage) UpdateMetric(ctx context.Context, metric *me.Metric) error {

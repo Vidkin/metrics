@@ -20,17 +20,6 @@ type FileStorage struct {
 	FileStoragePath string
 }
 
-func NewFileStorage(fileStoragePath string) *FileStorage {
-	var f FileStorage
-	f.Gauge = make(map[string]float64)
-	f.Counter = make(map[string]int64)
-	f.gaugeMetrics = make([]*me.Metric, 0)
-	f.counterMetrics = make([]*me.Metric, 0)
-	f.allMetrics = make([]*me.Metric, 0)
-	f.FileStoragePath = fileStoragePath
-	return &f
-}
-
 func (f *FileStorage) UpdateMetric(_ context.Context, metric *me.Metric) error {
 	switch metric.MType {
 	case MetricTypeGauge:
@@ -123,7 +112,7 @@ func (f *FileStorage) GetCounters(_ context.Context) ([]*me.Metric, error) {
 	return f.counterMetrics, nil
 }
 
-func (f *FileStorage) SaveMetric(metric *me.Metric) error {
+func (f *FileStorage) Dump(metric *me.Metric) error {
 	file, err := os.OpenFile(f.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil && err != io.EOF {
 		logger.Log.Info("error open file", zap.Error(err))
@@ -176,7 +165,7 @@ func (f *FileStorage) SaveMetric(metric *me.Metric) error {
 	return nil
 }
 
-func (f *FileStorage) Save(ctx context.Context) error {
+func (f *FileStorage) FullDump() error {
 	file, err := os.OpenFile(f.FileStoragePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		logger.Log.Info("error open file", zap.Error(err))
@@ -184,12 +173,12 @@ func (f *FileStorage) Save(ctx context.Context) error {
 	}
 	defer file.Close()
 
-	gauge, err := f.GetGauges(ctx)
+	gauge, err := f.GetGauges(nil)
 	if err != nil {
 		logger.Log.Info("error get gauges", zap.Error(err))
 		return err
 	}
-	counter, err := f.GetCounters(ctx)
+	counter, err := f.GetCounters(nil)
 	if err != nil {
 		logger.Log.Info("error get counters", zap.Error(err))
 		return err
@@ -235,13 +224,5 @@ func (f *FileStorage) Load(ctx context.Context) error {
 			return err
 		}
 	}
-	return nil
-}
-
-func (f *FileStorage) Ping(_ context.Context) error {
-	return nil
-}
-
-func (f *FileStorage) Close() error {
 	return nil
 }

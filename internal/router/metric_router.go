@@ -2,13 +2,13 @@ package router
 
 import (
 	"context"
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/metric"
-	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/Vidkin/metrics/pkg/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgerrcode"
@@ -28,13 +28,12 @@ const (
 
 	MetricTypeCounter = "counter"
 	MetricTypeGauge   = "gauge"
-
-	RequestRetryCount = 3
 )
 
 type MetricRouter struct {
 	Repository    Repository
 	Router        chi.Router
+	RetryCount    int
 	LastStoreTime time.Time
 	StoreInterval int
 }
@@ -48,9 +47,32 @@ type Repository interface {
 	GetMetrics(ctx context.Context) ([]*metric.Metric, error)
 	GetGauges(ctx context.Context) ([]*metric.Metric, error)
 	GetCounters(ctx context.Context) ([]*metric.Metric, error)
+}
 
-	Close() error
-	Ping(ctx context.Context) error
+type Dumper interface {
+	Dump(metric *metric.Metric) error
+	FullDump() error
+}
+
+func Ping(r Repository, ctx context.Context) error {
+	if pinger, ok := r.(driver.Pinger); ok {
+		return pinger.Ping(ctx)
+	}
+	return errors.New("provided Repository does not implement Pinger")
+}
+
+func DumpMetric(r Repository, m *metric.Metric) error {
+	if dumper, ok := r.(Dumper); ok {
+		return dumper.Dump(m)
+	}
+	return errors.New("provided Repository does not implement Dumper")
+}
+
+func Close(r Repository) error {
+	if closer, ok := r.(io.Closer); ok {
+		return closer.Close()
+	}
+	return errors.New("provided Repository does not implement Pinger")
 }
 
 func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *config.ServerConfig) *MetricRouter {
@@ -78,6 +100,7 @@ func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *confi
 	mr.Router = router
 	mr.Repository = repository
 	mr.StoreInterval = serverConfig.StoreInterval
+	mr.RetryCount = serverConfig.RetryCount
 	mr.LastStoreTime = time.Now()
 	return &mr
 }
@@ -90,12 +113,12 @@ func (mr *MetricRouter) RootHandler(res http.ResponseWriter, req *http.Request) 
 		err     error
 	)
 
-	for i := 0; i <= RequestRetryCount; i++ {
+	for i := 0; i <= mr.RetryCount; i++ {
 		metrics, err = mr.Repository.GetMetrics(req.Context())
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) {
-				if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+				if pgerrcode.IsConnectionException(pgErr.Code) && i != mr.RetryCount {
 					logger.Log.Info("repository connection error", zap.Error(err))
 					time.Sleep(time.Duration(1+i*2) * time.Second)
 					continue
@@ -121,7 +144,7 @@ func (mr *MetricRouter) RootHandler(res http.ResponseWriter, req *http.Request) 
 
 func (mr *MetricRouter) PingDBHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain")
-	if err := mr.Repository.Ping(req.Context()); err != nil {
+	if err := Ping(mr.Repository, req.Context()); err != nil {
 		logger.Log.Info("couldn't connect to database")
 		res.WriteHeader(http.StatusInternalServerError)
 		return
@@ -143,12 +166,12 @@ func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http
 		err error
 	)
 
-	for i := 0; i <= RequestRetryCount; i++ {
+	for i := 0; i <= mr.RetryCount; i++ {
 		me, err = mr.Repository.GetMetric(req.Context(), metricType, metricName)
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) {
-				if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+				if pgerrcode.IsConnectionException(pgErr.Code) && i != mr.RetryCount {
 					logger.Log.Info("repository connection error", zap.Error(err))
 					time.Sleep(time.Duration(1+i*2) * time.Second)
 					continue
@@ -169,6 +192,26 @@ func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http
 	}
 
 	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+}
+
+func (mr *MetricRouter) DumpMetric(metric *metric.Metric) error {
+	if mr.StoreInterval == 0 {
+		for i := 0; i <= mr.RetryCount; i++ {
+			err := DumpMetric(mr.Repository, metric)
+			if err != nil {
+				var pathErr *os.PathError
+				if errors.As(err, &pathErr) && i != mr.RetryCount {
+					logger.Log.Info("repository connection error", zap.Error(err))
+					time.Sleep(time.Duration(1+i*2) * time.Second)
+					continue
+				}
+				logger.Log.Info("error saving metric", zap.Error(err))
+				return errors.New("error saving metric")
+			}
+			break
+		}
+	}
+	return nil
 }
 
 func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
@@ -212,12 +255,12 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 		return
 	}
 
-	for i := 0; i <= RequestRetryCount; i++ {
+	for i := 0; i <= mr.RetryCount; i++ {
 		err := mr.Repository.UpdateMetric(req.Context(), &me)
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) {
-				if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+				if pgerrcode.IsConnectionException(pgErr.Code) && i != mr.RetryCount {
 					logger.Log.Info("repository connection error", zap.Error(err))
 					time.Sleep(time.Duration(1+i*2) * time.Second)
 					continue
@@ -230,24 +273,10 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 		break
 	}
 
-	if t, ok := mr.Repository.(*repository.FileStorage); ok && (mr.StoreInterval == 0) {
-		for i := 0; i <= RequestRetryCount; i++ {
-			err := t.SaveMetric(&me)
-			if err != nil {
-				var pathErr *os.PathError
-				if errors.As(err, &pathErr) && i != RequestRetryCount {
-					logger.Log.Info("repository connection error", zap.Error(err))
-					time.Sleep(time.Duration(1+i*2) * time.Second)
-					continue
-				}
-				logger.Log.Info("error saving metric", zap.Error(err))
-				http.Error(res, "error saving metric", http.StatusInternalServerError)
-				return
-			}
-			break
-		}
+	if err := mr.DumpMetric(&me); err != nil {
+		http.Error(res, "error saving metric", http.StatusInternalServerError)
+		return
 	}
-
 	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	res.WriteHeader(http.StatusOK)
 }
@@ -281,12 +310,12 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 		return
 	}
 
-	for i := 0; i <= RequestRetryCount; i++ {
+	for i := 0; i <= mr.RetryCount; i++ {
 		err := mr.Repository.UpdateMetric(req.Context(), &me)
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) {
-				if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+				if pgerrcode.IsConnectionException(pgErr.Code) && i != mr.RetryCount {
 					logger.Log.Info("repository connection error", zap.Error(err))
 					time.Sleep(time.Duration(1+i*2) * time.Second)
 					continue
@@ -299,34 +328,20 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 		break
 	}
 
-	if t, ok := mr.Repository.(*repository.FileStorage); ok && (mr.StoreInterval == 0) {
-		for i := 0; i <= RequestRetryCount; i++ {
-			err := t.SaveMetric(&me)
-			if err != nil {
-				var pathErr *os.PathError
-				if errors.As(err, &pathErr) && i != RequestRetryCount {
-					logger.Log.Info("repository connection error", zap.Error(err))
-					time.Sleep(time.Duration(1+i*2) * time.Second)
-					continue
-				}
-				logger.Log.Info("error saving metric", zap.Error(err))
-				http.Error(res, "error saving metric", http.StatusInternalServerError)
-				return
-			}
-			break
-		}
+	if err := mr.DumpMetric(&me); err != nil {
+		http.Error(res, "error saving metric", http.StatusInternalServerError)
+		return
 	}
-
 	var (
 		actualMetric *metric.Metric
 		err          error
 	)
-	for i := 0; i <= RequestRetryCount; i++ {
+	for i := 0; i <= mr.RetryCount; i++ {
 		actualMetric, err = mr.Repository.GetMetric(req.Context(), me.MType, me.ID)
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) {
-				if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+				if pgerrcode.IsConnectionException(pgErr.Code) && i != mr.RetryCount {
 					logger.Log.Info("repository connection error", zap.Error(err))
 					time.Sleep(time.Duration(1+i*2) * time.Second)
 					continue
@@ -372,12 +387,12 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 		respMetric *metric.Metric
 		err        error
 	)
-	for i := 0; i <= RequestRetryCount; i++ {
+	for i := 0; i <= mr.RetryCount; i++ {
 		respMetric, err = mr.Repository.GetMetric(req.Context(), me.MType, me.ID)
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) {
-				if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+				if pgerrcode.IsConnectionException(pgErr.Code) && i != mr.RetryCount {
 					logger.Log.Info("repository connection error", zap.Error(err))
 					time.Sleep(time.Duration(1+i*2) * time.Second)
 					continue
@@ -421,12 +436,12 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 		}
 	}
 
-	for i := 0; i <= RequestRetryCount; i++ {
+	for i := 0; i <= mr.RetryCount; i++ {
 		err := mr.Repository.UpdateMetrics(req.Context(), &metrics)
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) {
-				if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+				if pgerrcode.IsConnectionException(pgErr.Code) && i != mr.RetryCount {
 					logger.Log.Info("repository connection error", zap.Error(err))
 					time.Sleep(time.Duration(1+i*2) * time.Second)
 					continue
@@ -439,36 +454,24 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 		break
 	}
 
-	if t, ok := mr.Repository.(*repository.FileStorage); ok && (mr.StoreInterval == 0) {
-		for _, me := range metrics {
-			for i := 0; i <= RequestRetryCount; i++ {
-				err := t.SaveMetric(&me)
-				if err != nil {
-					var pathErr *os.PathError
-					if errors.As(err, &pathErr) && i != RequestRetryCount {
-						logger.Log.Info("repository connection error", zap.Error(err))
-						time.Sleep(time.Duration(1+i*2) * time.Second)
-						continue
-					}
-					logger.Log.Info("error saving metric", zap.Error(err))
-					http.Error(res, "error saving metric", http.StatusInternalServerError)
-					return
-				}
-				break
-			}
+	for _, me := range metrics {
+		if err := mr.DumpMetric(&me); err != nil {
+			http.Error(res, "error saving metric", http.StatusInternalServerError)
+			return
 		}
 	}
+
 	for i, m := range metrics {
 		var (
 			updated *metric.Metric
 			err     error
 		)
-		for i := 0; i <= RequestRetryCount; i++ {
+		for i := 0; i <= mr.RetryCount; i++ {
 			updated, err = mr.Repository.GetMetric(req.Context(), m.MType, m.ID)
 			if err != nil {
 				var pgErr *pgconn.PgError
 				if errors.As(err, &pgErr) {
-					if pgerrcode.IsConnectionException(pgErr.Code) && i != RequestRetryCount {
+					if pgerrcode.IsConnectionException(pgErr.Code) && i != mr.RetryCount {
 						logger.Log.Info("repository connection error", zap.Error(err))
 						time.Sleep(time.Duration(1+i*2) * time.Second)
 						continue

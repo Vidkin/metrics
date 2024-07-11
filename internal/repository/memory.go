@@ -19,16 +19,6 @@ type MemoryStorage struct {
 	allMetrics     []*me.Metric
 }
 
-func NewMemoryStorage() *MemoryStorage {
-	var m MemoryStorage
-	m.Gauge = make(map[string]float64)
-	m.Counter = make(map[string]int64)
-	m.gaugeMetrics = make([]*me.Metric, 0)
-	m.counterMetrics = make([]*me.Metric, 0)
-	m.allMetrics = make([]*me.Metric, 0)
-	return &m
-}
-
 func (m *MemoryStorage) UpdateMetric(_ context.Context, metric *me.Metric) error {
 	switch metric.MType {
 	case MetricTypeGauge:
@@ -119,12 +109,4 @@ func (m *MemoryStorage) GetCounters(_ context.Context) ([]*me.Metric, error) {
 		})
 	}
 	return m.counterMetrics, nil
-}
-
-func (m *MemoryStorage) Ping(_ context.Context) error {
-	return nil
-}
-
-func (m *MemoryStorage) Close() error {
-	return nil
 }
