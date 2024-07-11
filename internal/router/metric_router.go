@@ -62,7 +62,7 @@ func Close(r repository.Repository) error {
 	if closer, ok := r.(io.Closer); ok {
 		return closer.Close()
 	}
-	return errors.New("provided Repository does not implement Pinger")
+	return errors.New("provided Repository does not implement Closer")
 }
 
 func NewMetricRouter(router *chi.Mux, repository repository.Repository, serverConfig *config.ServerConfig) *MetricRouter {
