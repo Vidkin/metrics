@@ -1,4 +1,4 @@
-package repository
+package storage
 
 import (
 	"context"
@@ -14,9 +14,9 @@ const (
 type MemoryStorage struct {
 	Gauge          map[string]float64
 	Counter        map[string]int64
-	gaugeMetrics   []*me.Metric
-	counterMetrics []*me.Metric
-	allMetrics     []*me.Metric
+	GaugeMetrics   []*me.Metric
+	CounterMetrics []*me.Metric
+	AllMetrics     []*me.Metric
 }
 
 func (m *MemoryStorage) UpdateMetric(_ context.Context, metric *me.Metric) error {
@@ -75,38 +75,38 @@ func (m *MemoryStorage) GetMetric(_ context.Context, mType string, name string) 
 }
 
 func (m *MemoryStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) {
-	m.allMetrics = m.allMetrics[:0]
+	m.AllMetrics = m.AllMetrics[:0]
 	if _, err := m.GetGauges(ctx); err != nil {
 		return nil, err
 	}
 	if _, err := m.GetCounters(ctx); err != nil {
 		return nil, err
 	}
-	m.allMetrics = append(m.allMetrics, m.gaugeMetrics...)
-	m.allMetrics = append(m.allMetrics, m.counterMetrics...)
-	return m.allMetrics, nil
+	m.AllMetrics = append(m.AllMetrics, m.GaugeMetrics...)
+	m.AllMetrics = append(m.AllMetrics, m.CounterMetrics...)
+	return m.AllMetrics, nil
 }
 
 func (m *MemoryStorage) GetGauges(_ context.Context) ([]*me.Metric, error) {
-	m.gaugeMetrics = m.gaugeMetrics[:0]
+	m.GaugeMetrics = m.GaugeMetrics[:0]
 	for k, v := range m.Gauge {
-		m.gaugeMetrics = append(m.gaugeMetrics, &me.Metric{
+		m.GaugeMetrics = append(m.GaugeMetrics, &me.Metric{
 			ID:    k,
 			Value: &v,
 			MType: MetricTypeGauge,
 		})
 	}
-	return m.gaugeMetrics, nil
+	return m.GaugeMetrics, nil
 }
 
 func (m *MemoryStorage) GetCounters(_ context.Context) ([]*me.Metric, error) {
-	m.counterMetrics = m.counterMetrics[:0]
+	m.CounterMetrics = m.CounterMetrics[:0]
 	for k, v := range m.Counter {
-		m.counterMetrics = append(m.counterMetrics, &me.Metric{
+		m.CounterMetrics = append(m.CounterMetrics, &me.Metric{
 			ID:    k,
 			Delta: &v,
 			MType: MetricTypeCounter,
 		})
 	}
-	return m.counterMetrics, nil
+	return m.CounterMetrics, nil
 }

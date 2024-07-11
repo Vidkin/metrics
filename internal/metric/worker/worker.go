@@ -9,7 +9,7 @@ import (
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/metric"
-	"github.com/Vidkin/metrics/internal/router"
+	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
 	"io"
@@ -59,13 +59,13 @@ const (
 )
 
 type MetricWorker struct {
-	repository router.Repository
+	repository repository.Repository
 	memStats   *runtime.MemStats
 	client     *resty.Client
 	config     *config.AgentConfig
 }
 
-func New(repository router.Repository, memStats *runtime.MemStats, client *resty.Client, config *config.AgentConfig) *MetricWorker {
+func New(repository repository.Repository, memStats *runtime.MemStats, client *resty.Client, config *config.AgentConfig) *MetricWorker {
 	return &MetricWorker{
 		repository: repository,
 		memStats:   memStats,

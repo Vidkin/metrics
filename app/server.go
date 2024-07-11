@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
-	"github.com/Vidkin/metrics/internal/repository"
+	"github.com/Vidkin/metrics/internal/repository/storage"
 	"github.com/Vidkin/metrics/internal/router"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -26,7 +26,7 @@ func NewServerApp(cfg *config.ServerConfig) (*ServerApp, error) {
 	if err := logger.Initialize(cfg.LogLevel); err != nil {
 		return nil, err
 	}
-	repo, err := repository.NewRepository(cfg)
+	repo, err := storage.NewRepository(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (a *ServerApp) Stop() {
 	}
 
 	logger.Log.Info("dump metrics before exit")
-	if _, ok := a.repository.(*repository.FileStorage); ok {
+	if _, ok := a.repository.(*storage.FileStorage); ok {
 		if err := a.DumpToFile(); err != nil {
 			logger.Log.Info("error dump metrics before exit", zap.Error(err))
 		}

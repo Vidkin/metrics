@@ -4,7 +4,7 @@ import (
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/metric/worker"
-	"github.com/Vidkin/metrics/internal/repository"
+	"github.com/Vidkin/metrics/internal/repository/storage"
 	"github.com/go-resty/resty/v2"
 	"runtime"
 )
@@ -17,7 +17,7 @@ func main() {
 	if err := logger.Initialize(agentConfig.LogLevel); err != nil {
 		panic(err)
 	}
-	memoryStorage := repository.NewFileStorage("")
+	memoryStorage := storage.NewFileStorage("")
 	memStats := &runtime.MemStats{}
 	client := resty.New()
 	client.SetDoNotParseResponse(true)

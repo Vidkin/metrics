@@ -1,4 +1,4 @@
-package repository
+package storage
 
 import (
 	"context"
@@ -13,13 +13,13 @@ import (
 )
 
 //go:embed migrations/*.sql
-var migrations embed.FS
+var Migrations embed.FS
 
 type PostgresStorage struct {
-	gaugeMetrics   []*me.Metric
-	counterMetrics []*me.Metric
-	allMetrics     []*me.Metric
-	db             *sql.DB
+	GaugeMetrics   []*me.Metric
+	CounterMetrics []*me.Metric
+	AllMetrics     []*me.Metric
+	Db             *sql.DB
 }
 
 func (p *PostgresStorage) UpdateMetric(ctx context.Context, metric *me.Metric) error {
@@ -27,26 +27,26 @@ func (p *PostgresStorage) UpdateMetric(ctx context.Context, metric *me.Metric) e
 	case MetricTypeGauge:
 		_, err := p.GetMetric(ctx, metric.MType, metric.ID)
 		if errors.Is(err, sql.ErrNoRows) {
-			_, err := p.db.ExecContext(ctx, "INSERT INTO gauge (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Value)
+			_, err := p.Db.ExecContext(ctx, "INSERT INTO gauge (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Value)
 			return err
 		}
 		if err != nil {
 			logger.Log.Info("error get gauge metric", zap.Error(err))
 			return err
 		}
-		_, err = p.db.ExecContext(ctx, "UPDATE gauge SET metric_value=$1 WHERE metric_name=$2", *metric.Value, metric.ID)
+		_, err = p.Db.ExecContext(ctx, "UPDATE gauge SET metric_value=$1 WHERE metric_name=$2", *metric.Value, metric.ID)
 		return err
 	case MetricTypeCounter:
 		_, err := p.GetMetric(ctx, metric.MType, metric.ID)
 		if errors.Is(err, sql.ErrNoRows) {
-			_, err := p.db.ExecContext(ctx, "INSERT INTO counter (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Delta)
+			_, err := p.Db.ExecContext(ctx, "INSERT INTO counter (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Delta)
 			return err
 		}
 		if err != nil {
 			logger.Log.Info("error get counter metric", zap.Error(err))
 			return err
 		}
-		_, err = p.db.ExecContext(ctx, "UPDATE counter SET metric_value=metric_value+$1 WHERE metric_name=$2", *metric.Delta, metric.ID)
+		_, err = p.Db.ExecContext(ctx, "UPDATE counter SET metric_value=metric_value+$1 WHERE metric_name=$2", *metric.Delta, metric.ID)
 		return err
 	default:
 		return errors.New("unknown metric type")
@@ -54,7 +54,7 @@ func (p *PostgresStorage) UpdateMetric(ctx context.Context, metric *me.Metric) e
 }
 
 func (p *PostgresStorage) UpdateMetrics(ctx context.Context, metrics *[]me.Metric) error {
-	tx, err := p.db.Begin()
+	tx, err := p.Db.Begin()
 	if err != nil {
 		logger.Log.Info("error begin tx", zap.Error(err))
 		return err
@@ -115,19 +115,19 @@ func (p *PostgresStorage) UpdateMetrics(ctx context.Context, metrics *[]me.Metri
 func (p *PostgresStorage) DeleteMetric(ctx context.Context, mType string, name string) error {
 	switch mType {
 	case MetricTypeGauge:
-		stmt, err := p.db.PrepareContext(ctx, "DELETE from gauge WHERE metric_name=$1")
+		stmt, err := p.Db.PrepareContext(ctx, "DELETE from gauge WHERE metric_name=$1")
 		if err != nil {
 			logger.Log.Info("error prepare stmt", zap.Error(err))
 			return err
 		}
 		defer stmt.Close()
-		_, err = p.db.ExecContext(ctx, "DELETE from gauge WHERE metric_name=$1", name)
+		_, err = p.Db.ExecContext(ctx, "DELETE from gauge WHERE metric_name=$1", name)
 		if err != nil {
 			logger.Log.Info("error delete gauge metric", zap.Error(err))
 		}
 		return err
 	case MetricTypeCounter:
-		stmt, err := p.db.PrepareContext(ctx, "DELETE from counter WHERE metric_name=$1")
+		stmt, err := p.Db.PrepareContext(ctx, "DELETE from counter WHERE metric_name=$1")
 		if err != nil {
 			logger.Log.Info("error prepare stmt", zap.Error(err))
 			return err
@@ -147,7 +147,7 @@ func (p *PostgresStorage) DeleteMetric(ctx context.Context, mType string, name s
 func (p *PostgresStorage) GetMetric(ctx context.Context, mType string, name string) (*me.Metric, error) {
 	switch mType {
 	case MetricTypeGauge:
-		stmt, err := p.db.PrepareContext(ctx, "SELECT metric_name, metric_value from gauge WHERE metric_name=$1")
+		stmt, err := p.Db.PrepareContext(ctx, "SELECT metric_name, metric_value from gauge WHERE metric_name=$1")
 		if err != nil {
 			logger.Log.Info("error prepare stmt", zap.Error(err))
 			return nil, err
@@ -163,7 +163,7 @@ func (p *PostgresStorage) GetMetric(ctx context.Context, mType string, name stri
 		m.MType = MetricTypeGauge
 		return &m, nil
 	case MetricTypeCounter:
-		stmt, err := p.db.PrepareContext(ctx, "SELECT metric_name, metric_value from counter WHERE metric_name=$1")
+		stmt, err := p.Db.PrepareContext(ctx, "SELECT metric_name, metric_value from counter WHERE metric_name=$1")
 		if err != nil {
 			logger.Log.Info("error prepare stmt", zap.Error(err))
 			return nil, err
@@ -185,7 +185,7 @@ func (p *PostgresStorage) GetMetric(ctx context.Context, mType string, name stri
 }
 
 func (p *PostgresStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) {
-	p.allMetrics = p.allMetrics[:0]
+	p.AllMetrics = p.AllMetrics[:0]
 	if _, err := p.GetGauges(ctx); err != nil {
 		logger.Log.Info("error get gauges", zap.Error(err))
 		return nil, err
@@ -194,14 +194,14 @@ func (p *PostgresStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) 
 		logger.Log.Info("error get counters", zap.Error(err))
 		return nil, err
 	}
-	p.allMetrics = append(p.allMetrics, p.gaugeMetrics...)
-	p.allMetrics = append(p.allMetrics, p.counterMetrics...)
-	return p.allMetrics, nil
+	p.AllMetrics = append(p.AllMetrics, p.GaugeMetrics...)
+	p.AllMetrics = append(p.AllMetrics, p.CounterMetrics...)
+	return p.AllMetrics, nil
 }
 
 func (p *PostgresStorage) GetGauges(ctx context.Context) ([]*me.Metric, error) {
-	p.gaugeMetrics = p.gaugeMetrics[:0]
-	stmt, err := p.db.PrepareContext(ctx, "SELECT metric_name, metric_value from gauge")
+	p.GaugeMetrics = p.GaugeMetrics[:0]
+	stmt, err := p.Db.PrepareContext(ctx, "SELECT metric_name, metric_value from gauge")
 	if err != nil {
 		logger.Log.Info("error prepare stmt", zap.Error(err))
 		return nil, err
@@ -221,18 +221,18 @@ func (p *PostgresStorage) GetGauges(ctx context.Context) ([]*me.Metric, error) {
 			return nil, err
 		}
 		m.MType = MetricTypeGauge
-		p.gaugeMetrics = append(p.gaugeMetrics, &m)
+		p.GaugeMetrics = append(p.GaugeMetrics, &m)
 	}
 	if rows.Err() != nil {
 		logger.Log.Info("error rows", zap.Error(err))
 		return nil, err
 	}
-	return p.gaugeMetrics, nil
+	return p.GaugeMetrics, nil
 }
 
 func (p *PostgresStorage) GetCounters(ctx context.Context) ([]*me.Metric, error) {
-	p.counterMetrics = p.counterMetrics[:0]
-	stmt, err := p.db.PrepareContext(ctx, "SELECT metric_name, metric_value from counter")
+	p.CounterMetrics = p.CounterMetrics[:0]
+	stmt, err := p.Db.PrepareContext(ctx, "SELECT metric_name, metric_value from counter")
 	if err != nil {
 		logger.Log.Info("error prepare stmt", zap.Error(err))
 		return nil, err
@@ -252,19 +252,19 @@ func (p *PostgresStorage) GetCounters(ctx context.Context) ([]*me.Metric, error)
 			return nil, err
 		}
 		m.MType = MetricTypeCounter
-		p.counterMetrics = append(p.counterMetrics, &m)
+		p.CounterMetrics = append(p.CounterMetrics, &m)
 	}
 	if rows.Err() != nil {
 		logger.Log.Info("error rows", zap.Error(err))
 		return nil, err
 	}
-	return p.counterMetrics, nil
+	return p.CounterMetrics, nil
 }
 
 func (p *PostgresStorage) Ping(ctx context.Context) error {
-	return p.db.PingContext(ctx)
+	return p.Db.PingContext(ctx)
 }
 
 func (p *PostgresStorage) Close() error {
-	return p.db.Close()
+	return p.Db.Close()
 }

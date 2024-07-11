@@ -1,4 +1,4 @@
-package repository
+package storage
 
 import (
 	"context"
@@ -14,9 +14,9 @@ import (
 type FileStorage struct {
 	Gauge           map[string]float64
 	Counter         map[string]int64
-	gaugeMetrics    []*me.Metric
-	counterMetrics  []*me.Metric
-	allMetrics      []*me.Metric
+	GaugeMetrics    []*me.Metric
+	CounterMetrics  []*me.Metric
+	AllMetrics      []*me.Metric
 	FileStoragePath string
 }
 
@@ -76,40 +76,40 @@ func (f *FileStorage) GetMetric(_ context.Context, mType string, name string) (*
 }
 
 func (f *FileStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) {
-	f.allMetrics = f.allMetrics[:0]
+	f.AllMetrics = f.AllMetrics[:0]
 	if _, err := f.GetGauges(ctx); err != nil {
 		return nil, err
 	}
 	if _, err := f.GetCounters(ctx); err != nil {
 		return nil, err
 	}
-	f.allMetrics = append(f.allMetrics, f.gaugeMetrics...)
-	f.allMetrics = append(f.allMetrics, f.counterMetrics...)
-	return f.allMetrics, nil
+	f.AllMetrics = append(f.AllMetrics, f.GaugeMetrics...)
+	f.AllMetrics = append(f.AllMetrics, f.CounterMetrics...)
+	return f.AllMetrics, nil
 }
 
 func (f *FileStorage) GetGauges(_ context.Context) ([]*me.Metric, error) {
-	f.gaugeMetrics = f.gaugeMetrics[:0]
+	f.GaugeMetrics = f.GaugeMetrics[:0]
 	for k, v := range f.Gauge {
-		f.gaugeMetrics = append(f.gaugeMetrics, &me.Metric{
+		f.GaugeMetrics = append(f.GaugeMetrics, &me.Metric{
 			ID:    k,
 			Value: &v,
 			MType: MetricTypeGauge,
 		})
 	}
-	return f.gaugeMetrics, nil
+	return f.GaugeMetrics, nil
 }
 
 func (f *FileStorage) GetCounters(_ context.Context) ([]*me.Metric, error) {
-	f.counterMetrics = f.counterMetrics[:0]
+	f.CounterMetrics = f.CounterMetrics[:0]
 	for k, v := range f.Counter {
-		f.counterMetrics = append(f.counterMetrics, &me.Metric{
+		f.CounterMetrics = append(f.CounterMetrics, &me.Metric{
 			ID:    k,
 			Delta: &v,
 			MType: MetricTypeCounter,
 		})
 	}
-	return f.counterMetrics, nil
+	return f.CounterMetrics, nil
 }
 
 func (f *FileStorage) Dump(metric *me.Metric) error {
@@ -173,12 +173,12 @@ func (f *FileStorage) FullDump() error {
 	}
 	defer file.Close()
 
-	gauge, err := f.GetGauges(nil)
+	gauge, err := f.GetGauges(context.TODO())
 	if err != nil {
 		logger.Log.Info("error get gauges", zap.Error(err))
 		return err
 	}
-	counter, err := f.GetCounters(nil)
+	counter, err := f.GetCounters(context.TODO())
 	if err != nil {
 		logger.Log.Info("error get counters", zap.Error(err))
 		return err
