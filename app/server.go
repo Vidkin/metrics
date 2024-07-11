@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
+	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/Vidkin/metrics/internal/repository/storage"
 	"github.com/Vidkin/metrics/internal/router"
 	"github.com/go-chi/chi/v5"
@@ -19,7 +20,7 @@ import (
 type ServerApp struct {
 	config     *config.ServerConfig
 	srv        *http.Server
-	repository router.Repository
+	repository repository.Repository
 }
 
 func NewServerApp(cfg *config.ServerConfig) (*ServerApp, error) {
