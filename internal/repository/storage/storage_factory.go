@@ -71,7 +71,7 @@ func NewPostgresStorage(dbDSN string) (*PostgresStorage, error) {
 		logger.Log.Fatal("can't exec migrations", zap.Error(err))
 		return nil, err
 	}
-	p.Db = db
+	p.conn = db
 	return &p, nil
 }
 
