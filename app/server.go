@@ -70,22 +70,21 @@ func (a *ServerApp) DumpToFile() error {
 	return errors.New("provided Repository does not implement Dumper")
 }
 
-func (a *ServerApp) IntervalDump() {
-	if a.config.StoreInterval > 0 {
-		for {
-			if err := a.DumpToFile(); err != nil {
-				logger.Log.Info("error interval dump", zap.Error(err))
-			}
-			time.Sleep(time.Duration(a.config.StoreInterval) * time.Second)
-		}
-	}
-}
-
 func (a *ServerApp) Run() {
 	logger.Log.Info("running server", zap.String("address", a.config.ServerAddress.Address))
 
 	go a.Serve()
-	go a.IntervalDump()
+	if a.config.StoreInterval > 0 {
+		go func() {
+			for {
+				if err := a.DumpToFile(); err != nil {
+					logger.Log.Info("error interval dump", zap.Error(err))
+				}
+				time.Sleep(time.Duration(a.config.StoreInterval) * time.Second)
+			}
+		}()
+
+	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
