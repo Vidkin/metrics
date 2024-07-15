@@ -1,15 +1,20 @@
-package metricworker
+package agent
 
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
-	"github.com/Vidkin/metrics/internal/api/handler"
+	"errors"
 	"github.com/Vidkin/metrics/internal/config"
-	"github.com/Vidkin/metrics/internal/model"
+	"github.com/Vidkin/metrics/internal/logger"
+	"github.com/Vidkin/metrics/internal/metric"
+	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
 	"io"
 	"math/rand/v2"
+	"net/url"
 	"runtime"
 	"strings"
 	"time"
@@ -49,16 +54,18 @@ const (
 
 	MetricTypeCounter = "counter"
 	MetricTypeGauge   = "gauge"
+
+	RequestRetryCount = 3
 )
 
 type MetricWorker struct {
-	repository handler.Repository
+	repository repository.Repository
 	memStats   *runtime.MemStats
 	client     *resty.Client
 	config     *config.AgentConfig
 }
 
-func New(repository handler.Repository, memStats *runtime.MemStats, client *resty.Client, config *config.AgentConfig) *MetricWorker {
+func New(repository repository.Repository, memStats *runtime.MemStats, client *resty.Client, config *config.AgentConfig) *MetricWorker {
 	return &MetricWorker{
 		repository: repository,
 		memStats:   memStats,
@@ -98,23 +105,32 @@ func (mw *MetricWorker) CollectMetrics(count int64) {
 		GaugeMetricTotalAlloc:    float64(mw.memStats.TotalAlloc),
 		GaugeMetricRandomValue:   rand.Float64(),
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 	for k, v := range gaugeMetrics {
-		mw.repository.UpdateMetric(&model.Metric{
+		err := mw.repository.UpdateMetric(ctx, &metric.Metric{
 			ID:    k,
 			MType: MetricTypeGauge,
 			Value: &v,
 		})
+		if err != nil {
+			logger.Log.Info("error update gauge metric", zap.Error(err))
+		}
 	}
-	mw.repository.UpdateMetric(&model.Metric{
+	err := mw.repository.UpdateMetric(ctx, &metric.Metric{
 		ID:    CounterMetricPollCount,
 		MType: MetricTypeCounter,
 		Delta: &count,
 	})
+	if err != nil {
+		logger.Log.Info("error update counter metric", zap.Error(err))
+	}
 }
 
-func (mw *MetricWorker) SendMetric(url string, metric *model.Metric) (int, string, error) {
+func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, string, error) {
 	body, err := json.Marshal(metric)
 	if err != nil {
+		logger.Log.Info("error marshal body", zap.Error(err))
 		return 0, "", err
 	}
 
@@ -122,11 +138,13 @@ func (mw *MetricWorker) SendMetric(url string, metric *model.Metric) (int, strin
 	zb := gzip.NewWriter(buf)
 	_, err = zb.Write(body)
 	if err != nil {
+		logger.Log.Info("error gzip body", zap.Error(err))
 		return 0, "", err
 	}
 
 	err = zb.Close()
 	if err != nil {
+		logger.Log.Info("error close gzip buffer", zap.Error(err))
 		return 0, "", err
 	}
 
@@ -138,6 +156,7 @@ func (mw *MetricWorker) SendMetric(url string, metric *model.Metric) (int, strin
 		Post(url)
 
 	if err != nil {
+		logger.Log.Info("error post request", zap.Error(err))
 		return 0, "", err
 	}
 	defer resp.RawBody().Close()
@@ -147,6 +166,7 @@ func (mw *MetricWorker) SendMetric(url string, metric *model.Metric) (int, strin
 	if strings.Contains(contentEncoding, "gzip") {
 		cr, err := gzip.NewReader(resp.RawBody())
 		if err != nil {
+			logger.Log.Info("error init gzip reader", zap.Error(err))
 			return 0, "", err
 		}
 		or = cr
@@ -155,24 +175,64 @@ func (mw *MetricWorker) SendMetric(url string, metric *model.Metric) (int, strin
 	}
 	respBody, err := io.ReadAll(or)
 	if err != nil {
+		logger.Log.Info("error read response body", zap.Error(err))
 		return 0, "", err
 	}
 
 	return resp.StatusCode(), string(respBody), nil
 }
 
-func (mw *MetricWorker) SendMetrics(url string) {
-	for _, metric := range mw.repository.GetMetrics() {
-		_, _, err := mw.SendMetric(url, metric)
+func (mw *MetricWorker) SendMetrics(serverURL string) (int, string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	metrics, _ := mw.repository.GetMetrics(ctx)
+
+	body, _ := json.Marshal(metrics)
+	buf := bytes.NewBuffer(nil)
+	zb := gzip.NewWriter(buf)
+	_, _ = zb.Write(body)
+	zb.Close()
+
+	var (
+		resp *resty.Response
+		err  error
+	)
+	for i := 0; i <= RequestRetryCount; i++ {
+		resp, err = mw.client.R().
+			SetHeader("Content-Type", "application/json").
+			SetHeader("Content-Encoding", "gzip").
+			SetHeader("Accept-Encoding", "gzip").
+			SetBody(buf).
+			Post(serverURL)
 		if err != nil {
-			continue
+			var urlErr *url.Error
+			if errors.As(err, &urlErr) && i != RequestRetryCount {
+				logger.Log.Info("error post request", zap.Error(err))
+				time.Sleep(time.Duration(1+i*2) * time.Second)
+				continue
+			}
+			logger.Log.Info("error post request", zap.Error(err))
+			return 0, "", err
 		}
+		break
 	}
+	defer resp.RawBody().Close()
+
+	contentEncoding := resp.Header().Get("Content-Encoding")
+	var or io.ReadCloser
+	if strings.Contains(contentEncoding, "gzip") {
+		cr, _ := gzip.NewReader(resp.RawBody())
+		or = cr
+	} else {
+		or = resp.RawBody()
+	}
+	respBody, _ := io.ReadAll(or)
+	return resp.StatusCode(), string(respBody), nil
 }
 
 func (mw *MetricWorker) Poll() {
 	startTime := time.Now()
-	var url = "http://" + mw.config.ServerAddress.Address + "/update/"
+	var url = "http://" + mw.config.ServerAddress.Address + "/updates/"
 	var count int64 = 0
 	for {
 		currentTime := time.Now()

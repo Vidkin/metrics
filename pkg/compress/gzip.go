@@ -2,6 +2,8 @@ package compress
 
 import (
 	"compress/gzip"
+	"github.com/Vidkin/metrics/internal/logger"
+	"go.uber.org/zap"
 	"io"
 	"net/http"
 )
@@ -45,6 +47,7 @@ type Reader struct {
 func NewCompressReader(r io.ReadCloser) (*Reader, error) {
 	zr, err := gzip.NewReader(r)
 	if err != nil {
+		logger.Log.Info("error init compress reader", zap.Error(err))
 		return nil, err
 	}
 

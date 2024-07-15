@@ -1,9 +1,13 @@
-package handler
+package router
 
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
+	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/repository"
+	"github.com/Vidkin/metrics/internal/repository/storage"
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -119,8 +123,10 @@ func TestUpdateMetricHandler(t *testing.T) {
 		},
 	}
 
-	serverRepository := repository.NewMemoryStorage("")
-	metricRouter := NewMetricRouter(serverRepository, 300)
+	serverRepository := storage.NewMemoryStorage()
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 300}
+	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -145,12 +151,12 @@ func TestGetMetricValueHandler(t *testing.T) {
 		name       string
 		url        string
 		want       want
-		repository Repository
+		repository repository.Repository
 	}{
 		{
 			name: "test get gauge metric ok",
 			url:  "/value/gauge/param1",
-			repository: &repository.MemStorage{
+			repository: &storage.FileStorage{
 				Gauge:   map[string]float64{"param1": 17.34},
 				Counter: map[string]int64{},
 			},
@@ -163,7 +169,7 @@ func TestGetMetricValueHandler(t *testing.T) {
 		{
 			name: "test get counter metric ok",
 			url:  "/value/counter/param1",
-			repository: &repository.MemStorage{
+			repository: &storage.FileStorage{
 				Gauge:   map[string]float64{},
 				Counter: map[string]int64{"param1": 12},
 			},
@@ -176,7 +182,7 @@ func TestGetMetricValueHandler(t *testing.T) {
 		{
 			name: "test get unknown metric",
 			url:  "/value/counter/param1",
-			repository: &repository.MemStorage{
+			repository: &storage.FileStorage{
 				Gauge:   map[string]float64{},
 				Counter: map[string]int64{},
 			},
@@ -188,7 +194,7 @@ func TestGetMetricValueHandler(t *testing.T) {
 		{
 			name: "test get metric without name",
 			url:  "/value/counter/",
-			repository: &repository.MemStorage{
+			repository: &storage.FileStorage{
 				Gauge:   map[string]float64{},
 				Counter: map[string]int64{},
 			},
@@ -199,8 +205,10 @@ func TestGetMetricValueHandler(t *testing.T) {
 		},
 	}
 
-	serverRepository := repository.NewMemoryStorage("")
-	metricRouter := NewMetricRouter(serverRepository, 300)
+	serverRepository := storage.NewMemoryStorage()
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 300}
+	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -208,8 +216,10 @@ func TestGetMetricValueHandler(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
-			for _, metric := range test.repository.GetMetrics() {
-				serverRepository.UpdateMetric(metric)
+			ctx := context.TODO()
+			metrics, _ := test.repository.GetMetrics(ctx)
+			for _, metric := range metrics {
+				serverRepository.UpdateMetric(ctx, metric)
 			}
 			resp, value := testRequest(t, ts, http.MethodGet, test.url, false)
 			defer resp.Body.Close()
@@ -234,12 +244,12 @@ func TestRootHandler(t *testing.T) {
 		name           string
 		acceptEncoding bool
 		want           want
-		repository     Repository
+		repository     repository.Repository
 	}{
 		{
 			name:           "test get all known metrics with encoding",
 			acceptEncoding: false,
-			repository: &repository.MemStorage{
+			repository: &storage.FileStorage{
 				Gauge:   map[string]float64{"param1": 17.34},
 				Counter: map[string]int64{"param2": 2},
 			},
@@ -252,7 +262,7 @@ func TestRootHandler(t *testing.T) {
 		{
 			name:           "test get all known metrics without encoding",
 			acceptEncoding: false,
-			repository: &repository.MemStorage{
+			repository: &storage.FileStorage{
 				Gauge:   map[string]float64{"param1": 17.34},
 				Counter: map[string]int64{"param2": 2},
 			},
@@ -264,7 +274,7 @@ func TestRootHandler(t *testing.T) {
 		},
 		{
 			name: "test empty metrics repository",
-			repository: &repository.MemStorage{
+			repository: &storage.FileStorage{
 				Gauge:   map[string]float64{},
 				Counter: map[string]int64{},
 			},
@@ -276,8 +286,10 @@ func TestRootHandler(t *testing.T) {
 		},
 	}
 
-	serverRepository := repository.NewMemoryStorage("")
-	metricRouter := NewMetricRouter(serverRepository, 300)
+	serverRepository := storage.NewMemoryStorage()
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 300}
+	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -285,8 +297,10 @@ func TestRootHandler(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
-			for _, metric := range test.repository.GetMetrics() {
-				serverRepository.UpdateMetric(metric)
+			ctx := context.TODO()
+			metrics, _ := test.repository.GetMetrics(ctx)
+			for _, metric := range metrics {
+				serverRepository.UpdateMetric(ctx, metric)
 			}
 
 			resp, value := testRequest(t, ts, http.MethodGet, "", test.acceptEncoding)
@@ -374,8 +388,10 @@ func TestUpdateMetricHandlerJSON(t *testing.T) {
 		},
 	}
 
-	serverRepository := repository.NewMemoryStorage("")
-	metricRouter := NewMetricRouter(serverRepository, 300)
+	serverRepository := storage.NewMemoryStorage()
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 300}
+	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -384,6 +400,85 @@ func TestUpdateMetricHandlerJSON(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
 			resp, respBody := testJSONRequest(t, ts, http.MethodPost, "/update", test.json, test.contentType)
+			defer resp.Body.Close()
+			assert.Equal(t, test.want.statusCode, resp.StatusCode)
+			if test.want.statusCode == http.StatusOK {
+				assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
+				assert.JSONEq(t, test.want.respBody, respBody)
+			}
+		})
+	}
+}
+
+func TestUpdateMetricsHandlerJSON(t *testing.T) {
+	type want struct {
+		contentType string
+		statusCode  int
+		respBody    string
+	}
+
+	var tests = []struct {
+		name        string
+		json        string
+		contentType string
+		want        want
+	}{
+		{
+			name: "test update metrics status ok",
+			want: want{
+				statusCode:  http.StatusOK,
+				contentType: "application/json",
+				respBody:    `[{"id":"test","type":"gauge","value":13.5},{"id":"test1","type":"counter","delta":13}]`,
+			},
+			contentType: "application/json",
+			json:        `[{"id":"test","type":"gauge","value":13.5},{"id":"test1","type":"counter","delta":13}]`,
+		},
+		{
+			name: "test bad content-type",
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+			contentType: "text/plain",
+			json:        `[{"id":"test","type":"counter","delta":13}]`,
+		},
+		{
+			name: "test update with empty value",
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+			contentType: "application/json",
+			json:        `[{"id":"test","type":"counter"}]`,
+		},
+		{
+			name: "test bad metric type",
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+			contentType: "application/json",
+			json:        `[{"id":"test","type":"badType","delta":13}]`,
+		},
+		{
+			name: "test bad request body",
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+			contentType: "application/json",
+			json:        ``,
+		},
+	}
+
+	serverRepository := storage.NewMemoryStorage()
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 300}
+	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+	ts := httptest.NewServer(metricRouter.Router)
+	defer ts.Close()
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			clear(serverRepository.Gauge)
+			clear(serverRepository.Counter)
+			resp, respBody := testJSONRequest(t, ts, http.MethodPost, "/updates", test.json, test.contentType)
 			defer resp.Body.Close()
 			assert.Equal(t, test.want.statusCode, resp.StatusCode)
 			if test.want.statusCode == http.StatusOK {
@@ -406,7 +501,7 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 		json        string
 		contentType string
 		want        want
-		repository  Repository
+		repository  repository.Repository
 	}{
 		{
 			name: "test get counter metric status ok",
@@ -415,7 +510,7 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 				contentType: "application/json",
 				respBody:    `{"id":"test","type":"counter","delta":12}`,
 			},
-			repository: &repository.MemStorage{
+			repository: &storage.FileStorage{
 				Gauge:   map[string]float64{},
 				Counter: map[string]int64{"test": 12},
 			},
@@ -429,7 +524,7 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 				contentType: "application/json",
 				respBody:    `{"id":"test","type":"gauge","value":12.5}`,
 			},
-			repository: &repository.MemStorage{
+			repository: &storage.FileStorage{
 				Gauge:   map[string]float64{"test": 12.5},
 				Counter: map[string]int64{},
 			},
@@ -441,7 +536,7 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 			want: want{
 				statusCode: http.StatusBadRequest,
 			},
-			repository: &repository.MemStorage{
+			repository: &storage.FileStorage{
 				Gauge:   map[string]float64{"test": 12.5},
 				Counter: map[string]int64{},
 			},
@@ -453,7 +548,7 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 			want: want{
 				statusCode: http.StatusBadRequest,
 			},
-			repository: &repository.MemStorage{
+			repository: &storage.FileStorage{
 				Gauge:   map[string]float64{"test": 12.5},
 				Counter: map[string]int64{},
 			},
@@ -465,7 +560,7 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 			want: want{
 				statusCode: http.StatusNotFound,
 			},
-			repository: &repository.MemStorage{
+			repository: &storage.FileStorage{
 				Gauge:   map[string]float64{"test": 12.5},
 				Counter: map[string]int64{},
 			},
@@ -477,7 +572,7 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 			want: want{
 				statusCode: http.StatusBadRequest,
 			},
-			repository: &repository.MemStorage{
+			repository: &storage.FileStorage{
 				Gauge:   map[string]float64{"test": 12.5},
 				Counter: map[string]int64{},
 			},
@@ -486,8 +581,10 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 		},
 	}
 
-	serverRepository := repository.NewMemoryStorage("")
-	metricRouter := NewMetricRouter(serverRepository, 300)
+	serverRepository := storage.NewMemoryStorage()
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 300}
+	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
@@ -495,8 +592,10 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
-			for _, metric := range test.repository.GetMetrics() {
-				serverRepository.UpdateMetric(metric)
+			ctx := context.TODO()
+			metrics, _ := test.repository.GetMetrics(ctx)
+			for _, metric := range metrics {
+				serverRepository.UpdateMetric(ctx, metric)
 			}
 			resp, respBody := testJSONRequest(t, ts, http.MethodPost, "/value", test.json, test.contentType)
 			defer resp.Body.Close()
@@ -510,8 +609,10 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 }
 
 func TestGzipCompression(t *testing.T) {
-	serverRepository := repository.NewMemoryStorage("")
-	metricRouter := NewMetricRouter(serverRepository, 300)
+	serverRepository := storage.NewMemoryStorage()
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 300}
+	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
