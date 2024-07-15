@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/metric"
-	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/Vidkin/metrics/internal/repository/storage"
 	"github.com/Vidkin/metrics/internal/router"
 	"github.com/go-chi/chi/v5"
@@ -19,7 +18,7 @@ func TestSendMetrics(t *testing.T) {
 	tests := []struct {
 		name           string
 		sendToWrongURL bool
-		repository     repository.Repository
+		repository     router.Repository
 	}{
 		{
 			name:           "test send ok",
@@ -39,7 +38,7 @@ func TestSendMetrics(t *testing.T) {
 		},
 	}
 
-	serverRepository := storage.NewMemoryStorage()
+	serverRepository := router.NewMemoryStorage()
 	client := resty.New()
 	client.SetDoNotParseResponse(true)
 	chiRouter := chi.NewRouter()
@@ -147,7 +146,7 @@ func TestSendMetric(t *testing.T) {
 		},
 	}
 
-	serverRepository := storage.NewMemoryStorage()
+	serverRepository := router.NewMemoryStorage()
 	client := resty.New()
 	client.SetDoNotParseResponse(true)
 	chiRouter := chi.NewRouter()

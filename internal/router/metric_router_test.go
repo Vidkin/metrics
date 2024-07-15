@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"context"
 	"github.com/Vidkin/metrics/internal/config"
-	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/Vidkin/metrics/internal/repository/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -123,7 +122,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 		},
 	}
 
-	serverRepository := storage.NewMemoryStorage()
+	serverRepository := NewMemoryStorage()
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
 	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
@@ -151,7 +150,7 @@ func TestGetMetricValueHandler(t *testing.T) {
 		name       string
 		url        string
 		want       want
-		repository repository.Repository
+		repository Repository
 	}{
 		{
 			name: "test get gauge metric ok",
@@ -205,7 +204,7 @@ func TestGetMetricValueHandler(t *testing.T) {
 		},
 	}
 
-	serverRepository := storage.NewMemoryStorage()
+	serverRepository := NewMemoryStorage()
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
 	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
@@ -244,7 +243,7 @@ func TestRootHandler(t *testing.T) {
 		name           string
 		acceptEncoding bool
 		want           want
-		repository     repository.Repository
+		repository     Repository
 	}{
 		{
 			name:           "test get all known metrics with encoding",
@@ -286,7 +285,7 @@ func TestRootHandler(t *testing.T) {
 		},
 	}
 
-	serverRepository := storage.NewMemoryStorage()
+	serverRepository := NewMemoryStorage()
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
 	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
@@ -388,7 +387,7 @@ func TestUpdateMetricHandlerJSON(t *testing.T) {
 		},
 	}
 
-	serverRepository := storage.NewMemoryStorage()
+	serverRepository := NewMemoryStorage()
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
 	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
@@ -467,7 +466,7 @@ func TestUpdateMetricsHandlerJSON(t *testing.T) {
 		},
 	}
 
-	serverRepository := storage.NewMemoryStorage()
+	serverRepository := NewMemoryStorage()
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
 	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
@@ -501,7 +500,7 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 		json        string
 		contentType string
 		want        want
-		repository  repository.Repository
+		repository  Repository
 	}{
 		{
 			name: "test get counter metric status ok",
@@ -581,7 +580,7 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 		},
 	}
 
-	serverRepository := storage.NewMemoryStorage()
+	serverRepository := NewMemoryStorage()
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
 	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
@@ -609,7 +608,7 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 }
 
 func TestGzipCompression(t *testing.T) {
-	serverRepository := storage.NewMemoryStorage()
+	serverRepository := NewMemoryStorage()
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
 	metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)

@@ -9,7 +9,6 @@ import (
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/metric"
-	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/Vidkin/metrics/pkg/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgerrcode"
@@ -32,11 +31,22 @@ const (
 )
 
 type MetricRouter struct {
-	Repository    repository.Repository
+	Repository    Repository
 	Router        chi.Router
 	RetryCount    int
 	LastStoreTime time.Time
 	StoreInterval int
+}
+
+type Repository interface {
+	UpdateMetric(ctx context.Context, metric *metric.Metric) error
+	UpdateMetrics(ctx context.Context, metrics *[]metric.Metric) error
+	DeleteMetric(ctx context.Context, mType string, name string) error
+
+	GetMetric(ctx context.Context, mType string, name string) (*metric.Metric, error)
+	GetMetrics(ctx context.Context) ([]*metric.Metric, error)
+	GetGauges(ctx context.Context) ([]*metric.Metric, error)
+	GetCounters(ctx context.Context) ([]*metric.Metric, error)
 }
 
 type Dumper interface {
@@ -44,28 +54,28 @@ type Dumper interface {
 	FullDump() error
 }
 
-func Ping(r repository.Repository, ctx context.Context) error {
+func Ping(r Repository, ctx context.Context) error {
 	if pinger, ok := r.(driver.Pinger); ok {
 		return pinger.Ping(ctx)
 	}
 	return errors.New("provided Repository does not implement Pinger")
 }
 
-func DumpMetric(r repository.Repository, m *metric.Metric) error {
+func DumpMetric(r Repository, m *metric.Metric) error {
 	if dumper, ok := r.(Dumper); ok {
 		return dumper.Dump(m)
 	}
 	return errors.New("provided Repository does not implement Dumper")
 }
 
-func Close(r repository.Repository) error {
+func Close(r Repository) error {
 	if closer, ok := r.(io.Closer); ok {
 		return closer.Close()
 	}
 	return errors.New("provided Repository does not implement Closer")
 }
 
-func NewMetricRouter(router *chi.Mux, repository repository.Repository, serverConfig *config.ServerConfig) *MetricRouter {
+func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *config.ServerConfig) *MetricRouter {
 	var mr MetricRouter
 	router.Use(middleware.Logging)
 	router.Use(middleware.Gzip)
