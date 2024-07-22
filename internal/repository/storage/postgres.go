@@ -121,7 +121,7 @@ func (p *PostgresStorage) DeleteMetric(ctx context.Context, mType string, name s
 			return err
 		}
 		defer stmt.Close()
-		_, err = p.Conn.ExecContext(ctx, "DELETE from gauge WHERE metric_name=$1", name)
+		_, err = stmt.ExecContext(ctx, name)
 		if err != nil {
 			logger.Log.Info("error delete gauge metric", zap.Error(err))
 		}
