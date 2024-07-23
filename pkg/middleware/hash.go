@@ -10,6 +10,26 @@ import (
 	"net/http"
 )
 
+type (
+	hashResponseWriter struct {
+		http.ResponseWriter
+		Key        string
+		HashSHA256 string
+		statusCode int
+	}
+)
+
+func (rw *hashResponseWriter) Write(data []byte) (int, error) {
+	h := hash.GetHashSHA256(rw.Key, data)
+	hEnc := base64.StdEncoding.EncodeToString(h)
+	rw.HashSHA256 = hEnc
+	return rw.ResponseWriter.Write(data)
+}
+
+func (rw *hashResponseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+}
+
 func Hash(key string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +55,13 @@ func Hash(key string) func(http.Handler) http.Handler {
 				}
 				r.Body = io.NopCloser(bytes.NewBuffer(body))
 			}
-			next.ServeHTTP(w, r)
+			hashRW := hashResponseWriter{
+				ResponseWriter: w,
+				Key:            key,
+			}
+			next.ServeHTTP(&hashRW, r)
+			w.Header().Set("HashSHA256", hashRW.HashSHA256)
+			w.WriteHeader(hashRW.statusCode)
 		})
 	}
 }

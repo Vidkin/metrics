@@ -424,7 +424,6 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 		http.Error(res, "only application/json content-type allowed", http.StatusBadRequest)
 		return
 	}
-
 	var metrics []metric.Metric
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&metrics); err != nil {

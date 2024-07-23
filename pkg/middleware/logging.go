@@ -8,14 +8,14 @@ import (
 )
 
 type (
-	responseData struct {
+	loggingResponseData struct {
 		status int
 		size   int
 	}
 
 	loggingResponseWriter struct {
 		http.ResponseWriter
-		responseData *responseData
+		responseData *loggingResponseData
 	}
 )
 
@@ -26,14 +26,13 @@ func (rw *loggingResponseWriter) Write(data []byte) (int, error) {
 }
 
 func (rw *loggingResponseWriter) WriteHeader(statusCode int) {
-	rw.ResponseWriter.WriteHeader(statusCode)
 	rw.responseData.status = statusCode
 }
 
 func Logging(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		startTime := time.Now()
-		rData := &responseData{
+		rData := &loggingResponseData{
 			status: 0,
 			size:   0,
 		}
@@ -41,7 +40,6 @@ func Logging(h http.Handler) http.Handler {
 			responseData:   rData,
 			ResponseWriter: rw,
 		}
-
 		h.ServeHTTP(&loggingRW, req)
 		duration := time.Since(startTime)
 
