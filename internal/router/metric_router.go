@@ -78,6 +78,9 @@ func Close(r Repository) error {
 func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *config.ServerConfig) *MetricRouter {
 	var mr MetricRouter
 	router.Use(middleware.Logging)
+	if serverConfig.Key != "" {
+		router.Use(middleware.Hash(serverConfig.Key))
+	}
 	router.Use(middleware.Gzip)
 
 	router.Route("/", func(r chi.Router) {

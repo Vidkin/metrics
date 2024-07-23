@@ -47,7 +47,7 @@ func TestSendMetrics(t *testing.T) {
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
-	mw := New(nil, nil, client, nil)
+	mw := New(nil, nil, client, &config.AgentConfig{Key: ""})
 
 	for _, test := range tests {
 		mw.repository = test.repository
@@ -155,7 +155,7 @@ func TestSendMetric(t *testing.T) {
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
-	mw := New(nil, nil, client, nil)
+	mw := New(nil, nil, client, &config.AgentConfig{Key: ""})
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

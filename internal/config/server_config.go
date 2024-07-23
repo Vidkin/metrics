@@ -11,6 +11,7 @@ type ServerConfig struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
+	Key             string `env:"KEY"`
 	RetryCount      int
 	LogLevel        string
 }
@@ -32,6 +33,7 @@ func (config *ServerConfig) parseFlags() error {
 	flag.IntVar(&config.StoreInterval, "i", 300, "Config store interval")
 	flag.StringVar(&config.FileStoragePath, "f", "", "Metrics file storage path")
 	flag.StringVar(&config.DatabaseDSN, "d", "", "Database DSN")
+	flag.StringVar(&config.Key, "k", "", "Hash key")
 	flag.BoolVar(&config.Restore, "r", true, "Restore metrics on startup")
 	flag.Parse()
 

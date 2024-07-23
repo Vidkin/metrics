@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/metric"
 	"github.com/Vidkin/metrics/internal/router"
+	"github.com/Vidkin/metrics/pkg/hash"
 	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
 	"io"
@@ -198,7 +200,13 @@ func (mw *MetricWorker) SendMetrics(serverURL string) (int, string, error) {
 		err  error
 	)
 	for i := 0; i <= RequestRetryCount; i++ {
-		resp, err = mw.client.R().
+		req := mw.client.R()
+		if mw.config.Key != "" {
+			h := hash.GetHashSHA256(mw.config.Key, buf.Bytes())
+			hEnc := base64.StdEncoding.EncodeToString(h)
+			req.SetHeader("HashSHA256", hEnc)
+		}
+		resp, err = req.
 			SetHeader("Content-Type", "application/json").
 			SetHeader("Content-Encoding", "gzip").
 			SetHeader("Accept-Encoding", "gzip").
