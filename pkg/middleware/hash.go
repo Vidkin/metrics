@@ -24,21 +24,8 @@ func (rw *hashResponseWriter) Write(data []byte) (int, error) {
 	h := hash.GetHashSHA256(rw.Key, data)
 	hEnc := base64.StdEncoding.EncodeToString(h)
 	rw.HashSHA256 = hEnc
-	if !rw.written {
-		rw.WriteHeader(http.StatusOK)
-	}
+	rw.Header().Set("HashSHA256", rw.HashSHA256)
 	return rw.ResponseWriter.Write(data)
-}
-
-func (rw *hashResponseWriter) WriteHeader(statusCode int) {
-	if !rw.written {
-		rw.written = true
-		if rw.HashSHA256 != "" {
-			rw.Header().Set("HashSHA256", rw.HashSHA256)
-		}
-		rw.statusCode = statusCode
-	}
-	rw.ResponseWriter.WriteHeader(statusCode)
 }
 
 func Hash(key string) func(http.Handler) http.Handler {

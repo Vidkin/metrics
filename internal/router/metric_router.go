@@ -142,6 +142,7 @@ func (mr *MetricRouter) RootHandler(res http.ResponseWriter, req *http.Request) 
 			_, _ = io.WriteString(res, fmt.Sprintf("%s = %d\n", me.ID, *me.Delta))
 		}
 	}
+	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) PingDBHandler(res http.ResponseWriter, req *http.Request) {
@@ -151,6 +152,7 @@ func (mr *MetricRouter) PingDBHandler(res http.ResponseWriter, req *http.Request
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http.Request) {
@@ -192,6 +194,7 @@ func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http
 	}
 
 	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) DumpMetric(metric *metric.Metric) error {
@@ -278,6 +281,7 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 		return
 	}
 	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *http.Request) {
@@ -354,13 +358,19 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 	}
 
 	res.Header().Set("Content-Type", "application/json")
-
-	enc := json.NewEncoder(res)
-	if err := enc.Encode(actualMetric); err != nil {
-		logger.Log.Info("error encoding response", zap.Error(err))
-		http.Error(res, "error encoding response", http.StatusInternalServerError)
+	data, err := json.Marshal(actualMetric)
+	if err != nil {
+		logger.Log.Info("error marshal json response", zap.Error(err))
+		http.Error(res, "error marshal json response", http.StatusInternalServerError)
 		return
 	}
+	_, err = res.Write(data)
+	if err != nil {
+		logger.Log.Info("error write response data", zap.Error(err))
+		http.Error(res, "error write response data", http.StatusInternalServerError)
+		return
+	}
+	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *http.Request) {
@@ -405,12 +415,19 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 
 	res.Header().Set("Content-Type", "application/json")
 
-	enc := json.NewEncoder(res)
-	if err := enc.Encode(respMetric); err != nil {
-		logger.Log.Info("error encoding response metric", zap.Error(err))
-		http.Error(res, "error encoding response metric", http.StatusInternalServerError)
+	data, err := json.Marshal(respMetric)
+	if err != nil {
+		logger.Log.Info("error marshal json response", zap.Error(err))
+		http.Error(res, "error marshal json response", http.StatusInternalServerError)
 		return
 	}
+	_, err = res.Write(data)
+	if err != nil {
+		logger.Log.Info("error write response data", zap.Error(err))
+		http.Error(res, "error write response data", http.StatusInternalServerError)
+		return
+	}
+	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *http.Request) {
@@ -490,4 +507,5 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 		http.Error(res, "error encoding response", http.StatusInternalServerError)
 		return
 	}
+	res.WriteHeader(http.StatusOK)
 }

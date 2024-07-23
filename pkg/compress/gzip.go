@@ -25,13 +25,11 @@ func (c *Writer) Header() http.Header {
 }
 
 func (c *Writer) Write(p []byte) (int, error) {
+	c.w.Header().Set("Content-Encoding", "gzip")
 	return c.zw.Write(p)
 }
 
 func (c *Writer) WriteHeader(statusCode int) {
-	if statusCode < 300 {
-		c.w.Header().Set("Content-Encoding", "gzip")
-	}
 	c.w.WriteHeader(statusCode)
 }
 
