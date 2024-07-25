@@ -13,44 +13,50 @@ import (
 	"github.com/Vidkin/metrics/internal/router"
 	"github.com/Vidkin/metrics/pkg/hash"
 	"github.com/go-resty/resty/v2"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
 	"go.uber.org/zap"
 	"io"
 	"math/rand/v2"
 	"net/url"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	GaugeMetricAlloc         = "Alloc"
-	GaugeMetricBuckHashSys   = "BuckHashSys"
-	GaugeMetricFrees         = "Frees"
-	GaugeMetricGCCPUFraction = "GCCPUFraction"
-	GaugeMetricGCSys         = "GCSys"
-	GaugeMetricHeapAlloc     = "HeapAlloc"
-	GaugeMetricHeapIdle      = "HeapIdle"
-	GaugeMetricHeapInuse     = "HeapInuse"
-	GaugeMetricHeapObjects   = "HeapObjects"
-	GaugeMetricHeapReleased  = "HeapReleased"
-	GaugeMetricHeapSys       = "HeapSys"
-	GaugeMetricLastGC        = "LastGC"
-	GaugeMetricLookups       = "Lookups"
-	GaugeMetricMCacheInuse   = "MCacheInuse"
-	GaugeMetricMCacheSys     = "MCacheSys"
-	GaugeMetricMSpanInuse    = "MSpanInuse"
-	GaugeMetricMSpanSys      = "MSpanSys"
-	GaugeMetricMallocs       = "Mallocs"
-	GaugeMetricNextGC        = "NextGC"
-	GaugeMetricNumForcedGC   = "NumForcedGC"
-	GaugeMetricNumGC         = "NumGC"
-	GaugeMetricOtherSys      = "OtherSys"
-	GaugeMetricPauseTotalNs  = "PauseTotalNs"
-	GaugeMetricStackInuse    = "StackInuse"
-	GaugeMetricStackSys      = "StackSys"
-	GaugeMetricSys           = "Sys"
-	GaugeMetricTotalAlloc    = "TotalAlloc"
-	GaugeMetricRandomValue   = "RandomValue"
+	GaugeMetricAlloc          = "Alloc"
+	GaugeMetricBuckHashSys    = "BuckHashSys"
+	GaugeMetricFrees          = "Frees"
+	GaugeMetricGCCPUFraction  = "GCCPUFraction"
+	GaugeMetricGCSys          = "GCSys"
+	GaugeMetricHeapAlloc      = "HeapAlloc"
+	GaugeMetricHeapIdle       = "HeapIdle"
+	GaugeMetricHeapInuse      = "HeapInuse"
+	GaugeMetricHeapObjects    = "HeapObjects"
+	GaugeMetricHeapReleased   = "HeapReleased"
+	GaugeMetricHeapSys        = "HeapSys"
+	GaugeMetricLastGC         = "LastGC"
+	GaugeMetricLookups        = "Lookups"
+	GaugeMetricMCacheInuse    = "MCacheInuse"
+	GaugeMetricMCacheSys      = "MCacheSys"
+	GaugeMetricMSpanInuse     = "MSpanInuse"
+	GaugeMetricMSpanSys       = "MSpanSys"
+	GaugeMetricMallocs        = "Mallocs"
+	GaugeMetricNextGC         = "NextGC"
+	GaugeMetricNumForcedGC    = "NumForcedGC"
+	GaugeMetricNumGC          = "NumGC"
+	GaugeMetricOtherSys       = "OtherSys"
+	GaugeMetricPauseTotalNs   = "PauseTotalNs"
+	GaugeMetricStackInuse     = "StackInuse"
+	GaugeMetricStackSys       = "StackSys"
+	GaugeMetricSys            = "Sys"
+	GaugeMetricTotalAlloc     = "TotalAlloc"
+	GaugeMetricRandomValue    = "RandomValue"
+	GaugeMetricTotalMemory    = "TotalMemory"
+	GaugeMetricFreeMemory     = "FreeMemory"
+	GaugeMetricCPUutilization = "CPUutilization"
 
 	CounterMetricPollCount = "PollCount"
 
@@ -76,7 +82,23 @@ func New(repository router.Repository, memStats *runtime.MemStats, client *resty
 	}
 }
 
-func (mw *MetricWorker) CollectMetrics(count int64) {
+func (mw *MetricWorker) CollectMetrics(count int64) error {
+	runtime.ReadMemStats(mw.memStats)
+
+	vmStat, err := mem.VirtualMemory()
+	if err != nil {
+		logger.Log.Error("error collect memory metrics", zap.Error(err))
+		return err
+	}
+	totalMemory := vmStat.Total / 1024 / 1024
+	freeMemory := vmStat.Free / 1024 / 1024
+
+	percentages, err := cpu.Percent(0, true)
+	if err != nil {
+		logger.Log.Error("error collect cpu utilization metrics", zap.Error(err))
+		return err
+	}
+
 	gaugeMetrics := map[string]float64{
 		GaugeMetricAlloc:         float64(mw.memStats.Alloc),
 		GaugeMetricBuckHashSys:   float64(mw.memStats.BuckHashSys),
@@ -105,28 +127,37 @@ func (mw *MetricWorker) CollectMetrics(count int64) {
 		GaugeMetricStackSys:      float64(mw.memStats.StackSys),
 		GaugeMetricSys:           float64(mw.memStats.Sys),
 		GaugeMetricTotalAlloc:    float64(mw.memStats.TotalAlloc),
+		GaugeMetricTotalMemory:   float64(totalMemory),
+		GaugeMetricFreeMemory:    float64(freeMemory),
 		GaugeMetricRandomValue:   rand.Float64(),
 	}
+	for i, percentage := range percentages {
+		gaugeMetrics[GaugeMetricCPUutilization+strconv.Itoa(i+1)] = percentage
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	for k, v := range gaugeMetrics {
-		err := mw.repository.UpdateMetric(ctx, &metric.Metric{
+		err = mw.repository.UpdateMetric(ctx, &metric.Metric{
 			ID:    k,
 			MType: MetricTypeGauge,
 			Value: &v,
 		})
 		if err != nil {
-			logger.Log.Info("error update gauge metric", zap.Error(err))
+			logger.Log.Error("error update gauge metric", zap.Error(err))
+			return err
 		}
 	}
-	err := mw.repository.UpdateMetric(ctx, &metric.Metric{
+	err = mw.repository.UpdateMetric(ctx, &metric.Metric{
 		ID:    CounterMetricPollCount,
 		MType: MetricTypeCounter,
 		Delta: &count,
 	})
 	if err != nil {
-		logger.Log.Info("error update counter metric", zap.Error(err))
+		logger.Log.Error("error update counter metric", zap.Error(err))
+		return err
 	}
+	return nil
 }
 
 func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, string, error) {
@@ -240,16 +271,17 @@ func (mw *MetricWorker) SendMetrics(serverURL string) (int, string, error) {
 
 func (mw *MetricWorker) Poll() {
 	startTime := time.Now()
-	var url = "http://" + mw.config.ServerAddress.Address + "/updates/"
+	var serverURL = "http://" + mw.config.ServerAddress.Address + "/updates/"
 	var count int64 = 0
 	for {
 		currentTime := time.Now()
-		runtime.ReadMemStats(mw.memStats)
-		mw.CollectMetrics(count)
-
-		if currentTime.Sub(startTime).Seconds() >= float64(mw.config.ReportInterval) {
+		if err := mw.CollectMetrics(count); err != nil {
+			logger.Log.Info("error collect metrics", zap.Error(err))
+		} else if currentTime.Sub(startTime).Seconds() >= float64(mw.config.ReportInterval) {
 			startTime = currentTime
-			mw.SendMetrics(url)
+			if _, _, err := mw.SendMetrics(serverURL); err != nil {
+				logger.Log.Info("error send metrics", zap.Error(err))
+			}
 		}
 		time.Sleep(time.Duration(mw.config.PollInterval) * time.Second)
 		count++
