@@ -34,7 +34,7 @@ func (config *AgentConfig) parseFlags() error {
 	flag.Var(config.ServerAddress, "a", "Server address host:port")
 	flag.IntVar(&config.ReportInterval, "r", DefaultAgentReportInterval, "Agent report poll interval (sec)")
 	flag.IntVar(&config.PollInterval, "p", DefaultAgentPollInterval, "Agent poll interval (sec)")
-	flag.IntVar(&config.RateLimit, "l", 0, "Rate limit")
+	flag.IntVar(&config.RateLimit, "l", 5, "Rate limit")
 	flag.StringVar(&config.Key, "k", "", "Hash key")
 	flag.Parse()
 

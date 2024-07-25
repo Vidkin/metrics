@@ -54,12 +54,19 @@ func TestSendMetrics(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
-
+			chIn := make(chan *metric.Metric)
+			go func() {
+				defer close(chIn)
+				metrics, _ := test.repository.GetMetrics(context.TODO())
+				for _, me := range metrics {
+					chIn <- me
+				}
+			}()
 			if test.sendToWrongURL {
-				mw.SendMetrics(ts.URL + "/wrong_url/")
+				mw.SendMetrics(chIn, ts.URL+"/wrong_url/")
 				assert.NotEqual(t, test.repository, serverRepository)
 			} else {
-				mw.SendMetrics(ts.URL + "/updates/")
+				mw.SendMetrics(chIn, ts.URL+"/updates/")
 				ctx := context.TODO()
 				testMetrics, _ := test.repository.GetMetrics(ctx)
 				serverMetrics, _ := serverRepository.GetMetrics(ctx)
