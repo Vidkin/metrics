@@ -54,7 +54,7 @@ func TestSendMetrics(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
-			chIn := make(chan *metric.Metric)
+			chIn := make(chan *metric.Metric, 10)
 			go func() {
 				defer close(chIn)
 				metrics, _ := test.repository.GetMetrics(context.TODO())

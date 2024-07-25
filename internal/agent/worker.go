@@ -261,7 +261,7 @@ func (mw *MetricWorker) Poll() {
 	var count int64 = 0
 	for {
 		currentTime := time.Now()
-		chIn := make(chan *metric.Metric)
+		chIn := make(chan *metric.Metric, mw.config.RateLimit)
 		go mw.CollectMetrics(chIn, count)
 
 		if currentTime.Sub(startTime).Seconds() >= float64(mw.config.ReportInterval) {
