@@ -162,8 +162,6 @@ func (mw *MetricWorker) CollectMetrics(chIn chan *metric.Metric, count int64) {
 		logger.Log.Error("error update counter metric", zap.Error(err))
 		return
 	}
-
-	return
 }
 
 func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, string, error) {
