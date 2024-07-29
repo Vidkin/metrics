@@ -75,15 +75,14 @@ func (a *ServerApp) Run() {
 
 	go a.Serve()
 	if a.config.StoreInterval > 0 {
+		ticker := time.NewTicker(time.Duration(a.config.StoreInterval) * time.Second)
 		go func() {
-			for {
+			for range ticker.C {
 				if err := a.DumpToFile(); err != nil {
 					logger.Log.Info("error interval dump", zap.Error(err))
 				}
-				time.Sleep(time.Duration(a.config.StoreInterval) * time.Second)
 			}
 		}()
-
 	}
 
 	quit := make(chan os.Signal, 1)
