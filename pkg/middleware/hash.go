@@ -39,7 +39,10 @@ func Hash(key string) func(http.Handler) http.Handler {
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
-				body, err := io.ReadAll(r.Body)
+
+				var buf bytes.Buffer
+				tee := io.TeeReader(r.Body, &buf)
+				body, err := io.ReadAll(tee)
 				if err != nil {
 					logger.Log.Error("error read request body", zap.Error(err))
 					w.WriteHeader(http.StatusInternalServerError)
@@ -51,7 +54,7 @@ func Hash(key string) func(http.Handler) http.Handler {
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
-				r.Body = io.NopCloser(bytes.NewBuffer(body))
+				r.Body = io.NopCloser(&buf)
 			}
 			hashRW := hashResponseWriter{
 				ResponseWriter: w,
