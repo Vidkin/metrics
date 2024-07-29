@@ -1,4 +1,4 @@
-package storage
+package router
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
 	me "github.com/Vidkin/metrics/internal/metric"
-	"github.com/Vidkin/metrics/internal/repository"
+	"github.com/Vidkin/metrics/internal/repository/storage"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
@@ -16,8 +16,8 @@ import (
 	"time"
 )
 
-func NewMemoryStorage() *MemoryStorage {
-	var m MemoryStorage
+func NewMemoryStorage() *storage.MemoryStorage {
+	var m storage.MemoryStorage
 	m.Gauge = make(map[string]float64)
 	m.Counter = make(map[string]int64)
 	m.GaugeMetrics = make([]*me.Metric, 0)
@@ -26,8 +26,8 @@ func NewMemoryStorage() *MemoryStorage {
 	return &m
 }
 
-func NewFileStorage(fileStoragePath string) *FileStorage {
-	var f FileStorage
+func NewFileStorage(fileStoragePath string) *storage.FileStorage {
+	var f storage.FileStorage
 	f.Gauge = make(map[string]float64)
 	f.Counter = make(map[string]int64)
 	f.GaugeMetrics = make([]*me.Metric, 0)
@@ -37,8 +37,8 @@ func NewFileStorage(fileStoragePath string) *FileStorage {
 	return &f
 }
 
-func NewPostgresStorage(dbDSN string) (*PostgresStorage, error) {
-	var p PostgresStorage
+func NewPostgresStorage(dbDSN string) (*storage.PostgresStorage, error) {
+	var p storage.PostgresStorage
 	p.GaugeMetrics = make([]*me.Metric, 0)
 	p.CounterMetrics = make([]*me.Metric, 0)
 	p.AllMetrics = make([]*me.Metric, 0)
@@ -55,7 +55,7 @@ func NewPostgresStorage(dbDSN string) (*PostgresStorage, error) {
 		return nil, err
 	}
 
-	d, err := iofs.New(Migrations, "migrations")
+	d, err := iofs.New(storage.Migrations, "migrations")
 	if err != nil {
 		logger.Log.Fatal("can't get migrations from FS", zap.Error(err))
 		return nil, err
@@ -71,11 +71,11 @@ func NewPostgresStorage(dbDSN string) (*PostgresStorage, error) {
 		logger.Log.Fatal("can't exec migrations", zap.Error(err))
 		return nil, err
 	}
-	p.conn = db
+	p.Conn = db
 	return &p, nil
 }
 
-func NewRepository(cfg *config.ServerConfig) (repository.Repository, error) {
+func NewRepository(cfg *config.ServerConfig) (Repository, error) {
 	if cfg.DatabaseDSN != "" {
 		return NewPostgresStorage(cfg.DatabaseDSN)
 	}

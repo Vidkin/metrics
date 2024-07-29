@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
-	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/Vidkin/metrics/internal/repository/storage"
 	"github.com/Vidkin/metrics/internal/router"
 	"github.com/go-chi/chi/v5"
@@ -20,14 +19,15 @@ import (
 type ServerApp struct {
 	config     *config.ServerConfig
 	srv        *http.Server
-	repository repository.Repository
+	repository router.Repository
+	dump       bool
 }
 
 func NewServerApp(cfg *config.ServerConfig) (*ServerApp, error) {
 	if err := logger.Initialize(cfg.LogLevel); err != nil {
 		return nil, err
 	}
-	repo, err := storage.NewRepository(cfg)
+	repo, err := router.NewRepository(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -70,22 +70,20 @@ func (a *ServerApp) DumpToFile() error {
 	return errors.New("provided Repository does not implement Dumper")
 }
 
-func (a *ServerApp) IntervalDump() {
-	if a.config.StoreInterval > 0 {
-		for {
-			if err := a.DumpToFile(); err != nil {
-				logger.Log.Info("error interval dump", zap.Error(err))
-			}
-			time.Sleep(time.Duration(a.config.StoreInterval) * time.Second)
-		}
-	}
-}
-
 func (a *ServerApp) Run() {
 	logger.Log.Info("running server", zap.String("address", a.config.ServerAddress.Address))
 
 	go a.Serve()
-	go a.IntervalDump()
+	if a.config.StoreInterval > 0 {
+		ticker := time.NewTicker(time.Duration(a.config.StoreInterval) * time.Second)
+		go func() {
+			for range ticker.C {
+				if err := a.DumpToFile(); err != nil {
+					logger.Log.Info("error interval dump", zap.Error(err))
+				}
+			}
+		}()
+	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

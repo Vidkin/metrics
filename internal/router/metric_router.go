@@ -9,7 +9,6 @@ import (
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/metric"
-	"github.com/Vidkin/metrics/internal/repository"
 	"github.com/Vidkin/metrics/pkg/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgerrcode"
@@ -32,11 +31,22 @@ const (
 )
 
 type MetricRouter struct {
-	Repository    repository.Repository
+	Repository    Repository
 	Router        chi.Router
 	RetryCount    int
 	LastStoreTime time.Time
 	StoreInterval int
+}
+
+type Repository interface {
+	UpdateMetric(ctx context.Context, metric *metric.Metric) error
+	UpdateMetrics(ctx context.Context, metrics *[]metric.Metric) error
+	DeleteMetric(ctx context.Context, mType string, name string) error
+
+	GetMetric(ctx context.Context, mType string, name string) (*metric.Metric, error)
+	GetMetrics(ctx context.Context) ([]*metric.Metric, error)
+	GetGauges(ctx context.Context) ([]*metric.Metric, error)
+	GetCounters(ctx context.Context) ([]*metric.Metric, error)
 }
 
 type Dumper interface {
@@ -44,30 +54,33 @@ type Dumper interface {
 	FullDump() error
 }
 
-func Ping(r repository.Repository, ctx context.Context) error {
+func Ping(r Repository, ctx context.Context) error {
 	if pinger, ok := r.(driver.Pinger); ok {
 		return pinger.Ping(ctx)
 	}
 	return errors.New("provided Repository does not implement Pinger")
 }
 
-func DumpMetric(r repository.Repository, m *metric.Metric) error {
+func DumpMetric(r Repository, m *metric.Metric) error {
 	if dumper, ok := r.(Dumper); ok {
 		return dumper.Dump(m)
 	}
 	return errors.New("provided Repository does not implement Dumper")
 }
 
-func Close(r repository.Repository) error {
+func Close(r Repository) error {
 	if closer, ok := r.(io.Closer); ok {
 		return closer.Close()
 	}
 	return errors.New("provided Repository does not implement Closer")
 }
 
-func NewMetricRouter(router *chi.Mux, repository repository.Repository, serverConfig *config.ServerConfig) *MetricRouter {
+func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *config.ServerConfig) *MetricRouter {
 	var mr MetricRouter
 	router.Use(middleware.Logging)
+	if serverConfig.Key != "" {
+		router.Use(middleware.Hash(serverConfig.Key))
+	}
 	router.Use(middleware.Gzip)
 
 	router.Route("/", func(r chi.Router) {
@@ -121,7 +134,6 @@ func (mr *MetricRouter) RootHandler(res http.ResponseWriter, req *http.Request) 
 		break
 	}
 
-	res.WriteHeader(http.StatusOK)
 	for _, me := range metrics {
 		if me.MType == MetricTypeGauge {
 			_, _ = io.WriteString(res, fmt.Sprintf("%s = %v\n", me.ID, *me.Value))
@@ -130,6 +142,7 @@ func (mr *MetricRouter) RootHandler(res http.ResponseWriter, req *http.Request) 
 			_, _ = io.WriteString(res, fmt.Sprintf("%s = %d\n", me.ID, *me.Delta))
 		}
 	}
+	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) PingDBHandler(res http.ResponseWriter, req *http.Request) {
@@ -174,7 +187,6 @@ func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http
 		break
 	}
 
-	res.WriteHeader(http.StatusOK)
 	_, err = res.Write([]byte(me.ValueAsString()))
 	if err != nil {
 		logger.Log.Info("can't write metric value", zap.Error(err))
@@ -182,6 +194,7 @@ func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http
 	}
 
 	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) DumpMetric(metric *metric.Metric) error {
@@ -278,8 +291,7 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 	}
 
 	var me metric.Metric
-	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&me); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(&me); err != nil {
 		http.Error(res, "can't decode request body", http.StatusBadRequest)
 		return
 	}
@@ -345,14 +357,19 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 	}
 
 	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusOK)
-
-	enc := json.NewEncoder(res)
-	if err := enc.Encode(actualMetric); err != nil {
-		logger.Log.Info("error encoding response", zap.Error(err))
-		http.Error(res, "error encoding response", http.StatusInternalServerError)
+	data, err := json.Marshal(actualMetric)
+	if err != nil {
+		logger.Log.Info("error marshal json response", zap.Error(err))
+		http.Error(res, "error marshal json response", http.StatusInternalServerError)
 		return
 	}
+	_, err = res.Write(data)
+	if err != nil {
+		logger.Log.Info("error write response data", zap.Error(err))
+		http.Error(res, "error write response data", http.StatusInternalServerError)
+		return
+	}
+	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *http.Request) {
@@ -362,8 +379,7 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 	}
 
 	var me metric.Metric
-	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&me); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(&me); err != nil {
 		http.Error(res, "can't decode request body", http.StatusBadRequest)
 		return
 	}
@@ -396,14 +412,20 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 	}
 
 	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusOK)
 
-	enc := json.NewEncoder(res)
-	if err := enc.Encode(respMetric); err != nil {
-		logger.Log.Info("error encoding response metric", zap.Error(err))
-		http.Error(res, "error encoding response metric", http.StatusInternalServerError)
+	data, err := json.Marshal(respMetric)
+	if err != nil {
+		logger.Log.Info("error marshal json response", zap.Error(err))
+		http.Error(res, "error marshal json response", http.StatusInternalServerError)
 		return
 	}
+	_, err = res.Write(data)
+	if err != nil {
+		logger.Log.Info("error write response data", zap.Error(err))
+		http.Error(res, "error write response data", http.StatusInternalServerError)
+		return
+	}
+	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *http.Request) {
@@ -411,10 +433,8 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 		http.Error(res, "only application/json content-type allowed", http.StatusBadRequest)
 		return
 	}
-
 	var metrics []metric.Metric
-	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&metrics); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(&metrics); err != nil {
 		http.Error(res, "can't decode request body", http.StatusBadRequest)
 		return
 	}
@@ -477,7 +497,6 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 	}
 
 	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusOK)
 
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(metrics); err != nil {
@@ -485,4 +504,5 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 		http.Error(res, "error encoding response", http.StatusInternalServerError)
 		return
 	}
+	res.WriteHeader(http.StatusOK)
 }
