@@ -291,8 +291,7 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 	}
 
 	var me metric.Metric
-	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&me); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(&me); err != nil {
 		http.Error(res, "can't decode request body", http.StatusBadRequest)
 		return
 	}
@@ -380,8 +379,7 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 	}
 
 	var me metric.Metric
-	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&me); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(&me); err != nil {
 		http.Error(res, "can't decode request body", http.StatusBadRequest)
 		return
 	}
@@ -436,8 +434,7 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 		return
 	}
 	var metrics []metric.Metric
-	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&metrics); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(&metrics); err != nil {
 		http.Error(res, "can't decode request body", http.StatusBadRequest)
 		return
 	}
