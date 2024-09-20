@@ -85,18 +85,18 @@ func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *confi
 
 	router.Route("/", func(r chi.Router) {
 		r.Get("/", mr.RootHandler)
-		router.Route("/ping", func(r chi.Router) {
+		r.Route("/ping", func(r chi.Router) {
 			r.Get("/", mr.PingDBHandler)
 		})
-		router.Route("/value", func(r chi.Router) {
+		r.Route("/value", func(r chi.Router) {
 			r.Post("/", mr.GetMetricValueHandlerJSON)
 			r.Get("/{metricType}/{metricName}", mr.GetMetricValueHandler)
 		})
-		router.Route("/update", func(r chi.Router) {
+		r.Route("/update", func(r chi.Router) {
 			r.Post("/", mr.UpdateMetricHandlerJSON)
 			r.Post("/{metricType}/{metricName}/{metricValue}", mr.UpdateMetricHandler)
 		})
-		router.Route("/updates", func(r chi.Router) {
+		r.Route("/updates", func(r chi.Router) {
 			r.Post("/", mr.UpdateMetricsHandlerJSON)
 		})
 	})
@@ -434,19 +434,17 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 		return
 	}
 
-	body := req.Body
+	var metrics []metric.Metric
+	if err := json.NewDecoder(req.Body).Decode(&metrics); err != nil {
+		http.Error(res, "can't decode request body", http.StatusBadRequest)
+		return
+	}
 	defer func(body io.ReadCloser) {
 		err := body.Close()
 		if err != nil {
 			logger.Log.Info("can't close request body", zap.Error(err))
 		}
-	}(body)
-
-	var metrics []metric.Metric
-	if err := json.NewDecoder(body).Decode(&metrics); err != nil {
-		http.Error(res, "can't decode request body", http.StatusBadRequest)
-		return
-	}
+	}(req.Body)
 
 	for _, m := range metrics {
 		if (m.Value == nil && m.Delta == nil) || (m.MType != MetricTypeCounter && m.MType != MetricTypeGauge) {
@@ -504,14 +502,12 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 		}
 		metrics[i] = *updated
 	}
-
 	res.Header().Set("Content-Type", "application/json")
-
+	res.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(metrics); err != nil {
 		logger.Log.Info("error encoding response", zap.Error(err))
 		http.Error(res, "error encoding response", http.StatusInternalServerError)
 		return
 	}
-	res.WriteHeader(http.StatusOK)
 }

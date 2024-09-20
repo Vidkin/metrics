@@ -196,7 +196,12 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 		logger.Log.Info("error post request", zap.Error(err))
 		return 0, "", err
 	}
-	defer resp.RawBody().Close()
+	defer func(body io.ReadCloser) {
+		err := body.Close()
+		if err != nil {
+			logger.Log.Info("error close resp raw body", zap.Error(err))
+		}
+	}(resp.RawBody())
 
 	contentEncoding := resp.Header().Get("Content-Encoding")
 	var or io.ReadCloser
@@ -222,10 +227,13 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 func (mw *MetricWorker) SendMetrics(chIn chan *metric.Metric, serverURL string) {
 	for m := range chIn {
 		body, _ := json.Marshal([]*metric.Metric{m})
-		buf := bytes.NewBuffer(nil)
+		buf := bytes.NewBuffer([]byte{})
 		zb := gzip.NewWriter(buf)
 		_, _ = zb.Write(body)
-		zb.Close()
+		err := zb.Close()
+		if err != nil {
+			logger.Log.Info("error close gzip writer", zap.Error(err))
+		}
 
 		for i := 0; i <= RequestRetryCount; i++ {
 			req := mw.client.R()
