@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	me "github.com/Vidkin/metrics/internal/metric"
+	"sync"
 )
 
 const (
@@ -12,6 +13,7 @@ const (
 )
 
 type MemoryStorage struct {
+	sync           sync.RWMutex
 	Gauge          map[string]float64
 	Counter        map[string]int64
 	GaugeMetrics   []*me.Metric
@@ -20,6 +22,9 @@ type MemoryStorage struct {
 }
 
 func (m *MemoryStorage) UpdateMetric(_ context.Context, metric *me.Metric) error {
+	m.sync.Lock()
+	defer m.sync.Unlock()
+
 	switch metric.MType {
 	case MetricTypeGauge:
 		m.Gauge[metric.ID] = *metric.Value
@@ -30,6 +35,9 @@ func (m *MemoryStorage) UpdateMetric(_ context.Context, metric *me.Metric) error
 }
 
 func (m *MemoryStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) error {
+	m.sync.Lock()
+	defer m.sync.Unlock()
+
 	for _, metric := range *metrics {
 		switch metric.MType {
 		case MetricTypeGauge:
@@ -42,6 +50,9 @@ func (m *MemoryStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) e
 }
 
 func (m *MemoryStorage) DeleteMetric(_ context.Context, mType string, name string) error {
+	m.sync.Lock()
+	defer m.sync.Unlock()
+
 	switch mType {
 	case MetricTypeGauge:
 		delete(m.Gauge, name)
@@ -52,6 +63,9 @@ func (m *MemoryStorage) DeleteMetric(_ context.Context, mType string, name strin
 }
 
 func (m *MemoryStorage) GetMetric(_ context.Context, mType string, name string) (*me.Metric, error) {
+	m.sync.RLock()
+	defer m.sync.RUnlock()
+
 	var metric me.Metric
 	switch mType {
 	case MetricTypeGauge:
@@ -75,6 +89,9 @@ func (m *MemoryStorage) GetMetric(_ context.Context, mType string, name string) 
 }
 
 func (m *MemoryStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) {
+	m.sync.RLock()
+	defer m.sync.RUnlock()
+
 	m.AllMetrics = m.AllMetrics[:0]
 	if _, err := m.GetGauges(ctx); err != nil {
 		return nil, err
@@ -88,6 +105,9 @@ func (m *MemoryStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) {
 }
 
 func (m *MemoryStorage) GetGauges(_ context.Context) ([]*me.Metric, error) {
+	m.sync.RLock()
+	defer m.sync.RUnlock()
+
 	m.GaugeMetrics = m.GaugeMetrics[:0]
 	for k, v := range m.Gauge {
 		m.GaugeMetrics = append(m.GaugeMetrics, &me.Metric{
@@ -100,6 +120,9 @@ func (m *MemoryStorage) GetGauges(_ context.Context) ([]*me.Metric, error) {
 }
 
 func (m *MemoryStorage) GetCounters(_ context.Context) ([]*me.Metric, error) {
+	m.sync.RLock()
+	defer m.sync.RUnlock()
+
 	m.CounterMetrics = m.CounterMetrics[:0]
 	for k, v := range m.Counter {
 		m.CounterMetrics = append(m.CounterMetrics, &me.Metric{
