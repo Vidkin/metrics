@@ -433,8 +433,17 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 		http.Error(res, "only application/json content-type allowed", http.StatusBadRequest)
 		return
 	}
+
+	body := req.Body
+	defer func(body io.ReadCloser) {
+		err := body.Close()
+		if err != nil {
+			logger.Log.Info("can't close request body", zap.Error(err))
+		}
+	}(body)
+
 	var metrics []metric.Metric
-	if err := json.NewDecoder(req.Body).Decode(&metrics); err != nil {
+	if err := json.NewDecoder(body).Decode(&metrics); err != nil {
 		http.Error(res, "can't decode request body", http.StatusBadRequest)
 		return
 	}
