@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -46,6 +47,12 @@ func NewServerApp(cfg *config.ServerConfig) (*ServerApp, error) {
 }
 
 func (a *ServerApp) Serve() {
+	go func() {
+		err := http.ListenAndServe("localhost:6060", nil)
+		if err != nil {
+			logger.Log.Error("error start pprof endpoint", zap.Error(err))
+		}
+	}()
 	if err := a.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Log.Fatal("listen and serve fatal error", zap.Error(err))
 	}
@@ -109,5 +116,8 @@ func (a *ServerApp) Stop() {
 			logger.Log.Info("error dump metrics before exit", zap.Error(err))
 		}
 	}
-	router.Close(a.repository)
+	err := router.Close(a.repository)
+	if err != nil {
+		logger.Log.Info("error close repository before exit", zap.Error(err))
+	}
 }
