@@ -20,14 +20,6 @@ type (
 	}
 )
 
-func (rw *hashResponseWriter) Write(data []byte) (int, error) {
-	h := hash.GetHashSHA256(rw.Key, data)
-	hEnc := base64.StdEncoding.EncodeToString(h)
-	rw.HashSHA256 = hEnc
-	rw.Header().Set("HashSHA256", rw.HashSHA256)
-	return rw.ResponseWriter.Write(data)
-}
-
 func Hash(key string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -42,25 +34,40 @@ func Hash(key string) func(http.Handler) http.Handler {
 
 				var buf bytes.Buffer
 				tee := io.TeeReader(r.Body, &buf)
+
+				defer func() {
+					if err := r.Body.Close(); err != nil {
+						logger.Log.Error("error close reader body", zap.Error(err))
+					}
+				}()
+
 				body, err := io.ReadAll(tee)
 				if err != nil {
 					logger.Log.Error("error read request body", zap.Error(err))
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
+
 				hashB := hash.GetHashSHA256(key, body)
 				if !bytes.Equal(hashA, hashB) {
 					logger.Log.Error("hashes don't match")
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
+
 				r.Body = io.NopCloser(&buf)
+				defer func() {
+					if err := r.Body.Close(); err != nil {
+						logger.Log.Error("error close reader body", zap.Error(err))
+					}
+				}()
 			}
+
 			hashRW := hashResponseWriter{
 				ResponseWriter: w,
 				Key:            key,
 			}
-			next.ServeHTTP(&hashRW, r)
+			next.ServeHTTP(hashRW, r)
 		})
 	}
 }
