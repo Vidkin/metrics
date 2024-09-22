@@ -6,11 +6,25 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
+// Constants for default agent intervals.
+//
+// DefaultAgentPollInterval specifies the default interval at which the agent
+// polls for updates. The default value is set to 2 seconds.
+//
+// DefaultAgentReportInterval specifies the default interval at which the agent
+// reports metrics to the server. The default value is set to 10 seconds.
 const (
 	DefaultAgentPollInterval   = 2
 	DefaultAgentReportInterval = 10
 )
 
+// AgentConfig holds the configuration settings for the agent.
+//
+// This struct is used to manage various parameters that control the behavior
+// of the agent, including server connection details, polling intervals, rate
+// limits, and logging levels. The configuration can be populated from command-line
+// flags and environment variables, allowing for flexible deployment and management
+// of the agent's settings.
 type AgentConfig struct {
 	ServerAddress  *ServerAddress
 	ReportInterval int    `env:"REPORT_INTERVAL"`
@@ -20,6 +34,12 @@ type AgentConfig struct {
 	LogLevel       string
 }
 
+// NewAgentConfig initializes a new AgentConfig instance with default values
+// and parses command-line flags and environment variables to populate its fields.
+//
+// Returns:
+// - A pointer to an `AgentConfig` instance containing the configuration settings.
+// - An error if there was an issue during initialization or parsing; otherwise, nil.
 func NewAgentConfig() (*AgentConfig, error) {
 	var config AgentConfig
 	config.ServerAddress = NewServerAddress()

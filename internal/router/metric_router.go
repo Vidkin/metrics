@@ -1,3 +1,4 @@
+// Package router provides an HTTP routing implementation for handling metrics-related operations.
 package router
 
 import (
@@ -23,6 +24,23 @@ import (
 	"github.com/Vidkin/metrics/pkg/middleware"
 )
 
+// Constants for metric parameters and types.
+//
+// These constants are used in the context of metrics handling within the
+// MetricRouter. They define the names of URL parameters and the types of
+// metrics that can be processed.
+//
+// Parameters:
+//   - ParamMetricType: The name of the URL parameter that specifies the type
+//     of the metric (e.g., "counter" or "gauge").
+//   - ParamMetricName: The name of the URL parameter that specifies the name
+//     of the metric.
+//   - ParamMetricValue: The name of the URL parameter that specifies the value
+//     of the metric.
+//
+// Metric Types:
+//   - MetricTypeCounter: A constant representing the "counter" metric type.
+//   - MetricTypeGauge: A constant representing the "gauge" metric type.
 const (
 	ParamMetricType  = "metricType"
 	ParamMetricName  = "metricName"
@@ -32,6 +50,26 @@ const (
 	MetricTypeGauge   = "gauge"
 )
 
+// MetricRouter is a struct that manages HTTP routing for metrics-related
+// operations. It holds a reference to a Repository for data storage and
+// retrieval, as well as a chi.Router for handling HTTP requests. The
+// MetricRouter also maintains configuration settings such as the number
+// of retry attempts for database operations, the last time metrics were
+// stored, and the interval for storing metrics.
+//
+// Fields:
+//   - Repository: An instance of the Repository interface that provides
+//     methods for updating, retrieving, and deleting metrics from a data
+//     store.
+//   - Router: A chi.Router instance that defines the routing for HTTP
+//     requests related to metrics.
+//   - RetryCount: The number of times to retry database operations in case
+//     of transient errors.
+//   - LastStoreTime: A time.Time value that indicates the last time metrics
+//     were successfully stored in the repository.
+//   - StoreInterval: An integer that specifies the interval for storing
+//     metrics, which can be used to control when metrics should be dumped
+//     to the repository.
 type MetricRouter struct {
 	Repository    Repository
 	Router        chi.Router
@@ -40,6 +78,12 @@ type MetricRouter struct {
 	StoreInterval int
 }
 
+// Repository defines the methods required for a metrics data store.
+// It provides an abstraction for updating, deleting, and retrieving
+// metrics from a persistent storage solution. Implementations of this
+// interface should handle the underlying data storage logic, allowing
+// the MetricRouter to interact with various data sources without
+// being tightly coupled to a specific implementation.
 type Repository interface {
 	UpdateMetric(ctx context.Context, metric *metric.Metric) error
 	UpdateMetrics(ctx context.Context, metrics *[]metric.Metric) error
@@ -51,11 +95,29 @@ type Repository interface {
 	GetCounters(ctx context.Context) ([]*metric.Metric, error)
 }
 
+// Dumper defines the methods required for dump metrics
+// to a storage system or output format. Implementations of this interface
+// should provide functionality to save individual metrics as well as to
+// perform a complete dump of all metrics.
 type Dumper interface {
 	Dump(metric *metric.Metric) error
 	FullDump() error
 }
 
+// Ping checks the availability of the provided Repository by attempting to
+// ping it. If the Repository implements the driver.Pinger interface, it
+// calls the Ping method on it, passing the provided context. If the
+// Repository does not implement the Pinger interface, it returns an error
+// indicating that the provided Repository does not support pinging.
+//
+// Parameters:
+//   - r: A Repository instance that is expected to implement the Pinger
+//     interface.
+//   - ctx: A context.Context to control the lifetime of the ping operation.
+//
+// Returns:
+//   - An error if the ping operation fails or if the Repository does not
+//     implement the Pinger interface; otherwise, it returns nil.
 func Ping(r Repository, ctx context.Context) error {
 	if pinger, ok := r.(driver.Pinger); ok {
 		return pinger.Ping(ctx)
@@ -63,6 +125,21 @@ func Ping(r Repository, ctx context.Context) error {
 	return errors.New("provided Repository does not implement Pinger")
 }
 
+// DumpMetric attempts to dump a given metric to the provided Repository.
+// It checks if the Repository implements the Dumper interface. If it does,
+// the function calls the Dump method of the Dumper interface to persist
+// the metric. If the Repository does not implement the Dumper interface,
+// the function returns an error indicating that the provided Repository
+// cannot perform the dump operation.
+//
+// Parameters:
+//   - r: A Repository instance that is expected to implement the Dumper
+//     interface.
+//   - m: A pointer to the metric.Metric that needs to be dumped.
+//
+// Returns:
+//   - An error if the dumping operation fails or if the Repository does
+//     not implement the Dumper interface; otherwise, it returns nil.
 func DumpMetric(r Repository, m *metric.Metric) error {
 	if dumper, ok := r.(Dumper); ok {
 		return dumper.Dump(m)
@@ -70,6 +147,20 @@ func DumpMetric(r Repository, m *metric.Metric) error {
 	return errors.New("provided Repository does not implement Dumper")
 }
 
+// Close attempts to close the provided Repository if it implements the
+// io.Closer interface. If the Repository does implement the Closer
+// interface, the function calls its Close method to release any resources
+// or connections. If the Repository does not implement the Closer
+// interface, the function returns an error indicating that the provided
+// Repository cannot be closed.
+//
+// Parameters:
+//   - r: A Repository instance that is expected to implement the io.Closer
+//     interface.
+//
+// Returns:
+//   - An error if the closing operation fails or if the Repository does
+//     not implement the Closer interface; otherwise, it returns nil.
 func Close(r Repository) error {
 	if closer, ok := r.(io.Closer); ok {
 		return closer.Close()
@@ -77,6 +168,24 @@ func Close(r Repository) error {
 	return errors.New("provided Repository does not implement Closer")
 }
 
+// NewMetricRouter initializes a new MetricRouter with the provided chi.Mux,
+// Repository, and server configuration. It sets up the necessary middleware
+// for logging, hashing (if a key is provided), and gzip compression. The
+// function also defines the routing for various HTTP endpoints related to
+// metrics, including handlers for retrieving, updating, and checking the
+// status of metrics.
+//
+// Parameters:
+//   - router: A pointer to a chi.Mux instance that will handle the HTTP
+//     routing for the metrics API.
+//   - repository: An instance of the Repository interface that will be
+//     used for storing and retrieving metrics data.
+//   - serverConfig: A pointer to a config.ServerConfig struct that contains
+//     configuration settings such as the store interval and retry count.
+//
+// Returns:
+//   - A pointer to a newly created MetricRouter instance, which is ready
+//     to handle HTTP requests related to metrics.
 func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *config.ServerConfig) *MetricRouter {
 	var mr MetricRouter
 	router.Use(middleware.Logging)
@@ -110,6 +219,14 @@ func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *confi
 	return &mr
 }
 
+// RootHandler handles HTTP GET requests to the root endpoint ("/") of the
+// metrics API. It retrieves all metrics from the repository and writes
+// them to the HTTP response in a plain text format. The response content
+// type is set to "text/html".
+//
+// Parameters:
+//   - res: An http.ResponseWriter used to construct the HTTP response.
+//   - req: An http.Request containing the details of the incoming request.
 func (mr *MetricRouter) RootHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/html")
 
@@ -146,6 +263,13 @@ func (mr *MetricRouter) RootHandler(res http.ResponseWriter, req *http.Request) 
 	}
 }
 
+// PingDBHandler handles HTTP GET requests to the "/ping" endpoint of the
+// metrics API. It checks the availability of the database by attempting to
+// ping the repository associated with the MetricRouter.
+//
+// Parameters:
+//   - res: An http.ResponseWriter used to construct the HTTP response.
+//   - req: An http.Request containing the details of the incoming request.
 func (mr *MetricRouter) PingDBHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain")
 	if err := Ping(mr.Repository, req.Context()); err != nil {
@@ -156,6 +280,13 @@ func (mr *MetricRouter) PingDBHandler(res http.ResponseWriter, req *http.Request
 	res.WriteHeader(http.StatusOK)
 }
 
+// GetMetricValueHandler handles HTTP GET requests to retrieve the value of
+// a specific metric identified by its type and name. The metric type must
+// be either "gauge" or "counter".
+//
+// Parameters:
+//   - res: An http.ResponseWriter used to construct the HTTP response.
+//   - req: An http.Request containing the details of the incoming request.
 func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, ParamMetricType)
 	metricName := chi.URLParam(req, ParamMetricName)
@@ -196,6 +327,16 @@ func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http
 	}
 }
 
+// DumpMetric attempts to persist a given metric to the repository if the
+// StoreInterval is set to zero. The method retries the dumping operation
+// up to the configured RetryCount in case of transient errors, such as
+// connection issues.
+//
+// Parameters:
+//   - metric: A pointer to the metric.Metric that needs to be dumped.
+//
+// Returns:
+//   - An error if the dumping operation fails; otherwise, it returns nil.
 func (mr *MetricRouter) DumpMetric(metric *metric.Metric) error {
 	if mr.StoreInterval == 0 {
 		for i := 0; i <= mr.RetryCount; i++ {
@@ -216,6 +357,13 @@ func (mr *MetricRouter) DumpMetric(metric *metric.Metric) error {
 	return nil
 }
 
+// UpdateMetricHandler handles HTTP POST requests to update the value of
+// a specific metric identified by its type and name. The metric type must
+// be either "gauge" or "counter".
+//
+// Parameters:
+//   - res: An http.ResponseWriter used to construct the HTTP response.
+//   - req: An http.Request containing the details of the incoming request.
 func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, ParamMetricType)
 	metricName := chi.URLParam(req, ParamMetricName)
@@ -283,6 +431,11 @@ func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.R
 	res.WriteHeader(http.StatusOK)
 }
 
+// UpdateMetricHandlerJSON handles HTTP POST requests for updating a metric in JSON format.
+//
+// Parameters:
+// - res: An http.ResponseWriter used to construct the HTTP response.
+// - req: An http.Request containing the HTTP request data, including the JSON body.
 func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Type") != "application/json" {
 		http.Error(res, "only application/json content-type allowed", http.StatusBadRequest)
@@ -370,6 +523,11 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 	}
 }
 
+// GetMetricValueHandlerJSON handles HTTP POST requests for retrieving a metric value in JSON format.
+//
+// Parameters:
+// - res: An http.ResponseWriter used to construct the HTTP response.
+// - req: An http.Request containing the HTTP request data, including the JSON body.
 func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Type") != "application/json" {
 		http.Error(res, "only application/json content-type allowed", http.StatusBadRequest)
@@ -425,6 +583,11 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 	}
 }
 
+// UpdateMetricsHandlerJSON handles HTTP POST requests for updating multiple metrics in JSON format.
+//
+// Parameters:
+// - res: An http.ResponseWriter used to construct the HTTP response.
+// - req: An http.Request containing the HTTP request data, including the JSON body.
 func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Type") != "application/json" {
 		http.Error(res, "only application/json content-type allowed", http.StatusBadRequest)
