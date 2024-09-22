@@ -31,8 +31,8 @@ func ExampleMetricRouter_RootHandler() {
 	req.Header.Set("Content-Encoding", "")
 
 	resp, _ := ts.Client().Do(req)
-	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
+	defer resp.Body.Close()
 
 	fmt.Println(string(respBody))
 	// Output:
@@ -53,8 +53,8 @@ func ExampleMetricRouter_GetMetricValueHandler() {
 	req.Header.Set("Content-Encoding", "")
 
 	resp, _ := ts.Client().Do(req)
-	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
+	defer resp.Body.Close()
 
 	fmt.Println(string(respBody))
 	// Output:
@@ -78,8 +78,8 @@ func ExampleMetricRouter_GetMetricValueHandlerJSON() {
 	req.Header.Set("Content-Encoding", "")
 
 	resp, _ := ts.Client().Do(req)
-	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
+	defer resp.Body.Close()
 
 	fmt.Println(string(respBody))
 	// Output:
@@ -99,7 +99,6 @@ func ExampleMetricRouter_UpdateMetricHandler() {
 	req.Header.Set("Content-Encoding", "")
 
 	resp, _ := ts.Client().Do(req)
-	defer resp.Body.Close()
 
 	fmt.Println(resp.StatusCode)
 	// Output:
@@ -124,8 +123,8 @@ func ExampleMetricRouter_UpdateMetricHandlerJSON() {
 	req.Header.Set("Content-Encoding", "")
 
 	resp, _ := ts.Client().Do(req)
-	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
+	defer resp.Body.Close()
 
 	fmt.Println(string(respBody))
 	// Output:
@@ -154,8 +153,8 @@ func ExampleMetricRouter_UpdateMetricsHandlerJSON() {
 	req.Header.Set("Content-Encoding", "")
 
 	resp, _ := ts.Client().Do(req)
-	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
+	defer resp.Body.Close()
 
 	fmt.Println(string(respBody))
 	// Output:
