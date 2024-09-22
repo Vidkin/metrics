@@ -142,7 +142,6 @@ func (mr *MetricRouter) RootHandler(res http.ResponseWriter, req *http.Request) 
 			_, _ = io.WriteString(res, fmt.Sprintf("%s = %d\n", me.ID, *me.Delta))
 		}
 	}
-	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) PingDBHandler(res http.ResponseWriter, req *http.Request) {
@@ -187,14 +186,12 @@ func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http
 		break
 	}
 
+	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	_, err = res.Write([]byte(me.ValueAsString()))
 	if err != nil {
 		logger.Log.Info("can't write metric value", zap.Error(err))
 		http.Error(res, "Can't write metric value", http.StatusInternalServerError)
 	}
-
-	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) DumpMetric(metric *metric.Metric) error {
@@ -369,7 +366,6 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 		http.Error(res, "error write response data", http.StatusInternalServerError)
 		return
 	}
-	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *http.Request) {
@@ -425,7 +421,6 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 		http.Error(res, "error write response data", http.StatusInternalServerError)
 		return
 	}
-	res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *http.Request) {
@@ -503,7 +498,6 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 		metrics[i] = *updated
 	}
 	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(metrics); err != nil {
 		logger.Log.Info("error encoding response", zap.Error(err))

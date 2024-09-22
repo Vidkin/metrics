@@ -75,13 +75,13 @@
 				
 				<option value="file9">github.com/Vidkin/metrics/internal/repository/mock/mock_repository.go (61.8%)</option>
 				
-				<option value="file10">github.com/Vidkin/metrics/internal/repository/storage/file.go (15.3%)</option>
+				<option value="file10">github.com/Vidkin/metrics/internal/repository/storage/file.go (18.5%)</option>
 				
 				<option value="file11">github.com/Vidkin/metrics/internal/repository/storage/memory.go (86.2%)</option>
 				
 				<option value="file12">github.com/Vidkin/metrics/internal/repository/storage/postgres.go (0.0%)</option>
 				
-				<option value="file13">github.com/Vidkin/metrics/internal/router/metric_router.go (91.2%)</option>
+				<option value="file13">github.com/Vidkin/metrics/internal/router/metric_router.go (91.0%)</option>
 				
 				<option value="file14">github.com/Vidkin/metrics/internal/router/storage_factory.go (11.7%)</option>
 				
@@ -965,9 +965,11 @@ import (
         "go.uber.org/zap"
         "io"
         "os"
+        "sync"
 )
 
 type FileStorage struct {
+        mu              sync.RWMutex
         Gauge           map[string]float64
         Counter         map[string]int64
         GaugeMetrics    []*me.Metric
@@ -977,6 +979,9 @@ type FileStorage struct {
 }
 
 func (f *FileStorage) UpdateMetric(_ context.Context, metric *me.Metric) error <span class="cov8" title="1">{
+        f.mu.Lock()
+        defer f.mu.Unlock()
+
         switch metric.MType </span>{
         case MetricTypeGauge:<span class="cov8" title="1">
                 f.Gauge[metric.ID] = *metric.Value</span>
@@ -987,6 +992,9 @@ func (f *FileStorage) UpdateMetric(_ context.Context, metric *me.Metric) error <
 }
 
 func (f *FileStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) error <span class="cov0" title="0">{
+        f.mu.Lock()
+        defer f.mu.Unlock()
+
         for _, metric := range *metrics </span><span class="cov0" title="0">{
                 switch metric.MType </span>{
                 case MetricTypeGauge:<span class="cov0" title="0">
@@ -999,6 +1007,9 @@ func (f *FileStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) err
 }
 
 func (f *FileStorage) DeleteMetric(_ context.Context, mType string, name string) error <span class="cov0" title="0">{
+        f.mu.Lock()
+        defer f.mu.Unlock()
+
         switch mType </span>{
         case MetricTypeGauge:<span class="cov0" title="0">
                 delete(f.Gauge, name)</span>
@@ -1009,6 +1020,9 @@ func (f *FileStorage) DeleteMetric(_ context.Context, mType string, name string)
 }
 
 func (f *FileStorage) GetMetric(_ context.Context, mType string, name string) (*me.Metric, error) <span class="cov0" title="0">{
+        f.mu.RLock()
+        defer f.mu.RUnlock()
+
         var metric me.Metric
         switch mType </span>{
         case MetricTypeGauge:<span class="cov0" title="0">
@@ -1045,6 +1059,9 @@ func (f *FileStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) <spa
 }
 
 func (f *FileStorage) GetGauges(_ context.Context) ([]*me.Metric, error) <span class="cov8" title="1">{
+        f.mu.RLock()
+        defer f.mu.RUnlock()
+
         f.GaugeMetrics = f.GaugeMetrics[:0]
         for k, v := range f.Gauge </span><span class="cov8" title="1">{
                 f.GaugeMetrics = append(f.GaugeMetrics, &amp;me.Metric{
@@ -1057,6 +1074,9 @@ func (f *FileStorage) GetGauges(_ context.Context) ([]*me.Metric, error) <span c
 }
 
 func (f *FileStorage) GetCounters(_ context.Context) ([]*me.Metric, error) <span class="cov8" title="1">{
+        f.mu.RLock()
+        defer f.mu.RUnlock()
+
         f.CounterMetrics = f.CounterMetrics[:0]
         for k, v := range f.Counter </span><span class="cov8" title="1">{
                 f.CounterMetrics = append(f.CounterMetrics, &amp;me.Metric{
@@ -1737,7 +1757,7 @@ func (mr *MetricRouter) RootHandler(res http.ResponseWriter, req *http.Request) 
                         _, _ = io.WriteString(res, fmt.Sprintf("%s = %d\n", me.ID, *me.Delta))
                 }</span>
         }
-        <span class="cov8" title="1">res.WriteHeader(http.StatusOK)</span>
+        //res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) PingDBHandler(res http.ResponseWriter, req *http.Request) <span class="cov8" title="1">{
@@ -1782,14 +1802,13 @@ func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http
                 <span class="cov8" title="1">break</span>
         }
 
-        <span class="cov8" title="1">_, err = res.Write([]byte(me.ValueAsString()))
+        <span class="cov8" title="1">res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+        //res.WriteHeader(http.StatusOK)
+        _, err = res.Write([]byte(me.ValueAsString()))
         if err != nil </span><span class="cov0" title="0">{
                 logger.Log.Info("can't write metric value", zap.Error(err))
                 http.Error(res, "Can't write metric value", http.StatusInternalServerError)
         }</span>
-
-        <span class="cov8" title="1">res.Header().Set("Content-Type", "text/plain; charset=utf-8")
-        res.WriteHeader(http.StatusOK)</span>
 }
 
 func (mr *MetricRouter) DumpMetric(metric *metric.Metric) error <span class="cov8" title="1">{
@@ -1964,7 +1983,7 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
                 http.Error(res, "error write response data", http.StatusInternalServerError)
                 return
         }</span>
-        <span class="cov8" title="1">res.WriteHeader(http.StatusOK)</span>
+        //res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *http.Request) <span class="cov8" title="1">{
@@ -2020,7 +2039,7 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
                 http.Error(res, "error write response data", http.StatusInternalServerError)
                 return
         }</span>
-        <span class="cov8" title="1">res.WriteHeader(http.StatusOK)</span>
+        //res.WriteHeader(http.StatusOK)
 }
 
 func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *http.Request) <span class="cov8" title="1">{
@@ -2098,7 +2117,7 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
                 <span class="cov8" title="1">metrics[i] = *updated</span>
         }
         <span class="cov8" title="1">res.Header().Set("Content-Type", "application/json")
-        res.WriteHeader(http.StatusOK)
+        //res.WriteHeader(http.StatusOK)
         enc := json.NewEncoder(res)
         if err := enc.Encode(metrics); err != nil </span><span class="cov0" title="0">{
                 logger.Log.Info("error encoding response", zap.Error(err))

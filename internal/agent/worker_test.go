@@ -14,6 +14,34 @@ import (
 	"testing"
 )
 
+func BenchmarkCollectAndSendMetrics(b *testing.B) {
+	serverRepository := router.NewMemoryStorage()
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 300}
+	metricRouter := router.NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+	ts := httptest.NewServer(metricRouter.Router)
+	defer ts.Close()
+
+	client := resty.New()
+	client.SetDoNotParseResponse(true)
+	memStats := &runtime.MemStats{}
+	memoryStorage := router.NewFileStorage("")
+	mw := New(memoryStorage, memStats, client, &config.AgentConfig{Key: "", RateLimit: 5})
+	var serverURL = ts.URL + "/updates/"
+
+	b.ResetTimer()
+	b.Run("poll", func(b *testing.B) {
+		var count int64 = 1
+		for i := 0; i < 100; i++ {
+			chIn := make(chan *metric.Metric, 10)
+			go mw.CollectMetrics(chIn, count)
+			for w := 1; w <= mw.config.RateLimit; w++ {
+				go mw.SendMetrics(chIn, serverURL)
+			}
+		}
+	})
+}
+
 func TestSendMetrics(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -30,14 +58,14 @@ func TestSendMetrics(t *testing.T) {
 	}
 
 	serverRepository := router.NewMemoryStorage()
-	client := resty.New()
-	client.SetDoNotParseResponse(true)
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
 	metricRouter := router.NewMetricRouter(chiRouter, serverRepository, &serverConfig)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
+	client := resty.New()
+	client.SetDoNotParseResponse(true)
 	memStats := &runtime.MemStats{}
 	memoryStorage := router.NewFileStorage("")
 	mw := New(memoryStorage, memStats, client, &config.AgentConfig{Key: ""})

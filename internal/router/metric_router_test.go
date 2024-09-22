@@ -6,12 +6,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/metric"
+	"github.com/Vidkin/metrics/internal/repository/mock"
+	"github.com/go-chi/chi/v5"
 	"github.com/golang/mock/gomock"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"net/http"
+	"net/http/httptest"
 	"os"
+	"testing"
 )
 
 func (s *MetricRouterTestSuite) TestMetricRouter_GzipCompression() {
@@ -1145,4 +1150,274 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricsHandlerJSON() {
 			}
 		})
 	}
+}
+
+func BenchmarkPingDBHandler(b *testing.B) {
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 0, RetryCount: 2}
+	mockController := gomock.NewController(b)
+	mockRepository := mock.NewMockRepository(mockController)
+	metricRouter := NewMetricRouter(chiRouter, mockRepository, &serverConfig)
+	server := httptest.NewServer(metricRouter.Router)
+	defer server.Close()
+
+	b.ResetTimer()
+	b.Run("ping", func(b *testing.B) {
+		for i := 0; i < 100; i++ {
+			mockRepository.EXPECT().
+				Ping(gomock.Any()).
+				Return(nil).AnyTimes()
+			resp, err := http.Get(server.URL + "/ping")
+			if err != nil {
+				b.Fatalf("failed to make request: %v", err)
+			}
+			resp.Body.Close()
+		}
+	})
+	mockController.Finish()
+}
+
+func BenchmarkRootHandler(b *testing.B) {
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 0, RetryCount: 2}
+	mockController := gomock.NewController(b)
+	mockRepository := mock.NewMockRepository(mockController)
+	metricRouter := NewMetricRouter(chiRouter, mockRepository, &serverConfig)
+	server := httptest.NewServer(metricRouter.Router)
+	defer server.Close()
+
+	var (
+		intValue   int64 = 1
+		floatValue       = 1.24
+	)
+	response := []*metric.Metric{
+		{
+			ID:    "counter",
+			MType: MetricTypeCounter,
+			Delta: &intValue,
+		},
+		{
+			ID:    "gauge",
+			MType: MetricTypeGauge,
+			Value: &floatValue,
+		},
+	}
+
+	b.ResetTimer()
+	b.Run("root", func(b *testing.B) {
+		for i := 0; i < 100; i++ {
+			mockRepository.EXPECT().
+				GetMetrics(gomock.Any()).
+				Return(response, nil)
+			resp, err := http.Get(server.URL + "/")
+			if err != nil {
+				b.Fatalf("failed to make request: %v", err)
+			}
+			resp.Body.Close()
+		}
+	})
+	mockController.Finish()
+}
+
+func BenchmarkGetMetricValueHandlerJSON(b *testing.B) {
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 0, RetryCount: 2}
+	mockController := gomock.NewController(b)
+	mockRepository := mock.NewMockRepository(mockController)
+	metricRouter := NewMetricRouter(chiRouter, mockRepository, &serverConfig)
+	server := httptest.NewServer(metricRouter.Router)
+	defer server.Close()
+
+	var (
+		intValue int64 = 1
+	)
+	response := &metric.Metric{
+		ID:    "cou",
+		MType: MetricTypeCounter,
+		Delta: &intValue}
+
+	body := []byte(`{
+				"id": "cou",
+				"type": "counter"
+			}`)
+	b.ResetTimer()
+	b.Run("value json", func(b *testing.B) {
+		for i := 0; i < 100; i++ {
+			mockRepository.EXPECT().
+				GetMetric(gomock.Any(), gomock.Any(), gomock.Any()).
+				Return(response, nil).AnyTimes()
+			resp, err := http.Post(server.URL+"/value", "application/json", bytes.NewBuffer(body))
+			if err != nil {
+				b.Fatalf("failed to make request: %v", err)
+			}
+			resp.Body.Close()
+		}
+	})
+	mockController.Finish()
+}
+
+func BenchmarkGetMetricValueHandler(b *testing.B) {
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 0, RetryCount: 2}
+	mockController := gomock.NewController(b)
+	mockRepository := mock.NewMockRepository(mockController)
+	metricRouter := NewMetricRouter(chiRouter, mockRepository, &serverConfig)
+	server := httptest.NewServer(metricRouter.Router)
+	defer server.Close()
+
+	var (
+		intValue int64 = 1
+	)
+	response := &metric.Metric{
+		ID:    "cou",
+		MType: MetricTypeCounter,
+		Delta: &intValue}
+
+	mName := "cou"
+	mType := "counter"
+
+	b.ResetTimer()
+	b.Run("value", func(b *testing.B) {
+		for i := 0; i < 100; i++ {
+			mockRepository.EXPECT().
+				GetMetric(gomock.Any(), gomock.Any(), gomock.Any()).
+				Return(response, nil).AnyTimes()
+			resp, err := http.Get(server.URL + "/value/" + mType + "/" + mName)
+			if err != nil {
+				b.Fatalf("failed to make request: %v", err)
+			}
+			resp.Body.Close()
+		}
+	})
+	mockController.Finish()
+}
+
+func BenchmarkUpdateMetricHandlerJSON(b *testing.B) {
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 0, RetryCount: 2}
+	mockController := gomock.NewController(b)
+	mockRepository := mock.NewMockRepository(mockController)
+	metricRouter := NewMetricRouter(chiRouter, mockRepository, &serverConfig)
+	server := httptest.NewServer(metricRouter.Router)
+	defer server.Close()
+
+	var (
+		intValue int64 = 1
+	)
+	response := &metric.Metric{
+		ID:    "cou",
+		MType: MetricTypeCounter,
+		Delta: &intValue}
+
+	body := []byte(`{
+				"id": "cou",
+				"delta": 1,
+				"type": "counter"
+			}`)
+	b.ResetTimer()
+	b.Run("update json", func(b *testing.B) {
+		for i := 0; i < 100; i++ {
+			mockRepository.EXPECT().
+				UpdateMetric(gomock.Any(), gomock.Any()).
+				Return(nil).AnyTimes()
+			mockRepository.EXPECT().
+				Dump(gomock.Any()).
+				Return(nil).AnyTimes()
+			mockRepository.EXPECT().
+				GetMetric(gomock.Any(), gomock.Any(), gomock.Any()).
+				Return(response, nil).AnyTimes()
+			resp, err := http.Post(server.URL+"/update", "application/json", bytes.NewBuffer(body))
+			if err != nil {
+				b.Fatalf("failed to make request: %v", err)
+			}
+			resp.Body.Close()
+		}
+	})
+	mockController.Finish()
+}
+
+func BenchmarkUpdateMetricHandler(b *testing.B) {
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 0, RetryCount: 2}
+	mockController := gomock.NewController(b)
+	mockRepository := mock.NewMockRepository(mockController)
+	metricRouter := NewMetricRouter(chiRouter, mockRepository, &serverConfig)
+	server := httptest.NewServer(metricRouter.Router)
+	defer server.Close()
+
+	var (
+		intValue int64 = 1
+	)
+	response := &metric.Metric{
+		ID:    "cou",
+		MType: MetricTypeCounter,
+		Delta: &intValue}
+
+	mName := "cou"
+	mType := "counter"
+
+	b.ResetTimer()
+	b.Run("update", func(b *testing.B) {
+		for i := 0; i < 100; i++ {
+			mockRepository.EXPECT().
+				UpdateMetric(gomock.Any(), gomock.Any()).
+				Return(nil).AnyTimes()
+			mockRepository.EXPECT().
+				Dump(gomock.Any()).
+				Return(nil).AnyTimes()
+			mockRepository.EXPECT().
+				GetMetric(gomock.Any(), gomock.Any(), gomock.Any()).
+				Return(response, nil).AnyTimes()
+			resp, err := http.Get(server.URL + "/update/" + mType + "/" + mName + "/1")
+			if err != nil {
+				b.Fatalf("failed to make request: %v", err)
+			}
+			resp.Body.Close()
+		}
+	})
+	mockController.Finish()
+}
+
+func BenchmarkUpdateMetricsHandlerJSON(b *testing.B) {
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 0, RetryCount: 2}
+	mockController := gomock.NewController(b)
+	mockRepository := mock.NewMockRepository(mockController)
+	metricRouter := NewMetricRouter(chiRouter, mockRepository, &serverConfig)
+	server := httptest.NewServer(metricRouter.Router)
+	defer server.Close()
+
+	var (
+		intValue int64 = 1
+	)
+	response := &metric.Metric{
+		ID:    "cou",
+		MType: MetricTypeCounter,
+		Delta: &intValue}
+
+	body := []byte(`[{
+				"id": "cou",
+				"delta": 1,
+				"type": "counter"
+			}]`)
+	b.ResetTimer()
+	b.Run("update metrics json", func(b *testing.B) {
+		for i := 0; i < 100; i++ {
+			mockRepository.EXPECT().
+				UpdateMetrics(gomock.Any(), gomock.Any()).
+				Return(nil).AnyTimes()
+			mockRepository.EXPECT().
+				Dump(gomock.Any()).
+				Return(nil).AnyTimes()
+			mockRepository.EXPECT().
+				GetMetric(gomock.Any(), gomock.Any(), gomock.Any()).
+				Return(response, nil).AnyTimes()
+			resp, err := http.Post(server.URL+"/updates", "application/json", bytes.NewBuffer(body))
+			if err != nil {
+				b.Fatalf("failed to make request: %v", err)
+			}
+			resp.Body.Close()
+		}
+	})
+	mockController.Finish()
 }
