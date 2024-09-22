@@ -705,7 +705,6 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandlerJSON() {
 			defer resp.Body.Close()
 			s.Assert().Equal(test.want.statusCode, resp.StatusCode)
 			if test.want.statusCode == http.StatusOK {
-				fmt.Println(string(respBody))
 				var actualMetric metric.Metric
 				s.Require().NoError(json.Unmarshal(respBody, &actualMetric))
 				s.Assert().Equal(test.want.response.ID, actualMetric.ID)
@@ -1147,7 +1146,6 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricsHandlerJSON() {
 			defer resp.Body.Close()
 			s.Assert().Equal(test.want.statusCode, resp.StatusCode)
 			if test.want.statusCode == http.StatusOK {
-				fmt.Println(string(respBody))
 				var actualMetric []*metric.Metric
 				s.Require().NoError(json.Unmarshal(respBody, &actualMetric))
 				s.Assert().Equal(test.want.response.ID, actualMetric[0].ID)
