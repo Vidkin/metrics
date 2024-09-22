@@ -53,6 +53,7 @@ func (s *MetricRouterTestSuite) TestMetricRouter_GzipCompression() {
 			Return(&metric.Metric{ID: "test", MType: MetricTypeGauge, Value: &value}, nil)
 
 		resp, respBody := s.RequestTest(http.MethodPost, "/update", buf.String(), "application/json", false, true)
+		defer resp.Body.Close()
 		s.Require().Equal(http.StatusOK, resp.StatusCode)
 		s.Require().JSONEq(successBody, string(respBody))
 	})
@@ -70,8 +71,8 @@ func (s *MetricRouterTestSuite) TestMetricRouter_GzipCompression() {
 			GetMetric(gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(&metric.Metric{ID: "test", MType: MetricTypeGauge, Value: &value}, nil)
 		resp, respBody := s.RequestTest(http.MethodPost, "/update", requestBody, "application/json", true, false)
+		defer resp.Body.Close()
 		s.Require().Equal(http.StatusOK, resp.StatusCode)
-
 		s.Require().JSONEq(successBody, string(respBody))
 	})
 }
@@ -115,6 +116,7 @@ func (s *MetricRouterTestSuite) TestMetricRouter_PingDBHandler() {
 		s.Run(test.name, func() {
 			resp, respBody := s.RequestTest(http.MethodGet, "/ping", "", test.contentType, false, false)
 			s.Assert().Equal(test.want.statusCode, resp.StatusCode)
+			defer resp.Body.Close()
 			if test.want.statusCode == http.StatusOK {
 				s.Assert().Equal(test.want.response, string(respBody))
 			}
@@ -195,6 +197,7 @@ func (s *MetricRouterTestSuite) TestMetricRouter_RootHandler() {
 					Return(test.want.response, nil)
 			}
 			resp, respBody := s.RequestTest(http.MethodGet, "/", "", test.contentType, false, false)
+			defer resp.Body.Close()
 			s.Assert().Equal(test.want.statusCode, resp.StatusCode)
 			if test.want.statusCode == http.StatusOK {
 				s.Equal(
@@ -329,6 +332,7 @@ func (s *MetricRouterTestSuite) TestMetricRouter_GetMetricValueHandlerJSON() {
 					Return(test.want.response, nil)
 			}
 			resp, respBody := s.RequestTest(http.MethodPost, "/value", test.body, test.contentType, false, false)
+			defer resp.Body.Close()
 			s.Assert().Equal(test.want.statusCode, resp.StatusCode)
 			if test.want.statusCode == http.StatusOK {
 				var actualMetric metric.Metric
@@ -442,6 +446,7 @@ func (s *MetricRouterTestSuite) TestMetricRouter_GetMetricValueHandler() {
 					Return(test.want.response, nil)
 			}
 			resp, respBody := s.RequestTest(http.MethodGet, fmt.Sprintf("/value/%s/%s", test.mType, test.mName), "", test.contentType, false, false)
+			defer resp.Body.Close()
 			s.Assert().Equal(test.want.statusCode, resp.StatusCode)
 			if test.want.statusCode == http.StatusOK {
 				s.Assert().Equal(test.want.responseValue, string(respBody))
@@ -695,6 +700,7 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandlerJSON() {
 					Return(test.want.response, nil)
 			}
 			resp, respBody := s.RequestTest(http.MethodPost, "/update", test.body, test.contentType, false, false)
+			defer resp.Body.Close()
 			s.Assert().Equal(test.want.statusCode, resp.StatusCode)
 			if test.want.statusCode == http.StatusOK {
 				fmt.Println(string(respBody))
@@ -885,6 +891,7 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandler() {
 				path = fmt.Sprintf("/update/%s/%s/%s", test.mType, test.mName, test.mValue)
 			}
 			resp, _ := s.RequestTest(http.MethodPost, path, "", test.contentType, false, false)
+			defer resp.Body.Close()
 			s.Assert().Equal(test.want.statusCode, resp.StatusCode)
 		})
 	}
@@ -1135,6 +1142,7 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricsHandlerJSON() {
 					Return(test.want.response, nil)
 			}
 			resp, respBody := s.RequestTest(http.MethodPost, "/updates", test.body, test.contentType, false, false)
+			defer resp.Body.Close()
 			s.Assert().Equal(test.want.statusCode, resp.StatusCode)
 			if test.want.statusCode == http.StatusOK {
 				fmt.Println(string(respBody))
