@@ -6,19 +6,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Vidkin/metrics/internal/config"
-	"github.com/Vidkin/metrics/internal/logger"
-	"github.com/Vidkin/metrics/internal/metric"
-	"github.com/Vidkin/metrics/pkg/middleware"
-	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgerrcode"
-	"github.com/jackc/pgx/v5/pgconn"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
+	"go.uber.org/zap"
+
+	"github.com/Vidkin/metrics/internal/config"
+	"github.com/Vidkin/metrics/internal/logger"
+	"github.com/Vidkin/metrics/internal/metric"
+	"github.com/Vidkin/metrics/pkg/middleware"
 )
 
 const (

@@ -2,16 +2,18 @@ package agent
 
 import (
 	"context"
-	"github.com/Vidkin/metrics/internal/config"
-	"github.com/Vidkin/metrics/internal/metric"
-	"github.com/Vidkin/metrics/internal/router"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-resty/resty/v2"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-resty/resty/v2"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/Vidkin/metrics/internal/config"
+	"github.com/Vidkin/metrics/internal/metric"
+	"github.com/Vidkin/metrics/internal/router"
 )
 
 func BenchmarkCollectAndSendMetrics(b *testing.B) {

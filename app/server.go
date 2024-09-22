@@ -3,18 +3,20 @@ package app
 import (
 	"context"
 	"errors"
-	"github.com/Vidkin/metrics/internal/config"
-	"github.com/Vidkin/metrics/internal/logger"
-	"github.com/Vidkin/metrics/internal/repository/storage"
-	"github.com/Vidkin/metrics/internal/router"
-	"github.com/go-chi/chi/v5"
-	"go.uber.org/zap"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
+
+	"github.com/Vidkin/metrics/internal/config"
+	"github.com/Vidkin/metrics/internal/logger"
+	"github.com/Vidkin/metrics/internal/repository/storage"
+	"github.com/Vidkin/metrics/internal/router"
 )
 
 type ServerApp struct {

@@ -2,10 +2,12 @@ package compress
 
 import (
 	"compress/gzip"
-	"github.com/Vidkin/metrics/internal/logger"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
+
+	"go.uber.org/zap"
+
+	"github.com/Vidkin/metrics/internal/logger"
 )
 
 type Writer struct {

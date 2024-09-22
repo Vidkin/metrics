@@ -3,8 +3,9 @@ package storage
 import (
 	"context"
 	"errors"
-	me "github.com/Vidkin/metrics/internal/metric"
 	"sync"
+
+	me "github.com/Vidkin/metrics/internal/metric"
 )
 
 const (

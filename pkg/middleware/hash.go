@@ -3,11 +3,13 @@ package middleware
 import (
 	"bytes"
 	"encoding/base64"
-	"github.com/Vidkin/metrics/internal/logger"
-	"github.com/Vidkin/metrics/pkg/hash"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
+
+	"go.uber.org/zap"
+
+	"github.com/Vidkin/metrics/internal/logger"
+	"github.com/Vidkin/metrics/pkg/hash"
 )
 
 type (

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"runtime"
+
+	"github.com/go-resty/resty/v2"
+
 	"github.com/Vidkin/metrics/internal/agent"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/router"
-	"github.com/go-resty/resty/v2"
-	"runtime"
 )
 
 func main() {

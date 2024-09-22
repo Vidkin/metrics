@@ -3,17 +3,19 @@ package router
 import (
 	"bytes"
 	"compress/gzip"
-	"github.com/Vidkin/metrics/internal/config"
-	"github.com/Vidkin/metrics/internal/logger"
-	"github.com/Vidkin/metrics/internal/repository/mock"
-	"github.com/go-chi/chi/v5"
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/suite"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/suite"
+	"go.uber.org/zap"
+
+	"github.com/Vidkin/metrics/internal/config"
+	"github.com/Vidkin/metrics/internal/logger"
+	"github.com/Vidkin/metrics/internal/repository/mock"
 )
 
 type MetricRouterTestSuite struct {

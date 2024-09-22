@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/Vidkin/metrics/internal/logger"
-	me "github.com/Vidkin/metrics/internal/metric"
-	"go.uber.org/zap"
 	"io"
 	"os"
 	"sync"
+
+	"go.uber.org/zap"
+
+	"github.com/Vidkin/metrics/internal/logger"
+	me "github.com/Vidkin/metrics/internal/metric"
 )
 
 type FileStorage struct {

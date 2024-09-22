@@ -7,15 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"github.com/Vidkin/metrics/internal/config"
-	"github.com/Vidkin/metrics/internal/logger"
-	"github.com/Vidkin/metrics/internal/metric"
-	"github.com/Vidkin/metrics/internal/router"
-	"github.com/Vidkin/metrics/pkg/hash"
-	"github.com/go-resty/resty/v2"
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/mem"
-	"go.uber.org/zap"
 	"io"
 	"math/rand/v2"
 	"net/url"
@@ -23,6 +14,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-resty/resty/v2"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
+	"go.uber.org/zap"
+
+	"github.com/Vidkin/metrics/internal/config"
+	"github.com/Vidkin/metrics/internal/logger"
+	"github.com/Vidkin/metrics/internal/metric"
+	"github.com/Vidkin/metrics/internal/router"
+	"github.com/Vidkin/metrics/pkg/hash"
 )
 
 const (

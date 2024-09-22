@@ -1,11 +1,13 @@
 package middleware
 
 import (
-	"github.com/Vidkin/metrics/internal/logger"
-	"github.com/Vidkin/metrics/pkg/compress"
-	"go.uber.org/zap"
 	"net/http"
 	"strings"
+
+	"go.uber.org/zap"
+
+	"github.com/Vidkin/metrics/internal/logger"
+	"github.com/Vidkin/metrics/pkg/compress"
 )
 
 func Gzip(h http.Handler) http.Handler {

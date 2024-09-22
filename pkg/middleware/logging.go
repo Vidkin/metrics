@@ -1,10 +1,12 @@
 package middleware
 
 import (
-	"github.com/Vidkin/metrics/internal/logger"
-	"go.uber.org/zap"
 	"net/http"
 	"time"
+
+	"go.uber.org/zap"
+
+	"github.com/Vidkin/metrics/internal/logger"
 )
 
 type (
