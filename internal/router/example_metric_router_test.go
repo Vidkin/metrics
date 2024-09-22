@@ -99,10 +99,14 @@ func ExampleMetricRouter_UpdateMetricHandler() {
 	req.Header.Set("Content-Encoding", "")
 
 	resp, _ := ts.Client().Do(req)
+	respBody, _ := io.ReadAll(resp.Body)
+	defer resp.Body.Close()
 
 	fmt.Println(resp.StatusCode)
+	fmt.Println(string(respBody))
 	// Output:
 	// 200
+	//
 }
 
 func ExampleMetricRouter_UpdateMetricHandlerJSON() {
