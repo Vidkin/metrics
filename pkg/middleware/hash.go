@@ -12,16 +12,24 @@ import (
 	"github.com/Vidkin/metrics/pkg/hash"
 )
 
-type (
-	hashResponseWriter struct {
-		http.ResponseWriter
-		Key        string
-		HashSHA256 string
-		statusCode int
-		written    bool
-	}
-)
+type hashResponseWriter struct {
+	http.ResponseWriter
+	Key        string
+	HashSHA256 string
+	statusCode int
+	written    bool
+}
 
+// Hash is an HTTP middleware function that validates the integrity of incoming
+// request bodies using SHA-256 hashes.
+//
+// Parameters:
+//   - key: A string that serves as a key in the hash computation. This key is
+//     used to generate the SHA-256 hash of the request body.
+//
+// Returns:
+//   - A function that takes an http.Handler and returns a new http.Handler
+//     that includes the hash validation logic.
 func Hash(key string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

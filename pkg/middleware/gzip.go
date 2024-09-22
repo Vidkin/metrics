@@ -10,6 +10,18 @@ import (
 	"github.com/Vidkin/metrics/pkg/compress"
 )
 
+// Gzip is an HTTP middleware function that enables gzip compression for responses
+// and handles gzip decompression for incoming request bodies.
+//
+// Parameters:
+//   - h: An http.Handler that will be wrapped by the Gzip middleware. This is the
+//     handler that will process the request after any necessary compression or
+//     decompression has been applied.
+//
+// Returns:
+//   - An http.Handler that applies gzip compression for responses and decompression
+//     for request bodies, delegating the actual request processing to the provided
+//     handler.
 func Gzip(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ow := w
