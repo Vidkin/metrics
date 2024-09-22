@@ -89,9 +89,6 @@ func (m *MemoryStorage) GetMetric(_ context.Context, mType string, name string) 
 }
 
 func (m *MemoryStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
 	m.AllMetrics = m.AllMetrics[:0]
 	if _, err := m.GetGauges(ctx); err != nil {
 		return nil, err
