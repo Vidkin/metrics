@@ -2,73 +2,93 @@ package agent
 
 import (
 	"context"
-	"github.com/Vidkin/metrics/internal/config"
-	"github.com/Vidkin/metrics/internal/metric"
-	"github.com/Vidkin/metrics/internal/repository/storage"
-	"github.com/Vidkin/metrics/internal/router"
+	"net/http"
+	"net/http/httptest"
+	"runtime"
+	"testing"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
-	"net/http"
-	"net/http/httptest"
-	"testing"
+
+	"github.com/Vidkin/metrics/internal/config"
+	"github.com/Vidkin/metrics/internal/metric"
+	"github.com/Vidkin/metrics/internal/router"
 )
 
-func TestSendMetrics(t *testing.T) {
-	tests := []struct {
-		name           string
-		sendToWrongURL bool
-		repository     router.Repository
-	}{
-		{
-			name:           "test send ok",
-			sendToWrongURL: false,
-			repository: &storage.FileStorage{
-				Gauge:   map[string]float64{"param1": 45.21, "param2": 12},
-				Counter: map[string]int64{"param2": 1},
-			},
-		},
-		{
-			name:           "test send to wrong url",
-			sendToWrongURL: true,
-			repository: &storage.FileStorage{
-				Gauge:   map[string]float64{"param1": 45.21, "param2": 12},
-				Counter: map[string]int64{"param2": 1},
-			},
-		},
-	}
-
+func BenchmarkCollectAndSendMetrics(b *testing.B) {
 	serverRepository := router.NewMemoryStorage()
-	client := resty.New()
-	client.SetDoNotParseResponse(true)
 	chiRouter := chi.NewRouter()
 	serverConfig := config.ServerConfig{StoreInterval: 300}
 	metricRouter := router.NewMetricRouter(chiRouter, serverRepository, &serverConfig)
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
-	mw := New(nil, nil, client, &config.AgentConfig{Key: ""})
+	client := resty.New()
+	client.SetDoNotParseResponse(true)
+	memStats := &runtime.MemStats{}
+	memoryStorage := router.NewFileStorage("")
+	mw := New(memoryStorage, memStats, client, &config.AgentConfig{Key: "", RateLimit: 5})
+	var serverURL = ts.URL + "/updates/"
+
+	b.ResetTimer()
+	b.Run("poll", func(b *testing.B) {
+		var count int64 = 1
+		for i := 0; i < 100; i++ {
+			chIn := make(chan *metric.Metric, 10)
+			go mw.CollectMetrics(chIn, count)
+			for w := 1; w <= mw.config.RateLimit; w++ {
+				go mw.SendMetrics(chIn, serverURL)
+			}
+		}
+	})
+}
+
+func TestSendMetrics(t *testing.T) {
+	tests := []struct {
+		name           string
+		sendToWrongURL bool
+	}{
+		{
+			name:           "test send ok",
+			sendToWrongURL: false,
+		},
+		{
+			name:           "test send to wrong url",
+			sendToWrongURL: true,
+		},
+	}
+
+	serverRepository := router.NewMemoryStorage()
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 300}
+	metricRouter := router.NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+	ts := httptest.NewServer(metricRouter.Router)
+	defer ts.Close()
+
+	client := resty.New()
+	client.SetDoNotParseResponse(true)
+	memStats := &runtime.MemStats{}
+	memoryStorage := router.NewFileStorage("")
+	mw := New(memoryStorage, memStats, client, &config.AgentConfig{Key: ""})
 
 	for _, test := range tests {
-		mw.repository = test.repository
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
 			chIn := make(chan *metric.Metric, 10)
-			go func() {
-				defer close(chIn)
-				metrics, _ := test.repository.GetMetrics(context.TODO())
-				for _, me := range metrics {
-					chIn <- me
-				}
-			}()
+			go mw.CollectMetrics(chIn, 10)
+
 			if test.sendToWrongURL {
 				mw.SendMetrics(chIn, ts.URL+"/wrong_url/")
-				assert.NotEqual(t, test.repository, serverRepository)
+				ctx := context.TODO()
+				testMetrics, _ := mw.repository.GetMetrics(ctx)
+				serverMetrics, _ := serverRepository.GetMetrics(ctx)
+				assert.NotEqual(t, testMetrics, serverMetrics)
 			} else {
 				mw.SendMetrics(chIn, ts.URL+"/updates/")
 				ctx := context.TODO()
-				testMetrics, _ := test.repository.GetMetrics(ctx)
+				testMetrics, _ := mw.repository.GetMetrics(ctx)
 				serverMetrics, _ := serverRepository.GetMetrics(ctx)
 				assert.ElementsMatch(t, testMetrics, serverMetrics)
 			}

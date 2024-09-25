@@ -4,16 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"github.com/Vidkin/metrics/internal/config"
-	"github.com/Vidkin/metrics/internal/logger"
-	me "github.com/Vidkin/metrics/internal/metric"
-	"github.com/Vidkin/metrics/internal/repository/storage"
+	"os"
+	"time"
+
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"go.uber.org/zap"
-	"os"
-	"time"
+
+	"github.com/Vidkin/metrics/internal/config"
+	"github.com/Vidkin/metrics/internal/logger"
+	me "github.com/Vidkin/metrics/internal/metric"
+	"github.com/Vidkin/metrics/internal/repository/storage"
 )
 
 func NewMemoryStorage() *storage.MemoryStorage {

@@ -7,15 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"github.com/Vidkin/metrics/internal/config"
-	"github.com/Vidkin/metrics/internal/logger"
-	"github.com/Vidkin/metrics/internal/metric"
-	"github.com/Vidkin/metrics/internal/router"
-	"github.com/Vidkin/metrics/pkg/hash"
-	"github.com/go-resty/resty/v2"
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/mem"
-	"go.uber.org/zap"
 	"io"
 	"math/rand/v2"
 	"net/url"
@@ -23,6 +14,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-resty/resty/v2"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
+	"go.uber.org/zap"
+
+	"github.com/Vidkin/metrics/internal/config"
+	"github.com/Vidkin/metrics/internal/logger"
+	"github.com/Vidkin/metrics/internal/metric"
+	"github.com/Vidkin/metrics/internal/router"
+	"github.com/Vidkin/metrics/pkg/hash"
 )
 
 const (
@@ -196,7 +198,12 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 		logger.Log.Info("error post request", zap.Error(err))
 		return 0, "", err
 	}
-	defer resp.RawBody().Close()
+	defer func(body io.ReadCloser) {
+		err := body.Close()
+		if err != nil {
+			logger.Log.Info("error close resp raw body", zap.Error(err))
+		}
+	}(resp.RawBody())
 
 	contentEncoding := resp.Header().Get("Content-Encoding")
 	var or io.ReadCloser
@@ -222,10 +229,13 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 func (mw *MetricWorker) SendMetrics(chIn chan *metric.Metric, serverURL string) {
 	for m := range chIn {
 		body, _ := json.Marshal([]*metric.Metric{m})
-		buf := bytes.NewBuffer(nil)
+		buf := bytes.NewBuffer([]byte{})
 		zb := gzip.NewWriter(buf)
 		_, _ = zb.Write(body)
-		zb.Close()
+		err := zb.Close()
+		if err != nil {
+			logger.Log.Info("error close gzip writer", zap.Error(err))
+		}
 
 		for i := 0; i <= RequestRetryCount; i++ {
 			req := mw.client.R()

@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"embed"
 	"errors"
-	"github.com/Vidkin/metrics/internal/logger"
-	me "github.com/Vidkin/metrics/internal/metric"
+
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
+
+	"github.com/Vidkin/metrics/internal/logger"
+	me "github.com/Vidkin/metrics/internal/metric"
 )
 
 //go:embed migrations/*.sql

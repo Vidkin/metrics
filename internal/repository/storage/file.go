@@ -4,14 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/Vidkin/metrics/internal/logger"
-	me "github.com/Vidkin/metrics/internal/metric"
-	"go.uber.org/zap"
 	"io"
 	"os"
+	"sync"
+
+	"go.uber.org/zap"
+
+	"github.com/Vidkin/metrics/internal/logger"
+	me "github.com/Vidkin/metrics/internal/metric"
 )
 
 type FileStorage struct {
+	mu              sync.RWMutex
 	Gauge           map[string]float64
 	Counter         map[string]int64
 	GaugeMetrics    []*me.Metric
@@ -21,6 +25,9 @@ type FileStorage struct {
 }
 
 func (f *FileStorage) UpdateMetric(_ context.Context, metric *me.Metric) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	switch metric.MType {
 	case MetricTypeGauge:
 		f.Gauge[metric.ID] = *metric.Value
@@ -31,6 +38,9 @@ func (f *FileStorage) UpdateMetric(_ context.Context, metric *me.Metric) error {
 }
 
 func (f *FileStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	for _, metric := range *metrics {
 		switch metric.MType {
 		case MetricTypeGauge:
@@ -43,6 +53,9 @@ func (f *FileStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) err
 }
 
 func (f *FileStorage) DeleteMetric(_ context.Context, mType string, name string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	switch mType {
 	case MetricTypeGauge:
 		delete(f.Gauge, name)
@@ -53,6 +66,9 @@ func (f *FileStorage) DeleteMetric(_ context.Context, mType string, name string)
 }
 
 func (f *FileStorage) GetMetric(_ context.Context, mType string, name string) (*me.Metric, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
 	var metric me.Metric
 	switch mType {
 	case MetricTypeGauge:
@@ -89,6 +105,9 @@ func (f *FileStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) {
 }
 
 func (f *FileStorage) GetGauges(_ context.Context) ([]*me.Metric, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
 	f.GaugeMetrics = f.GaugeMetrics[:0]
 	for k, v := range f.Gauge {
 		f.GaugeMetrics = append(f.GaugeMetrics, &me.Metric{
@@ -101,6 +120,9 @@ func (f *FileStorage) GetGauges(_ context.Context) ([]*me.Metric, error) {
 }
 
 func (f *FileStorage) GetCounters(_ context.Context) ([]*me.Metric, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
 	f.CounterMetrics = f.CounterMetrics[:0]
 	for k, v := range f.Counter {
 		f.CounterMetrics = append(f.CounterMetrics, &me.Metric{
