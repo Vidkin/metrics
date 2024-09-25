@@ -261,6 +261,8 @@ func (mr *MetricRouter) RootHandler(res http.ResponseWriter, req *http.Request) 
 			_, _ = io.WriteString(res, fmt.Sprintf("%s = %d\n", me.ID, *me.Delta))
 		}
 	}
+
+	res.WriteHeader(http.StatusOK)
 }
 
 // PingDBHandler handles HTTP GET requests to the "/ping" endpoint of the
@@ -325,6 +327,7 @@ func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http
 		logger.Log.Info("can't write metric value", zap.Error(err))
 		http.Error(res, "Can't write metric value", http.StatusInternalServerError)
 	}
+	res.WriteHeader(http.StatusOK)
 }
 
 // DumpMetric attempts to persist a given metric to the repository if the
@@ -521,6 +524,7 @@ func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *ht
 		http.Error(res, "error write response data", http.StatusInternalServerError)
 		return
 	}
+	res.WriteHeader(http.StatusOK)
 }
 
 // GetMetricValueHandlerJSON handles HTTP POST requests for retrieving a metric value in JSON format.
@@ -581,6 +585,7 @@ func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *
 		http.Error(res, "error write response data", http.StatusInternalServerError)
 		return
 	}
+	res.WriteHeader(http.StatusOK)
 }
 
 // UpdateMetricsHandlerJSON handles HTTP POST requests for updating multiple metrics in JSON format.
@@ -669,4 +674,5 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 		http.Error(res, "error encoding response", http.StatusInternalServerError)
 		return
 	}
+	res.WriteHeader(http.StatusOK)
 }
