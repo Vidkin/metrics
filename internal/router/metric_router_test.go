@@ -723,7 +723,6 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandler() {
 	type want struct {
 		statusCode int
 		err        string
-		response   *metric.Metric
 	}
 
 	const (

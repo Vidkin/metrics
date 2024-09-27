@@ -16,8 +16,6 @@ type hashResponseWriter struct {
 	http.ResponseWriter
 	Key        string
 	HashSHA256 string
-	statusCode int
-	written    bool
 }
 
 // Hash is an HTTP middleware function that validates the integrity of incoming
