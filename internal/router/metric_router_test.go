@@ -21,7 +21,7 @@ import (
 	"github.com/Vidkin/metrics/internal/repository/mock"
 )
 
-func (s *MetricRouterTestSuite) TestMetricRouter_GzipCompression() {
+func (s *MetricRouterTestSuite) TestMetricRouter_GzipMiddleware() {
 	requestBody := `{
 		"id": "test",
 		"type": "gauge",
@@ -76,6 +76,48 @@ func (s *MetricRouterTestSuite) TestMetricRouter_GzipCompression() {
 		defer resp.Body.Close()
 		s.Require().Equal(http.StatusOK, resp.StatusCode)
 		s.Require().JSONEq(successBody, string(respBody))
+	})
+}
+
+func (s *MetricRouterTestSuite) TestMetricRouter_HashMiddleware() {
+	requestBody := `{
+		"id": "test",
+		"type": "gauge",
+		"value": 13.5
+	}`
+
+	successBody := `{
+		"id": "test",
+		"type": "gauge",
+		"value": 13.5
+	}`
+
+	s.Run("check_with_good_key", func() {
+		s.mockRepository.EXPECT().
+			UpdateMetric(gomock.Any(), gomock.Any()).
+			Return(nil)
+		s.mockRepository.EXPECT().
+			Dump(gomock.Any()).
+			Return(nil)
+
+		value := 13.5
+		s.mockRepository.EXPECT().
+			GetMetric(gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(&metric.Metric{ID: "test", MType: MetricTypeGauge, Value: &value}, nil)
+		resp, respBody := s.RequestTest(http.MethodPost, "/update", requestBody, "application/json", true, false)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusOK, resp.StatusCode)
+		s.Require().JSONEq(successBody, string(respBody))
+	})
+
+	s.Run("check_with_bad_key", func() {
+		goodKey := s.Key
+		s.Key = "badKey"
+
+		resp, _ := s.RequestTest(http.MethodPost, "/update", requestBody, "application/json", true, false)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+		s.Key = goodKey
 	})
 }
 
