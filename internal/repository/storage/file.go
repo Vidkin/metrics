@@ -142,15 +142,15 @@ func (f *FileStorage) Dump(metric *me.Metric) error {
 	}
 	defer file.Close()
 
-	var metrics []me.Metric
 	data, err := io.ReadAll(file)
 	if err != nil {
 		logger.Log.Info("error read file", zap.Error(err))
 		return err
 	}
 
+	var metrics []me.Metric
 	if len(data) != 0 {
-		if err := json.Unmarshal(data, &metrics); err != nil {
+		if err = json.Unmarshal(data, &metrics); err != nil {
 			return err
 		}
 	}
@@ -231,12 +231,12 @@ func (f *FileStorage) Load(ctx context.Context) error {
 	}
 	defer file.Close()
 
-	var metrics []me.Metric
 	data, err := io.ReadAll(file)
 	if err != nil {
 		logger.Log.Info("error read file", zap.Error(err))
 		return err
 	}
+	var metrics []me.Metric
 	if err := json.Unmarshal(data, &metrics); err != nil {
 		return err
 	}

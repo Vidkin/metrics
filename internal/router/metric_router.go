@@ -648,14 +648,14 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 			updated *metric.Metric
 			err     error
 		)
-		for i := 0; i <= mr.RetryCount; i++ {
+		for r := 0; r <= mr.RetryCount; r++ {
 			updated, err = mr.Repository.GetMetric(req.Context(), m.MType, m.ID)
 			if err != nil {
 				var pgErr *pgconn.PgError
 				if errors.As(err, &pgErr) {
-					if pgerrcode.IsConnectionException(pgErr.Code) && i != mr.RetryCount {
+					if pgerrcode.IsConnectionException(pgErr.Code) && r != mr.RetryCount {
 						logger.Log.Info("repository connection error", zap.Error(err))
-						time.Sleep(time.Duration(1+i*2) * time.Second)
+						time.Sleep(time.Duration(1+r*2) * time.Second)
 						continue
 					}
 				}

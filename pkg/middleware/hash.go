@@ -48,7 +48,7 @@ func Hash(key string) func(http.Handler) http.Handler {
 				tee := io.TeeReader(r.Body, &buf)
 
 				defer func() {
-					if err := r.Body.Close(); err != nil {
+					if err = r.Body.Close(); err != nil {
 						logger.Log.Error("error close reader body", zap.Error(err))
 					}
 				}()
