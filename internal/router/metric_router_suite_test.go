@@ -3,6 +3,7 @@ package router
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/base64"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,21 +17,24 @@ import (
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/repository/mock"
+	"github.com/Vidkin/metrics/pkg/hash"
 )
 
 type MetricRouterTestSuite struct {
 	suite.Suite
 	metricRouter   *MetricRouter
-	key            string
 	mockController *gomock.Controller
 	mockRepository *mock.MockRepository
 	server         *httptest.Server
+	Key            string
 }
 
 func (s *MetricRouterTestSuite) SetupTest() {
-	chiRouter := chi.NewRouter()
-	serverConfig := config.ServerConfig{StoreInterval: 0, RetryCount: 2}
+	key := "testHashKey"
 
+	chiRouter := chi.NewRouter()
+	serverConfig := config.ServerConfig{StoreInterval: 0, RetryCount: 2, Key: key}
+	s.Key = key
 	s.mockController = gomock.NewController(s.T())
 	s.mockRepository = mock.NewMockRepository(s.mockController)
 	s.metricRouter = NewMetricRouter(chiRouter, s.mockRepository, &serverConfig)
@@ -46,6 +50,11 @@ func (s *MetricRouterTestSuite) RequestTest(method, path string, body string, co
 	req, err := http.NewRequest(method, s.server.URL+path, bytes.NewBuffer(bodyBytes))
 	s.Require().NoError(err)
 
+	if s.Key != "" {
+		h := hash.GetHashSHA256(s.Key, bodyBytes)
+		hEnc := base64.StdEncoding.EncodeToString(h)
+		req.Header.Set("HashSHA256", hEnc)
+	}
 	req.Header.Set("Content-Type", contentType)
 	if acceptEncoding == true {
 		req.Header.Set("Accept-Encoding", "gzip")
@@ -67,7 +76,7 @@ func (s *MetricRouterTestSuite) RequestTest(method, path string, body string, co
 		}
 	}(resp.Body)
 
-	if acceptEncoding {
+	if resp.StatusCode == http.StatusOK && acceptEncoding {
 		dec, err := gzip.NewReader(resp.Body)
 		s.Require().NoError(err)
 		respBody, err := io.ReadAll(dec)

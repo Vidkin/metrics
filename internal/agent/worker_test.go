@@ -105,10 +105,10 @@ func TestSendMetric(t *testing.T) {
 	}
 	tests := []struct {
 		name           string
-		sendToWrongURL bool
 		metric         metric.Metric
-		statusCode     int
 		want           want
+		sendToWrongURL bool
+		statusCode     int
 	}{
 		{
 			name:           "test send counter ok",

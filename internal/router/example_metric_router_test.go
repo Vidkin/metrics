@@ -3,11 +3,13 @@ package router
 import (
 	"bytes"
 	"fmt"
-	"github.com/Vidkin/metrics/internal/config"
-	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
 	"net/http/httptest"
+
+	"github.com/go-chi/chi/v5"
+
+	"github.com/Vidkin/metrics/internal/config"
 )
 
 var (
