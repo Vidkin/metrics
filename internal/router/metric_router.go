@@ -73,8 +73,8 @@ const (
 type MetricRouter struct {
 	Repository    Repository
 	Router        chi.Router
-	RetryCount    int
 	LastStoreTime time.Time
+	RetryCount    int
 	StoreInterval int
 }
 

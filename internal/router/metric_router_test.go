@@ -123,13 +123,13 @@ func (s *MetricRouterTestSuite) TestMetricRouter_HashMiddleware() {
 
 func (s *MetricRouterTestSuite) TestMetricRouter_PingDBHandler() {
 	type want struct {
-		statusCode int
 		response   string
+		statusCode int
 	}
 	tests := []struct {
 		name        string
-		want        want
 		contentType string
+		want        want
 	}{
 		{
 			name:        "test db is not available",
@@ -170,9 +170,9 @@ func (s *MetricRouterTestSuite) TestMetricRouter_PingDBHandler() {
 
 func (s *MetricRouterTestSuite) TestMetricRouter_RootHandler() {
 	type want struct {
-		statusCode int
 		err        string
 		response   []*metric.Metric
+		statusCode int
 	}
 
 	var (
@@ -185,8 +185,8 @@ func (s *MetricRouterTestSuite) TestMetricRouter_RootHandler() {
 	)
 	tests := []struct {
 		name        string
-		want        want
 		contentType string
+		want        want
 	}{
 		{
 			name:        "db is not available",
@@ -257,9 +257,9 @@ func (s *MetricRouterTestSuite) TestMetricRouter_RootHandler() {
 
 func (s *MetricRouterTestSuite) TestMetricRouter_GetMetricValueHandlerJSON() {
 	type want struct {
-		statusCode int
-		err        string
 		response   *metric.Metric
+		err        string
+		statusCode int
 	}
 
 	const (
@@ -271,9 +271,9 @@ func (s *MetricRouterTestSuite) TestMetricRouter_GetMetricValueHandlerJSON() {
 	)
 	tests := []struct {
 		name        string
-		want        want
 		body        string
 		contentType string
+		want        want
 	}{
 		{
 			name:        "bad content type",
@@ -395,10 +395,10 @@ func (s *MetricRouterTestSuite) TestMetricRouter_GetMetricValueHandlerJSON() {
 
 func (s *MetricRouterTestSuite) TestMetricRouter_GetMetricValueHandler() {
 	type want struct {
-		statusCode    int
-		err           string
 		response      *metric.Metric
+		err           string
 		responseValue string
+		statusCode    int
 	}
 
 	const (
@@ -410,10 +410,10 @@ func (s *MetricRouterTestSuite) TestMetricRouter_GetMetricValueHandler() {
 	)
 	tests := []struct {
 		name        string
-		want        want
 		contentType string
 		mType       string
 		mName       string
+		want        want
 	}{
 		{
 			name:        "bad metric type",
@@ -501,9 +501,9 @@ func (s *MetricRouterTestSuite) TestMetricRouter_GetMetricValueHandler() {
 
 func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandlerJSON() {
 	type want struct {
-		statusCode int
-		err        string
 		response   *metric.Metric
+		err        string
+		statusCode int
 	}
 
 	const (
@@ -519,9 +519,9 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandlerJSON() {
 	)
 	tests := []struct {
 		name        string
-		want        want
 		body        string
 		contentType string
+		want        want
 	}{
 		{
 			name:        "bad content type",
@@ -763,8 +763,8 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandlerJSON() {
 
 func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandler() {
 	type want struct {
-		statusCode int
 		err        string
+		statusCode int
 	}
 
 	const (
@@ -776,11 +776,11 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandler() {
 
 	tests := []struct {
 		name        string
-		want        want
 		mType       string
 		mName       string
 		mValue      string
 		contentType string
+		want        want
 	}{
 		{
 			name:        "empty metric name",
@@ -941,9 +941,9 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandler() {
 
 func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricsHandlerJSON() {
 	type want struct {
-		statusCode int
-		err        string
 		response   *metric.Metric
+		err        string
+		statusCode int
 	}
 
 	const (
@@ -959,9 +959,9 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricsHandlerJSON() {
 	)
 	tests := []struct {
 		name        string
-		want        want
 		body        string
 		contentType string
+		want        want
 	}{
 		{
 			name:        "bad content type",

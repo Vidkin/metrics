@@ -18,10 +18,10 @@ import (
 var Migrations embed.FS
 
 type PostgresStorage struct {
+	Conn           *sql.DB
 	GaugeMetrics   []*me.Metric
 	CounterMetrics []*me.Metric
 	AllMetrics     []*me.Metric
-	Conn           *sql.DB
 }
 
 func (p *PostgresStorage) UpdateMetric(ctx context.Context, metric *me.Metric) error {

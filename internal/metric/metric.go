@@ -10,10 +10,10 @@ import (
 // This struct encapsulates the properties of a metric, including its unique identifier (name),
 // type, and value.
 type Metric struct {
-	ID    string   `json:"id"`              // имя метрики
-	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
 	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+	ID    string   `json:"id"`              // имя метрики
+	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
 }
 
 // ValueAsString returns the string representation of the metric's value based on its type.

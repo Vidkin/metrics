@@ -144,15 +144,15 @@ func TestUpdateMetricHandler(t *testing.T) {
 func TestGetMetricValueHandler(t *testing.T) {
 	type want struct {
 		contentType string
-		statusCode  int
 		value       string
+		statusCode  int
 	}
 
 	var tests = []struct {
+		repository Repository
 		name       string
 		url        string
 		want       want
-		repository Repository
 	}{
 		{
 			name: "test get gauge metric ok",
@@ -237,15 +237,15 @@ func TestGetMetricValueHandler(t *testing.T) {
 func TestRootHandler(t *testing.T) {
 	type want struct {
 		contentType string
-		statusCode  int
 		value       string
+		statusCode  int
 	}
 
 	var tests = []struct {
-		name           string
-		acceptEncoding bool
-		want           want
 		repository     Repository
+		name           string
+		want           want
+		acceptEncoding bool
 	}{
 		{
 			name:           "test get all known metrics with encoding",
@@ -317,8 +317,8 @@ func TestRootHandler(t *testing.T) {
 func TestUpdateMetricHandlerJSON(t *testing.T) {
 	type want struct {
 		contentType string
-		statusCode  int
 		respBody    string
+		statusCode  int
 	}
 
 	var tests = []struct {
@@ -414,8 +414,8 @@ func TestUpdateMetricHandlerJSON(t *testing.T) {
 func TestUpdateMetricsHandlerJSON(t *testing.T) {
 	type want struct {
 		contentType string
-		statusCode  int
 		respBody    string
+		statusCode  int
 	}
 
 	var tests = []struct {
@@ -493,16 +493,16 @@ func TestUpdateMetricsHandlerJSON(t *testing.T) {
 func TestGetMetricValueHandlerJSON(t *testing.T) {
 	type want struct {
 		contentType string
-		statusCode  int
 		respBody    string
+		statusCode  int
 	}
 
 	var tests = []struct {
+		repository  Repository
 		name        string
 		json        string
 		contentType string
 		want        want
-		repository  Repository
 	}{
 		{
 			name: "test get counter metric status ok",

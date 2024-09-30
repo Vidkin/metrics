@@ -15,13 +15,13 @@ import (
 )
 
 type FileStorage struct {
-	mu              sync.RWMutex
 	Gauge           map[string]float64
 	Counter         map[string]int64
+	FileStoragePath string
 	GaugeMetrics    []*me.Metric
 	CounterMetrics  []*me.Metric
 	AllMetrics      []*me.Metric
-	FileStoragePath string
+	mu              sync.RWMutex
 }
 
 func (f *FileStorage) UpdateMetric(_ context.Context, metric *me.Metric) error {

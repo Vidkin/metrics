@@ -23,10 +23,10 @@ import (
 type MetricRouterTestSuite struct {
 	suite.Suite
 	metricRouter   *MetricRouter
-	Key            string
 	mockController *gomock.Controller
 	mockRepository *mock.MockRepository
 	server         *httptest.Server
+	Key            string
 }
 
 func (s *MetricRouterTestSuite) SetupTest() {

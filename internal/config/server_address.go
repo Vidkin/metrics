@@ -17,9 +17,9 @@ const (
 // the host name or IP address and the port number. It can be initialized with
 // default values and can also be populated from environment variables.
 type ServerAddress struct {
+	Address string `env:"ADDRESS"`
 	Host    string
 	Port    int
-	Address string `env:"ADDRESS"`
 }
 
 // NewServerAddress creates and returns a new instance of the ServerAddress struct
