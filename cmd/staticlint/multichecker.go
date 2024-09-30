@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 
+	"github.com/gostaticanalysis/nilerr"
+	"github.com/orijtech/structslop"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
@@ -53,7 +55,7 @@ import (
 	"honnef.co/go/tools/staticcheck"
 	"honnef.co/go/tools/stylecheck"
 
-	analysis2 "github.com/Vidkin/metrics/pkg/analysis"
+	analysis2 "github.com/Vidkin/metrics/pkg/exitcheck"
 )
 
 const (
@@ -130,6 +132,8 @@ func getAnalysisAnalizers() []*analysis.Analyzer {
 func main() {
 	allChecks := make([]*analysis.Analyzer, 0)
 	allChecks = append(allChecks, analysis2.ExitMainAnalyzer)
+	allChecks = append(allChecks, structslop.Analyzer)
+	allChecks = append(allChecks, nilerr.Analyzer)
 	allChecks = append(allChecks, getAnalysisAnalizers()...)
 	allChecks = append(allChecks, getStaticCheckAnalizers()...)
 	multichecker.Main(
