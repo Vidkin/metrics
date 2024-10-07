@@ -97,9 +97,9 @@ func TestUpdateMetric(t *testing.T) {
 	intValue := int64(12)
 	intValue2 := int64(12)
 	tests := []struct {
-		name         string
 		metricAdd    *me.Metric
 		metricUpdate *me.Metric
+		name         string
 		wantErr      bool
 	}{
 		{
@@ -215,8 +215,8 @@ func TestDeleteMetric(t *testing.T) {
 	floatValue := 16.4
 	intValue := int64(12)
 	tests := []struct {
-		name      string
 		metricAdd *me.Metric
+		name      string
 		wantErr   bool
 	}{
 		{
@@ -304,8 +304,8 @@ func TestGetMetric(t *testing.T) {
 	floatValue := 16.4
 	intValue := int64(12)
 	tests := []struct {
-		name      string
 		metricAdd *me.Metric
+		name      string
 		wantErr   bool
 	}{
 		{
@@ -376,15 +376,15 @@ func TestGetMetric(t *testing.T) {
 			if tt.metricAdd != nil && !tt.wantErr {
 				err = pgStorage.UpdateMetric(context.TODO(), tt.metricAdd)
 				assert.NoError(t, err)
-				metric, err := pgStorage.GetMetric(context.TODO(), tt.metricAdd.MType, tt.metricAdd.ID)
-				assert.NoError(t, err)
+				metric, errGet := pgStorage.GetMetric(context.TODO(), tt.metricAdd.MType, tt.metricAdd.ID)
+				assert.NoError(t, errGet)
 				assert.Equal(t, tt.metricAdd, metric)
 			}
 			if tt.metricAdd != nil && tt.wantErr {
-				err = pgStorage.UpdateMetric(context.TODO(), tt.metricAdd)
-				assert.NoError(t, err)
-				_, err := pgStorage.GetMetric(context.TODO(), "unknownMType", tt.metricAdd.ID)
-				assert.Error(t, err)
+				errUpdate := pgStorage.UpdateMetric(context.TODO(), tt.metricAdd)
+				assert.NoError(t, errUpdate)
+				_, errGet := pgStorage.GetMetric(context.TODO(), "unknownMType", tt.metricAdd.ID)
+				assert.Error(t, errGet)
 			}
 		})
 	}
@@ -472,9 +472,9 @@ func TestUpdateMetrics(t *testing.T) {
 	floatValue2 := 15.4
 	intValue := int64(12)
 	tests := []struct {
-		name          string
 		metricsAdd    *[]me.Metric
 		metricsUpdate *[]me.Metric
+		name          string
 		wantErr       bool
 	}{
 		{
