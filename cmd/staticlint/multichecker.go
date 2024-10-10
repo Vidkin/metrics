@@ -1,3 +1,37 @@
+/*
+Package staticlint provides a command-line tool that runs a collection of static analysis checks on Go code.
+
+The tool includes checks for common programming mistakes, performance issues, and adherence to best practices.
+
+## Usage
+
+To use the staticlint tool, run the following command in your terminal:
+
+	go run /path/to/multichecker.go /path/to/your/package
+
+This will execute all the configured static analysis checks on the Go code in the current directory.
+
+To get more information about the used code analyzers, run the following command in your terminal:
+
+	go run /path/to/multichecker.go --help
+
+## Exit Codes
+
+The staticlint tool will return a non-zero exit code if any of the checks fail, allowing for integration
+with CI/CD pipelines and other automated systems.
+
+## Example
+
+To run staticlint on a specific package, you can specify the package path:
+
+	go run path/to/multichecker.go /path/to/package
+
+This will analyze the specified package and report any issues found.
+
+You can specify the analyzers you want to run, for example:
+
+	go run path/to/multichecker.go -ST1006 /path/to/package
+*/
 package main
 
 import (
@@ -129,6 +163,8 @@ func getAnalysisAnalizers() []*analysis.Analyzer {
 	return res
 }
 
+// main is the entry point of the staticlint tool. It initializes and runs a collection of static analysis checks
+// on Go code.
 func main() {
 	allChecks := make([]*analysis.Analyzer, 0)
 	allChecks = append(allChecks, analysis2.ExitMainAnalyzer)
