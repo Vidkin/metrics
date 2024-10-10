@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"runtime"
 
 	"github.com/go-resty/resty/v2"
@@ -11,7 +12,14 @@ import (
 	"github.com/Vidkin/metrics/internal/router"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
+	fmt.Printf("Build version: %s\nBuild date: %s\nBuild commit: %s\n", buildVersion, buildDate, buildCommit)
 	agentConfig, err := config.NewAgentConfig()
 	if err != nil {
 		panic(err)

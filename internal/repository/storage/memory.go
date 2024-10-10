@@ -14,12 +14,12 @@ const (
 )
 
 type MemoryStorage struct {
-	mu             sync.RWMutex
 	Gauge          map[string]float64
 	Counter        map[string]int64
 	GaugeMetrics   []*me.Metric
 	CounterMetrics []*me.Metric
 	AllMetrics     []*me.Metric
+	mu             sync.RWMutex
 }
 
 func (m *MemoryStorage) UpdateMetric(_ context.Context, metric *me.Metric) error {

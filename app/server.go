@@ -1,3 +1,4 @@
+// Package app provides an implementation of a server app for handling metrics.
 package app
 
 import (
@@ -23,7 +24,6 @@ type ServerApp struct {
 	config     *config.ServerConfig
 	srv        *http.Server
 	repository router.Repository
-	dump       bool
 }
 
 func NewServerApp(cfg *config.ServerConfig) (*ServerApp, error) {

@@ -53,24 +53,24 @@ func NewPostgresStorage(dbDSN string) (*storage.PostgresStorage, error) {
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
-		logger.Log.Fatal("can't create postgres driver for migrations", zap.Error(err))
+		logger.Log.Error("can't create postgres driver for migrations", zap.Error(err))
 		return nil, err
 	}
 
 	d, err := iofs.New(storage.Migrations, "migrations")
 	if err != nil {
-		logger.Log.Fatal("can't get migrations from FS", zap.Error(err))
+		logger.Log.Error("can't get migrations from FS", zap.Error(err))
 		return nil, err
 	}
 
 	m, err := migrate.NewWithInstance("iofs", d, "postgres", driver)
 	if err != nil {
-		logger.Log.Fatal("can't create new migrate instance", zap.Error(err))
+		logger.Log.Error("can't create new migrate instance", zap.Error(err))
 		return nil, err
 	}
 
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		logger.Log.Fatal("can't exec migrations", zap.Error(err))
+		logger.Log.Error("can't exec migrations", zap.Error(err))
 		return nil, err
 	}
 	p.Conn = db
