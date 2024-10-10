@@ -1,0 +1,3137 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>app: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/Vidkin/metrics/app/server.go (0.0%)</option>
+				
+				<option value="file1">github.com/Vidkin/metrics/cmd/agent/main.go (0.0%)</option>
+				
+				<option value="file2">github.com/Vidkin/metrics/cmd/server/main.go (0.0%)</option>
+				
+				<option value="file3">github.com/Vidkin/metrics/cmd/staticlint/multichecker.go (0.0%)</option>
+				
+				<option value="file4">github.com/Vidkin/metrics/internal/agent/worker.go (57.1%)</option>
+				
+				<option value="file5">github.com/Vidkin/metrics/internal/config/agent_config.go (0.0%)</option>
+				
+				<option value="file6">github.com/Vidkin/metrics/internal/config/server_address.go (0.0%)</option>
+				
+				<option value="file7">github.com/Vidkin/metrics/internal/config/server_config.go (0.0%)</option>
+				
+				<option value="file8">github.com/Vidkin/metrics/internal/logger/logger.go (0.0%)</option>
+				
+				<option value="file9">github.com/Vidkin/metrics/internal/metric/metric.go (100.0%)</option>
+				
+				<option value="file10">github.com/Vidkin/metrics/internal/repository/mock/mock_repository.go (61.8%)</option>
+				
+				<option value="file11">github.com/Vidkin/metrics/internal/repository/storage/file.go (0.0%)</option>
+				
+				<option value="file12">github.com/Vidkin/metrics/internal/repository/storage/memory.go (0.0%)</option>
+				
+				<option value="file13">github.com/Vidkin/metrics/internal/repository/storage/postgres.go (71.1%)</option>
+				
+				<option value="file14">github.com/Vidkin/metrics/internal/router/metric_router.go (91.5%)</option>
+				
+				<option value="file15">github.com/Vidkin/metrics/internal/router/storage_factory.go (43.3%)</option>
+				
+				<option value="file16">github.com/Vidkin/metrics/pkg/compress/gzip.go (80.0%)</option>
+				
+				<option value="file17">github.com/Vidkin/metrics/pkg/exitcheck/exit.go (100.0%)</option>
+				
+				<option value="file18">github.com/Vidkin/metrics/pkg/hash/sha256.go (100.0%)</option>
+				
+				<option value="file19">github.com/Vidkin/metrics/pkg/middleware/gzip.go (75.0%)</option>
+				
+				<option value="file20">github.com/Vidkin/metrics/pkg/middleware/hash.go (66.7%)</option>
+				
+				<option value="file21">github.com/Vidkin/metrics/pkg/middleware/logging.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">// Package app provides an implementation of a server app for handling metrics.
+package app
+
+import (
+        "context"
+        "errors"
+        "net/http"
+        _ "net/http/pprof"
+        "os"
+        "os/signal"
+        "syscall"
+        "time"
+
+        "github.com/go-chi/chi/v5"
+        "go.uber.org/zap"
+
+        "github.com/Vidkin/metrics/internal/config"
+        "github.com/Vidkin/metrics/internal/logger"
+        "github.com/Vidkin/metrics/internal/repository/storage"
+        "github.com/Vidkin/metrics/internal/router"
+)
+
+type ServerApp struct {
+        config     *config.ServerConfig
+        srv        *http.Server
+        repository router.Repository
+}
+
+func NewServerApp(cfg *config.ServerConfig) (*ServerApp, error) <span class="cov0" title="0">{
+        if err := logger.Initialize(cfg.LogLevel); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">repo, err := router.NewRepository(cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">chiRouter := chi.NewRouter()
+        metricRouter := router.NewMetricRouter(chiRouter, repo, cfg)
+
+        srv := &amp;http.Server{
+                Addr:    cfg.ServerAddress.Address,
+                Handler: metricRouter.Router,
+        }
+        return &amp;ServerApp{
+                config:     cfg,
+                srv:        srv,
+                repository: repo,
+        }, nil</span>
+}
+
+func (a *ServerApp) Serve() <span class="cov0" title="0">{
+        go func() </span><span class="cov0" title="0">{
+                err := http.ListenAndServe("localhost:6060", nil)
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Error("error start pprof endpoint", zap.Error(err))
+                }</span>
+        }()
+        <span class="cov0" title="0">if err := a.srv.ListenAndServe(); err != nil &amp;&amp; err != http.ErrServerClosed </span><span class="cov0" title="0">{
+                logger.Log.Fatal("listen and serve fatal error", zap.Error(err))
+        }</span>
+}
+
+func (a *ServerApp) DumpToFile() error <span class="cov0" title="0">{
+        if dumper, ok := a.repository.(router.Dumper); ok </span><span class="cov0" title="0">{
+                for i := 0; i &lt;= a.config.RetryCount; i++ </span><span class="cov0" title="0">{
+                        err := dumper.FullDump()
+                        if err != nil </span><span class="cov0" title="0">{
+                                var pathErr *os.PathError
+                                if errors.As(err, &amp;pathErr) &amp;&amp; i != a.config.RetryCount </span><span class="cov0" title="0">{
+                                        logger.Log.Info("repository connection error", zap.Error(err))
+                                        time.Sleep(time.Duration(1+i*2) * time.Second)
+                                        continue</span>
+                                }
+                                <span class="cov0" title="0">logger.Log.Info("error saving metrics", zap.Error(err))</span>
+                        }
+                        <span class="cov0" title="0">break</span>
+                }
+        }
+        <span class="cov0" title="0">return errors.New("provided Repository does not implement Dumper")</span>
+}
+
+func (a *ServerApp) Run() <span class="cov0" title="0">{
+        logger.Log.Info("running server", zap.String("address", a.config.ServerAddress.Address))
+
+        go a.Serve()
+        if a.config.StoreInterval &gt; 0 </span><span class="cov0" title="0">{
+                ticker := time.NewTicker(time.Duration(a.config.StoreInterval) * time.Second)
+                go func() </span><span class="cov0" title="0">{
+                        for range ticker.C </span><span class="cov0" title="0">{
+                                if err := a.DumpToFile(); err != nil </span><span class="cov0" title="0">{
+                                        logger.Log.Info("error interval dump", zap.Error(err))
+                                }</span>
+                        }
+                }()
+        }
+
+        <span class="cov0" title="0">quit := make(chan os.Signal, 1)
+        signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+        &lt;-quit
+
+        defer a.Stop()</span>
+}
+
+func (a *ServerApp) Stop() <span class="cov0" title="0">{
+        logger.Log.Info("stop server", zap.String("address", a.config.ServerAddress.Address))
+        // Создаем контекст с таймаутом для корректного завершения сервера
+        ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+        defer cancel()
+
+        // Останавливаем сервер, ожидая завершения текущих обработчиков
+        if err := a.srv.Shutdown(ctx); err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("shutdown error", zap.Error(err))
+        }</span>
+
+        <span class="cov0" title="0">logger.Log.Info("dump metrics before exit")
+        if _, ok := a.repository.(*storage.FileStorage); ok </span><span class="cov0" title="0">{
+                if err := a.DumpToFile(); err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("error dump metrics before exit", zap.Error(err))
+                }</span>
+        }
+        <span class="cov0" title="0">err := router.Close(a.repository)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error close repository before exit", zap.Error(err))
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package main
+
+import (
+        "fmt"
+        "runtime"
+
+        "github.com/go-resty/resty/v2"
+
+        "github.com/Vidkin/metrics/internal/agent"
+        "github.com/Vidkin/metrics/internal/config"
+        "github.com/Vidkin/metrics/internal/logger"
+        "github.com/Vidkin/metrics/internal/router"
+)
+
+var (
+        buildVersion = "N/A"
+        buildDate    = "N/A"
+        buildCommit  = "N/A"
+)
+
+func main() <span class="cov0" title="0">{
+        fmt.Printf("Build version: %s\nBuild date: %s\nBuild commit: %s\n", buildVersion, buildDate, buildCommit)
+        agentConfig, err := config.NewAgentConfig()
+        if err != nil </span><span class="cov0" title="0">{
+                panic(err)</span>
+        }
+        <span class="cov0" title="0">if err := logger.Initialize(agentConfig.LogLevel); err != nil </span><span class="cov0" title="0">{
+                panic(err)</span>
+        }
+        <span class="cov0" title="0">memoryStorage := router.NewFileStorage("")
+        memStats := &amp;runtime.MemStats{}
+        client := resty.New()
+        client.SetDoNotParseResponse(true)
+        mw := agent.New(memoryStorage, memStats, client, agentConfig)
+
+        mw.Poll()</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package main
+
+import (
+        "fmt"
+
+        "github.com/Vidkin/metrics/app"
+        "github.com/Vidkin/metrics/internal/config"
+)
+
+var (
+        buildVersion = "N/A"
+        buildDate    = "N/A"
+        buildCommit  = "N/A"
+)
+
+func main() <span class="cov0" title="0">{
+        fmt.Printf("Build version: %s\nBuild date: %s\nBuild commit: %s\n", buildVersion, buildDate, buildCommit)
+        cfg, err := config.NewServerConfig()
+        if err != nil </span><span class="cov0" title="0">{
+                panic(err)</span>
+        }
+
+        <span class="cov0" title="0">serverApp, err := app.NewServerApp(cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                panic(err)</span>
+        }
+        <span class="cov0" title="0">serverApp.Run()</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package main
+
+import (
+        "strings"
+
+        "github.com/gostaticanalysis/nilerr"
+        "github.com/orijtech/structslop"
+        "golang.org/x/tools/go/analysis"
+        "golang.org/x/tools/go/analysis/multichecker"
+        "golang.org/x/tools/go/analysis/passes/asmdecl"
+        "golang.org/x/tools/go/analysis/passes/assign"
+        "golang.org/x/tools/go/analysis/passes/atomic"
+        "golang.org/x/tools/go/analysis/passes/atomicalign"
+        "golang.org/x/tools/go/analysis/passes/bools"
+        "golang.org/x/tools/go/analysis/passes/buildssa"
+        "golang.org/x/tools/go/analysis/passes/buildtag"
+        "golang.org/x/tools/go/analysis/passes/cgocall"
+        "golang.org/x/tools/go/analysis/passes/composite"
+        "golang.org/x/tools/go/analysis/passes/copylock"
+        "golang.org/x/tools/go/analysis/passes/ctrlflow"
+        "golang.org/x/tools/go/analysis/passes/deepequalerrors"
+        "golang.org/x/tools/go/analysis/passes/defers"
+        "golang.org/x/tools/go/analysis/passes/directive"
+        "golang.org/x/tools/go/analysis/passes/errorsas"
+        "golang.org/x/tools/go/analysis/passes/fieldalignment"
+        "golang.org/x/tools/go/analysis/passes/findcall"
+        "golang.org/x/tools/go/analysis/passes/framepointer"
+        "golang.org/x/tools/go/analysis/passes/httpresponse"
+        "golang.org/x/tools/go/analysis/passes/ifaceassert"
+        "golang.org/x/tools/go/analysis/passes/inspect"
+        "golang.org/x/tools/go/analysis/passes/loopclosure"
+        "golang.org/x/tools/go/analysis/passes/lostcancel"
+        "golang.org/x/tools/go/analysis/passes/nilfunc"
+        "golang.org/x/tools/go/analysis/passes/nilness"
+        "golang.org/x/tools/go/analysis/passes/pkgfact"
+        "golang.org/x/tools/go/analysis/passes/printf"
+        "golang.org/x/tools/go/analysis/passes/reflectvaluecompare"
+        "golang.org/x/tools/go/analysis/passes/shadow"
+        "golang.org/x/tools/go/analysis/passes/shift"
+        "golang.org/x/tools/go/analysis/passes/sigchanyzer"
+        "golang.org/x/tools/go/analysis/passes/slog"
+        "golang.org/x/tools/go/analysis/passes/sortslice"
+        "golang.org/x/tools/go/analysis/passes/stdmethods"
+        "golang.org/x/tools/go/analysis/passes/stringintconv"
+        "golang.org/x/tools/go/analysis/passes/structtag"
+        "golang.org/x/tools/go/analysis/passes/testinggoroutine"
+        "golang.org/x/tools/go/analysis/passes/tests"
+        "golang.org/x/tools/go/analysis/passes/timeformat"
+        "golang.org/x/tools/go/analysis/passes/unmarshal"
+        "golang.org/x/tools/go/analysis/passes/unreachable"
+        "golang.org/x/tools/go/analysis/passes/unsafeptr"
+        "golang.org/x/tools/go/analysis/passes/unusedresult"
+        "golang.org/x/tools/go/analysis/passes/unusedwrite"
+        "golang.org/x/tools/go/analysis/passes/usesgenerics"
+        "honnef.co/go/tools/staticcheck"
+        "honnef.co/go/tools/stylecheck"
+
+        analysis2 "github.com/Vidkin/metrics/pkg/exitcheck"
+)
+
+const (
+        AnalyzerReceiverNames     = "ST1006"
+        AnalyzerErrorShouldBeLast = "ST1008"
+)
+
+func getStaticCheckAnalizers() []*analysis.Analyzer <span class="cov0" title="0">{
+        var checks []*analysis.Analyzer
+        for _, v := range staticcheck.Analyzers </span><span class="cov0" title="0">{
+                if strings.HasPrefix(v.Analyzer.Name, "SA") </span><span class="cov0" title="0">{
+                        checks = append(checks, v.Analyzer)
+                }</span>
+        }
+        <span class="cov0" title="0">for _, v := range stylecheck.Analyzers </span><span class="cov0" title="0">{
+                if v.Analyzer.Name == AnalyzerReceiverNames || v.Analyzer.Name == AnalyzerErrorShouldBeLast </span><span class="cov0" title="0">{
+                        checks = append(checks, v.Analyzer)
+                }</span>
+        }
+        <span class="cov0" title="0">return checks</span>
+}
+
+func getAnalysisAnalizers() []*analysis.Analyzer <span class="cov0" title="0">{
+        res := make([]*analysis.Analyzer, 45)
+        res[0] = asmdecl.Analyzer
+        res[1] = assign.Analyzer
+        res[2] = atomic.Analyzer
+        res[3] = atomicalign.Analyzer
+        res[4] = bools.Analyzer
+        res[5] = buildssa.Analyzer
+        res[6] = buildtag.Analyzer
+        res[7] = cgocall.Analyzer
+        res[8] = composite.Analyzer
+        res[9] = copylock.Analyzer
+        res[10] = ctrlflow.Analyzer
+        res[11] = deepequalerrors.Analyzer
+        res[12] = defers.Analyzer
+        res[13] = directive.Analyzer
+        res[14] = errorsas.Analyzer
+        res[15] = fieldalignment.Analyzer
+        res[16] = findcall.Analyzer
+        res[17] = framepointer.Analyzer
+        res[18] = httpresponse.Analyzer
+        res[19] = ifaceassert.Analyzer
+        res[20] = inspect.Analyzer
+        res[21] = loopclosure.Analyzer
+        res[22] = lostcancel.Analyzer
+        res[23] = nilfunc.Analyzer
+        res[24] = nilness.Analyzer
+        res[25] = pkgfact.Analyzer
+        res[26] = printf.Analyzer
+        res[27] = reflectvaluecompare.Analyzer
+        res[28] = shadow.Analyzer
+        res[29] = shift.Analyzer
+        res[30] = sigchanyzer.Analyzer
+        res[31] = slog.Analyzer
+        res[32] = sortslice.Analyzer
+        res[33] = stdmethods.Analyzer
+        res[34] = stringintconv.Analyzer
+        res[35] = structtag.Analyzer
+        res[36] = testinggoroutine.Analyzer
+        res[37] = tests.Analyzer
+        res[38] = timeformat.Analyzer
+        res[39] = unmarshal.Analyzer
+        res[40] = unreachable.Analyzer
+        res[41] = unsafeptr.Analyzer
+        res[42] = unusedresult.Analyzer
+        res[43] = unusedwrite.Analyzer
+        res[44] = usesgenerics.Analyzer
+
+        return res
+}</span>
+
+func main() <span class="cov0" title="0">{
+        allChecks := make([]*analysis.Analyzer, 0)
+        allChecks = append(allChecks, analysis2.ExitMainAnalyzer)
+        allChecks = append(allChecks, structslop.Analyzer)
+        allChecks = append(allChecks, nilerr.Analyzer)
+        allChecks = append(allChecks, getAnalysisAnalizers()...)
+        allChecks = append(allChecks, getStaticCheckAnalizers()...)
+        multichecker.Main(
+                allChecks...,
+        )
+}</span>
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">// Package agent provides functionality for collecting and sending metrics from the agent to a server.
+package agent
+
+import (
+        "bytes"
+        "compress/gzip"
+        "context"
+        "encoding/base64"
+        "encoding/json"
+        "errors"
+        "io"
+        "math/rand/v2"
+        "net/url"
+        "runtime"
+        "strconv"
+        "strings"
+        "time"
+
+        "github.com/go-resty/resty/v2"
+        "github.com/shirou/gopsutil/cpu"
+        "github.com/shirou/gopsutil/mem"
+        "go.uber.org/zap"
+
+        "github.com/Vidkin/metrics/internal/config"
+        "github.com/Vidkin/metrics/internal/logger"
+        "github.com/Vidkin/metrics/internal/metric"
+        "github.com/Vidkin/metrics/internal/router"
+        "github.com/Vidkin/metrics/pkg/hash"
+)
+
+const (
+        GaugeMetricAlloc          = "Alloc"
+        GaugeMetricBuckHashSys    = "BuckHashSys"
+        GaugeMetricFrees          = "Frees"
+        GaugeMetricGCCPUFraction  = "GCCPUFraction"
+        GaugeMetricGCSys          = "GCSys"
+        GaugeMetricHeapAlloc      = "HeapAlloc"
+        GaugeMetricHeapIdle       = "HeapIdle"
+        GaugeMetricHeapInuse      = "HeapInuse"
+        GaugeMetricHeapObjects    = "HeapObjects"
+        GaugeMetricHeapReleased   = "HeapReleased"
+        GaugeMetricHeapSys        = "HeapSys"
+        GaugeMetricLastGC         = "LastGC"
+        GaugeMetricLookups        = "Lookups"
+        GaugeMetricMCacheInuse    = "MCacheInuse"
+        GaugeMetricMCacheSys      = "MCacheSys"
+        GaugeMetricMSpanInuse     = "MSpanInuse"
+        GaugeMetricMSpanSys       = "MSpanSys"
+        GaugeMetricMallocs        = "Mallocs"
+        GaugeMetricNextGC         = "NextGC"
+        GaugeMetricNumForcedGC    = "NumForcedGC"
+        GaugeMetricNumGC          = "NumGC"
+        GaugeMetricOtherSys       = "OtherSys"
+        GaugeMetricPauseTotalNs   = "PauseTotalNs"
+        GaugeMetricStackInuse     = "StackInuse"
+        GaugeMetricStackSys       = "StackSys"
+        GaugeMetricSys            = "Sys"
+        GaugeMetricTotalAlloc     = "TotalAlloc"
+        GaugeMetricRandomValue    = "RandomValue"
+        GaugeMetricTotalMemory    = "TotalMemory"
+        GaugeMetricFreeMemory     = "FreeMemory"
+        GaugeMetricCPUutilization = "CPUutilization"
+
+        CounterMetricPollCount = "PollCount"
+
+        MetricTypeCounter = "counter"
+        MetricTypeGauge   = "gauge"
+
+        RequestRetryCount = 3
+)
+
+type MetricWorker struct {
+        repository router.Repository
+        memStats   *runtime.MemStats
+        client     *resty.Client
+        config     *config.AgentConfig
+}
+
+func New(repository router.Repository, memStats *runtime.MemStats, client *resty.Client, config *config.AgentConfig) *MetricWorker <span class="cov8" title="1">{
+        return &amp;MetricWorker{
+                repository: repository,
+                memStats:   memStats,
+                client:     client,
+                config:     config,
+        }
+}</span>
+
+func (mw *MetricWorker) CollectMetrics(chIn chan *metric.Metric, count int64) <span class="cov8" title="1">{
+        defer close(chIn)
+        runtime.ReadMemStats(mw.memStats)
+
+        vmStat, err := mem.VirtualMemory()
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Error("error collect memory metrics", zap.Error(err))
+                return
+        }</span>
+        <span class="cov8" title="1">totalMemory := vmStat.Total / 1024 / 1024
+        freeMemory := vmStat.Free / 1024 / 1024
+
+        percentages, err := cpu.Percent(0, true)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Error("error collect cpu utilization metrics", zap.Error(err))
+                return
+        }</span>
+
+        <span class="cov8" title="1">gaugeMetrics := map[string]float64{
+                GaugeMetricAlloc:         float64(mw.memStats.Alloc),
+                GaugeMetricBuckHashSys:   float64(mw.memStats.BuckHashSys),
+                GaugeMetricFrees:         float64(mw.memStats.Frees),
+                GaugeMetricMCacheSys:     float64(mw.memStats.MCacheSys),
+                GaugeMetricMSpanInuse:    float64(mw.memStats.MSpanInuse),
+                GaugeMetricNumForcedGC:   float64(mw.memStats.NumForcedGC),
+                GaugeMetricGCCPUFraction: mw.memStats.GCCPUFraction,
+                GaugeMetricGCSys:         float64(mw.memStats.GCSys),
+                GaugeMetricHeapAlloc:     float64(mw.memStats.HeapAlloc),
+                GaugeMetricHeapIdle:      float64(mw.memStats.HeapIdle),
+                GaugeMetricHeapInuse:     float64(mw.memStats.HeapInuse),
+                GaugeMetricHeapObjects:   float64(mw.memStats.HeapObjects),
+                GaugeMetricHeapReleased:  float64(mw.memStats.HeapReleased),
+                GaugeMetricHeapSys:       float64(mw.memStats.HeapSys),
+                GaugeMetricLastGC:        float64(mw.memStats.LastGC),
+                GaugeMetricLookups:       float64(mw.memStats.Lookups),
+                GaugeMetricMCacheInuse:   float64(mw.memStats.MCacheInuse),
+                GaugeMetricMSpanSys:      float64(mw.memStats.MSpanSys),
+                GaugeMetricMallocs:       float64(mw.memStats.Mallocs),
+                GaugeMetricNextGC:        float64(mw.memStats.NextGC),
+                GaugeMetricNumGC:         float64(mw.memStats.NumGC),
+                GaugeMetricOtherSys:      float64(mw.memStats.OtherSys),
+                GaugeMetricPauseTotalNs:  float64(mw.memStats.PauseTotalNs),
+                GaugeMetricStackInuse:    float64(mw.memStats.StackInuse),
+                GaugeMetricStackSys:      float64(mw.memStats.StackSys),
+                GaugeMetricSys:           float64(mw.memStats.Sys),
+                GaugeMetricTotalAlloc:    float64(mw.memStats.TotalAlloc),
+                GaugeMetricTotalMemory:   float64(totalMemory),
+                GaugeMetricFreeMemory:    float64(freeMemory),
+                GaugeMetricRandomValue:   rand.Float64(),
+        }
+        for i, percentage := range percentages </span><span class="cov8" title="1">{
+                gaugeMetrics[GaugeMetricCPUutilization+strconv.Itoa(i+1)] = percentage
+        }</span>
+
+        <span class="cov8" title="1">ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+        defer cancel()
+        for k, v := range gaugeMetrics </span><span class="cov8" title="1">{
+                gMetric := &amp;metric.Metric{
+                        ID:    k,
+                        MType: MetricTypeGauge,
+                        Value: &amp;v,
+                }
+                err = mw.repository.UpdateMetric(ctx, gMetric)
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Error("error update gauge metric", zap.Error(err))
+                        return
+                }</span>
+                <span class="cov8" title="1">chIn &lt;- gMetric</span>
+        }
+        <span class="cov8" title="1">cMetric := &amp;metric.Metric{
+                ID:    CounterMetricPollCount,
+                MType: MetricTypeCounter,
+                Delta: &amp;count,
+        }
+        err = mw.repository.UpdateMetric(ctx, cMetric)
+        chIn &lt;- cMetric
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Error("error update counter metric", zap.Error(err))
+                return
+        }</span>
+}
+
+func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, string, error) <span class="cov8" title="1">{
+        body, err := json.Marshal(metric)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error marshal body", zap.Error(err))
+                return 0, "", err
+        }</span>
+
+        <span class="cov8" title="1">buf := bytes.NewBuffer(nil)
+        zb := gzip.NewWriter(buf)
+        _, err = zb.Write(body)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error gzip body", zap.Error(err))
+                return 0, "", err
+        }</span>
+
+        <span class="cov8" title="1">err = zb.Close()
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error close gzip buffer", zap.Error(err))
+                return 0, "", err
+        }</span>
+
+        <span class="cov8" title="1">resp, err := mw.client.R().
+                SetHeader("Content-Type", "application/json").
+                SetHeader("Content-Encoding", "gzip").
+                SetHeader("Accept-Encoding", "gzip").
+                SetBody(buf).
+                Post(url)
+
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error post request", zap.Error(err))
+                return 0, "", err
+        }</span>
+        <span class="cov8" title="1">defer func(body io.ReadCloser) </span><span class="cov8" title="1">{
+                err = body.Close()
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("error close resp raw body", zap.Error(err))
+                }</span>
+        }(resp.RawBody())
+
+        <span class="cov8" title="1">contentEncoding := resp.Header().Get("Content-Encoding")
+        var or io.ReadCloser
+        if strings.Contains(contentEncoding, "gzip") </span><span class="cov8" title="1">{
+                var cr *gzip.Reader
+                cr, err = gzip.NewReader(resp.RawBody())
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("error init gzip reader", zap.Error(err))
+                        return 0, "", err
+                }</span>
+                <span class="cov8" title="1">or = cr</span>
+        } else<span class="cov8" title="1"> {
+                or = resp.RawBody()
+        }</span>
+        <span class="cov8" title="1">respBody, err := io.ReadAll(or)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error read response body", zap.Error(err))
+                return 0, "", err
+        }</span>
+
+        <span class="cov8" title="1">return resp.StatusCode(), string(respBody), nil</span>
+}
+
+func (mw *MetricWorker) SendMetrics(chIn chan *metric.Metric, serverURL string) <span class="cov8" title="1">{
+        for m := range chIn </span><span class="cov8" title="1">{
+                body, _ := json.Marshal([]*metric.Metric{m})
+                buf := bytes.NewBuffer([]byte{})
+                zb := gzip.NewWriter(buf)
+                _, _ = zb.Write(body)
+                err := zb.Close()
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("error close gzip writer", zap.Error(err))
+                }</span>
+
+                <span class="cov8" title="1">for i := 0; i &lt;= RequestRetryCount; i++ </span><span class="cov8" title="1">{
+                        req := mw.client.R()
+                        if mw.config.Key != "" </span><span class="cov0" title="0">{
+                                h := hash.GetHashSHA256(mw.config.Key, buf.Bytes())
+                                hEnc := base64.StdEncoding.EncodeToString(h)
+                                req.SetHeader("HashSHA256", hEnc)
+                        }</span>
+                        <span class="cov8" title="1">_, err := req.
+                                SetHeader("Content-Type", "application/json").
+                                SetHeader("Content-Encoding", "gzip").
+                                SetHeader("Accept-Encoding", "gzip").
+                                SetBody(buf).
+                                Post(serverURL)
+                        if err != nil </span><span class="cov0" title="0">{
+                                var urlErr *url.Error
+                                if errors.As(err, &amp;urlErr) &amp;&amp; i != RequestRetryCount </span><span class="cov0" title="0">{
+                                        logger.Log.Info("error post request", zap.Error(err))
+                                        time.Sleep(time.Duration(1+i*2) * time.Second)
+                                        continue</span>
+                                }
+                                <span class="cov0" title="0">logger.Log.Info("error post request", zap.Error(err))
+                                return</span>
+                        }
+                        <span class="cov8" title="1">break</span>
+                }
+        }
+}
+
+func (mw *MetricWorker) Poll() <span class="cov0" title="0">{
+        startTime := time.Now()
+        var serverURL = "http://" + mw.config.ServerAddress.Address + "/updates/"
+        var count int64 = 0
+        for </span><span class="cov0" title="0">{
+                currentTime := time.Now()
+                chIn := make(chan *metric.Metric, mw.config.RateLimit)
+                go mw.CollectMetrics(chIn, count)
+
+                if currentTime.Sub(startTime).Seconds() &gt;= float64(mw.config.ReportInterval) </span><span class="cov0" title="0">{
+                        startTime = currentTime
+                        for w := 1; w &lt;= mw.config.RateLimit; w++ </span><span class="cov0" title="0">{
+                                go mw.SendMetrics(chIn, serverURL)
+                        }</span>
+                }
+                <span class="cov0" title="0">time.Sleep(time.Duration(mw.config.PollInterval) * time.Second)
+                count++</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package config
+
+import (
+        "flag"
+
+        "github.com/caarlos0/env/v6"
+)
+
+// Constants for default agent intervals.
+//
+// DefaultAgentPollInterval specifies the default interval at which the agent
+// polls for updates. The default value is set to 2 seconds.
+//
+// DefaultAgentReportInterval specifies the default interval at which the agent
+// reports metrics to the server. The default value is set to 10 seconds.
+const (
+        DefaultAgentPollInterval   = 2
+        DefaultAgentReportInterval = 10
+)
+
+// AgentConfig holds the configuration settings for the agent.
+//
+// This struct is used to manage various parameters that control the behavior
+// of the agent, including server connection details, polling intervals, rate
+// limits, and logging levels. The configuration can be populated from command-line
+// flags and environment variables, allowing for flexible deployment and management
+// of the agent's settings.
+type AgentConfig struct {
+        ServerAddress  *ServerAddress
+        Key            string `env:"KEY"`
+        LogLevel       string
+        ReportInterval int `env:"REPORT_INTERVAL"`
+        PollInterval   int `env:"POLL_INTERVAL"`
+        RateLimit      int `env:"RATE_LIMIT"`
+}
+
+// NewAgentConfig initializes a new AgentConfig instance with default values
+// and parses command-line flags and environment variables to populate its fields.
+//
+// Returns:
+// - A pointer to an `AgentConfig` instance containing the configuration settings.
+// - An error if there was an issue during initialization or parsing; otherwise, nil.
+func NewAgentConfig() (*AgentConfig, error) <span class="cov0" title="0">{
+        var config AgentConfig
+        config.ServerAddress = NewServerAddress()
+        config.LogLevel = "info"
+        err := config.parseFlags()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">return &amp;config, nil</span>
+}
+
+func (config *AgentConfig) parseFlags() error <span class="cov0" title="0">{
+        flag.Var(config.ServerAddress, "a", "Server address host:port")
+        flag.IntVar(&amp;config.ReportInterval, "r", DefaultAgentReportInterval, "Agent report poll interval (sec)")
+        flag.IntVar(&amp;config.PollInterval, "p", DefaultAgentPollInterval, "Agent poll interval (sec)")
+        flag.IntVar(&amp;config.RateLimit, "l", 5, "Rate limit")
+        flag.StringVar(&amp;config.Key, "k", "", "Hash key")
+        flag.Parse()
+
+        err := env.Parse(config.ServerAddress)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">if config.ServerAddress.Address == "" </span><span class="cov0" title="0">{
+                config.ServerAddress.Address = config.ServerAddress.String()
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package config
+
+import (
+        "errors"
+        "strconv"
+        "strings"
+)
+
+const (
+        DefaultServerAddress = "localhost"
+        DefaultServerPort    = 8080
+)
+
+// ServerAddress represents the host and port information for a server.
+//
+// This struct is used to manage the server's address configuration, including
+// the host name or IP address and the port number. It can be initialized with
+// default values and can also be populated from environment variables.
+type ServerAddress struct {
+        Address string `env:"ADDRESS"`
+        Host    string
+        Port    int
+}
+
+// NewServerAddress creates and returns a new instance of the ServerAddress struct
+// initialized with default values.
+//
+// The default host is set to "localhost" and the default port is set to 8080.
+// This function is useful for quickly obtaining a ServerAddress instance
+// without needing to specify the host and port manually.
+//
+// Returns:
+// - Pointer to the newly created ServerAddress instance.
+func NewServerAddress() *ServerAddress <span class="cov0" title="0">{
+        return &amp;ServerAddress{
+                Host: DefaultServerAddress,
+                Port: DefaultServerPort,
+        }
+}</span>
+
+// String returns the string representation of the ServerAddress in the format "host:port".
+//
+// Returns:
+//   - The server address string formatted as "host:port".
+func (s *ServerAddress) String() string <span class="cov0" title="0">{
+        return s.Host + ":" + strconv.Itoa(s.Port)
+}</span>
+
+// Set updates the Host and Port fields of the ServerAddress struct based on the provided
+// address string in the format "host:port".
+//
+// Parameters:
+//   - flagRunAddr: The address string to set, in the format "host:port".
+//
+// Returns:
+//   - An error if the input format is invalid or if the port cannot be converted to an integer.
+func (s *ServerAddress) Set(flagRunAddr string) error <span class="cov0" title="0">{
+        splittedAddress := strings.Split(flagRunAddr, ":")
+
+        if len(splittedAddress) != 2 </span><span class="cov0" title="0">{
+                return errors.New("need address in a form host:port")
+        }</span>
+
+        <span class="cov0" title="0">port, err := strconv.Atoi(splittedAddress[1])
+
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">s.Host = splittedAddress[0]
+        s.Port = port
+
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package config
+
+import (
+        "flag"
+
+        "github.com/caarlos0/env/v6"
+)
+
+// ServerConfig holds the configuration settings for the server.
+//
+// This struct contains various fields that define how the server operates,
+// including its address, storage settings, logging preferences, and more.
+// The fields can be populated from environment variables, allowing for
+// flexible configuration without hardcoding values.
+type ServerConfig struct {
+        ServerAddress   *ServerAddress
+        LogLevel        string
+        FileStoragePath string `env:"FILE_STORAGE_PATH"`
+        DatabaseDSN     string `env:"DATABASE_DSN"`
+        Key             string `env:"KEY"`
+        StoreInterval   int    `env:"STORE_INTERVAL"`
+        Restore         bool   `env:"RESTORE"`
+        RetryCount      int
+}
+
+// NewServerConfig initializes a new ServerConfig instance with default values
+// and parses command-line flags and environment variables to populate its fields
+//
+// Returns:
+// - A pointer to the newly created and initialized ServerConfig instance.
+// - An error if the configuration parsing fails; otherwise, nil.
+func NewServerConfig() (*ServerConfig, error) <span class="cov0" title="0">{
+        var config ServerConfig
+        config.ServerAddress = NewServerAddress()
+        config.RetryCount = 3
+        err := config.parseFlags()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">return &amp;config, nil</span>
+}
+
+func (config *ServerConfig) parseFlags() error <span class="cov0" title="0">{
+        flag.Var(config.ServerAddress, "a", "Net address host:port")
+        flag.StringVar(&amp;config.LogLevel, "l", "info", "Log level")
+        flag.IntVar(&amp;config.StoreInterval, "i", 300, "Config store interval")
+        flag.StringVar(&amp;config.FileStoragePath, "f", "", "Metrics file storage path")
+        flag.StringVar(&amp;config.DatabaseDSN, "d", "", "Database DSN")
+        flag.StringVar(&amp;config.Key, "k", "", "Hash key")
+        flag.BoolVar(&amp;config.Restore, "r", true, "Restore metrics on startup")
+        flag.Parse()
+
+        err := env.Parse(config)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">if config.ServerAddress.Address == "" </span><span class="cov0" title="0">{
+                config.ServerAddress.Address = config.ServerAddress.String()
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">// Package logger provides a simple logging utility using the Zap logging library.
+package logger
+
+import (
+        "go.uber.org/zap"
+)
+
+var Log *zap.Logger = zap.NewNop()
+
+func Initialize(logLevel string) error <span class="cov0" title="0">{
+        lvl, err := zap.ParseAtomicLevel(logLevel)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">cfg := zap.NewProductionConfig()
+        cfg.Level = lvl
+
+        logger, err := cfg.Build()
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">defer logger.Sync()
+
+        Log = logger
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">// Package metric provides defining of metrics used in monitoring systems.
+package metric
+
+import (
+        "strconv"
+)
+
+// Metric represents a single metric used in monitoring systems.
+//
+// This struct encapsulates the properties of a metric, including its unique identifier (name),
+// type, and value.
+type Metric struct {
+        Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
+        Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+        ID    string   `json:"id"`              // имя метрики
+        MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
+}
+
+// ValueAsString returns the string representation of the metric's value based on its type.
+//
+// Returns:
+//   - The string representation of the metric's value, formatted according to its type.
+func (m *Metric) ValueAsString() string <span class="cov8" title="1">{
+        if m.MType == "gauge" </span><span class="cov8" title="1">{
+                return strconv.FormatFloat(*m.Value, 'g', -1, 64)
+        }</span>
+        <span class="cov8" title="1">return strconv.FormatInt(*m.Delta, 10)</span>
+}
+</pre>
+		
+		<pre class="file" id="file10" style="display: none">// Code generated by MockGen. DO NOT EDIT.
+// Source: github.com/Vidkin/metrics/internal/router (interfaces: Repository)
+
+// Package mock is a generated GoMock package.
+package mock
+
+import (
+        context "context"
+        reflect "reflect"
+
+        gomock "github.com/golang/mock/gomock"
+
+        metric "github.com/Vidkin/metrics/internal/metric"
+)
+
+// MockRepository is a mock of Repository interface.
+type MockRepository struct {
+        ctrl     *gomock.Controller
+        recorder *MockRepositoryMockRecorder
+}
+
+// MockRepositoryMockRecorder is the mock recorder for MockRepository.
+type MockRepositoryMockRecorder struct {
+        mock *MockRepository
+}
+
+// NewMockRepository creates a new mock instance.
+func NewMockRepository(ctrl *gomock.Controller) *MockRepository <span class="cov8" title="1">{
+        mock := &amp;MockRepository{ctrl: ctrl}
+        mock.recorder = &amp;MockRepositoryMockRecorder{mock}
+        return mock
+}</span>
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder <span class="cov8" title="1">{
+        return m.recorder
+}</span>
+
+// DeleteMetric mocks base method.
+func (m *MockRepository) DeleteMetric(arg0 context.Context, arg1, arg2 string) error <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "DeleteMetric", arg0, arg1, arg2)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// DeleteMetric indicates an expected call of DeleteMetric.
+func (mr *MockRepositoryMockRecorder) DeleteMetric(arg0, arg1, arg2 interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMetric", reflect.TypeOf((*MockRepository)(nil).DeleteMetric), arg0, arg1, arg2)
+}</span>
+
+// GetCounters mocks base method.
+func (m *MockRepository) GetCounters(arg0 context.Context) ([]*metric.Metric, error) <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "GetCounters", arg0)
+        ret0, _ := ret[0].([]*metric.Metric)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// GetCounters indicates an expected call of GetCounters.
+func (mr *MockRepositoryMockRecorder) GetCounters(arg0 interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCounters", reflect.TypeOf((*MockRepository)(nil).GetCounters), arg0)
+}</span>
+
+// GetGauges mocks base method.
+func (m *MockRepository) GetGauges(arg0 context.Context) ([]*metric.Metric, error) <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "GetGauges", arg0)
+        ret0, _ := ret[0].([]*metric.Metric)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// GetGauges indicates an expected call of GetGauges.
+func (mr *MockRepositoryMockRecorder) GetGauges(arg0 interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGauges", reflect.TypeOf((*MockRepository)(nil).GetGauges), arg0)
+}</span>
+
+// GetMetric mocks base method.
+func (m *MockRepository) GetMetric(arg0 context.Context, arg1, arg2 string) (*metric.Metric, error) <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "GetMetric", arg0, arg1, arg2)
+        ret0, _ := ret[0].(*metric.Metric)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// GetMetric indicates an expected call of GetMetric.
+func (mr *MockRepositoryMockRecorder) GetMetric(arg0, arg1, arg2 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMetric", reflect.TypeOf((*MockRepository)(nil).GetMetric), arg0, arg1, arg2)
+}</span>
+
+// GetMetrics mocks base method.
+func (m *MockRepository) GetMetrics(arg0 context.Context) ([]*metric.Metric, error) <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "GetMetrics", arg0)
+        ret0, _ := ret[0].([]*metric.Metric)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// GetMetrics indicates an expected call of GetMetrics.
+func (mr *MockRepositoryMockRecorder) GetMetrics(arg0 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMetrics", reflect.TypeOf((*MockRepository)(nil).GetMetrics), arg0)
+}</span>
+
+// UpdateMetric mocks base method.
+func (m *MockRepository) UpdateMetric(arg0 context.Context, arg1 *metric.Metric) error <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "UpdateMetric", arg0, arg1)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// UpdateMetric indicates an expected call of UpdateMetric.
+func (mr *MockRepositoryMockRecorder) UpdateMetric(arg0, arg1 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateMetric", reflect.TypeOf((*MockRepository)(nil).UpdateMetric), arg0, arg1)
+}</span>
+
+// UpdateMetrics mocks base method.
+func (m *MockRepository) UpdateMetrics(arg0 context.Context, arg1 *[]metric.Metric) error <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "UpdateMetrics", arg0, arg1)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// UpdateMetrics indicates an expected call of UpdateMetrics.
+func (mr *MockRepositoryMockRecorder) UpdateMetrics(arg0, arg1 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateMetrics", reflect.TypeOf((*MockRepository)(nil).UpdateMetrics), arg0, arg1)
+}</span>
+
+// Dump mocks base method.
+func (m *MockRepository) Dump(arg0 *metric.Metric) error <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Dump", arg0)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// Dump indicates an expected call of Dump.
+func (mr *MockRepositoryMockRecorder) Dump(arg0 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Dump", reflect.TypeOf((*MockRepository)(nil).Dump), arg0)
+}</span>
+
+// FullDump mocks base method.
+func (m *MockRepository) FullDump() error <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "FullDump")
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// FullDump indicates an expected call of FullDump.
+func (mr *MockRepositoryMockRecorder) FullDump() *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullDump", reflect.TypeOf((*MockRepository)(nil).FullDump))
+}</span>
+
+// Ping mocks base method.
+func (m *MockRepository) Ping(arg0 context.Context) error <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Ping", arg0)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// Ping indicates an expected call of Ping.
+func (mr *MockRepositoryMockRecorder) Ping(arg0 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockRepository)(nil).Ping), arg0)
+}</span>
+</pre>
+		
+		<pre class="file" id="file11" style="display: none">package storage
+
+import (
+        "context"
+        "encoding/json"
+        "errors"
+        "io"
+        "os"
+        "sync"
+
+        "go.uber.org/zap"
+
+        "github.com/Vidkin/metrics/internal/logger"
+        me "github.com/Vidkin/metrics/internal/metric"
+)
+
+type FileStorage struct {
+        Gauge           map[string]float64
+        Counter         map[string]int64
+        FileStoragePath string
+        GaugeMetrics    []*me.Metric
+        CounterMetrics  []*me.Metric
+        AllMetrics      []*me.Metric
+        mu              sync.RWMutex
+}
+
+func (f *FileStorage) UpdateMetric(_ context.Context, metric *me.Metric) error <span class="cov0" title="0">{
+        f.mu.Lock()
+        defer f.mu.Unlock()
+
+        switch metric.MType </span>{
+        case MetricTypeGauge:<span class="cov0" title="0">
+                f.Gauge[metric.ID] = *metric.Value</span>
+        case MetricTypeCounter:<span class="cov0" title="0">
+                f.Counter[metric.ID] += *metric.Delta</span>
+        }
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (f *FileStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) error <span class="cov0" title="0">{
+        f.mu.Lock()
+        defer f.mu.Unlock()
+
+        for _, metric := range *metrics </span><span class="cov0" title="0">{
+                switch metric.MType </span>{
+                case MetricTypeGauge:<span class="cov0" title="0">
+                        f.Gauge[metric.ID] = *metric.Value</span>
+                case MetricTypeCounter:<span class="cov0" title="0">
+                        f.Counter[metric.ID] += *metric.Delta</span>
+                }
+        }
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (f *FileStorage) DeleteMetric(_ context.Context, mType string, name string) error <span class="cov0" title="0">{
+        f.mu.Lock()
+        defer f.mu.Unlock()
+
+        switch mType </span>{
+        case MetricTypeGauge:<span class="cov0" title="0">
+                delete(f.Gauge, name)</span>
+        case MetricTypeCounter:<span class="cov0" title="0">
+                delete(f.Counter, name)</span>
+        }
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (f *FileStorage) GetMetric(_ context.Context, mType string, name string) (*me.Metric, error) <span class="cov0" title="0">{
+        f.mu.RLock()
+        defer f.mu.RUnlock()
+
+        var metric me.Metric
+        switch mType </span>{
+        case MetricTypeGauge:<span class="cov0" title="0">
+                v, ok := f.Gauge[name]
+                if !ok </span><span class="cov0" title="0">{
+                        return nil, errors.New("metric not found")
+                }</span>
+                <span class="cov0" title="0">metric.ID = name
+                metric.MType = MetricTypeGauge
+                metric.Value = &amp;v</span>
+        case MetricTypeCounter:<span class="cov0" title="0">
+                v, ok := f.Counter[name]
+                if !ok </span><span class="cov0" title="0">{
+                        return nil, errors.New("metric not found")
+                }</span>
+                <span class="cov0" title="0">metric.ID = name
+                metric.MType = MetricTypeCounter
+                metric.Delta = &amp;v</span>
+        }
+        <span class="cov0" title="0">return &amp;metric, nil</span>
+}
+
+func (f *FileStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) <span class="cov0" title="0">{
+        f.AllMetrics = f.AllMetrics[:0]
+        if _, err := f.GetGauges(ctx); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">if _, err := f.GetCounters(ctx); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">f.AllMetrics = append(f.AllMetrics, f.GaugeMetrics...)
+        f.AllMetrics = append(f.AllMetrics, f.CounterMetrics...)
+        return f.AllMetrics, nil</span>
+}
+
+func (f *FileStorage) GetGauges(_ context.Context) ([]*me.Metric, error) <span class="cov0" title="0">{
+        f.mu.RLock()
+        defer f.mu.RUnlock()
+
+        f.GaugeMetrics = f.GaugeMetrics[:0]
+        for k, v := range f.Gauge </span><span class="cov0" title="0">{
+                f.GaugeMetrics = append(f.GaugeMetrics, &amp;me.Metric{
+                        ID:    k,
+                        Value: &amp;v,
+                        MType: MetricTypeGauge,
+                })
+        }</span>
+        <span class="cov0" title="0">return f.GaugeMetrics, nil</span>
+}
+
+func (f *FileStorage) GetCounters(_ context.Context) ([]*me.Metric, error) <span class="cov0" title="0">{
+        f.mu.RLock()
+        defer f.mu.RUnlock()
+
+        f.CounterMetrics = f.CounterMetrics[:0]
+        for k, v := range f.Counter </span><span class="cov0" title="0">{
+                f.CounterMetrics = append(f.CounterMetrics, &amp;me.Metric{
+                        ID:    k,
+                        Delta: &amp;v,
+                        MType: MetricTypeCounter,
+                })
+        }</span>
+        <span class="cov0" title="0">return f.CounterMetrics, nil</span>
+}
+
+func (f *FileStorage) Dump(metric *me.Metric) error <span class="cov0" title="0">{
+        file, err := os.OpenFile(f.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
+        if err != nil &amp;&amp; err != io.EOF </span><span class="cov0" title="0">{
+                logger.Log.Info("error open file", zap.Error(err))
+                return err
+        }</span>
+        <span class="cov0" title="0">defer file.Close()
+
+        data, err := io.ReadAll(file)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error read file", zap.Error(err))
+                return err
+        }</span>
+
+        <span class="cov0" title="0">var metrics []me.Metric
+        if len(data) != 0 </span><span class="cov0" title="0">{
+                if err = json.Unmarshal(data, &amp;metrics); err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+        }
+
+        <span class="cov0" title="0">found := false
+        for index, met := range metrics </span><span class="cov0" title="0">{
+                if met.ID == metric.ID &amp;&amp; met.MType == metric.MType </span><span class="cov0" title="0">{
+                        if met.MType == MetricTypeCounter </span><span class="cov0" title="0">{
+                                metrics[index].Delta = metric.Delta
+                        }</span>
+                        <span class="cov0" title="0">if met.MType == MetricTypeGauge </span><span class="cov0" title="0">{
+                                metrics[index].Value = metric.Value
+                        }</span>
+                        <span class="cov0" title="0">found = true
+                        break</span>
+                }
+        }
+
+        <span class="cov0" title="0">if !found </span><span class="cov0" title="0">{
+                metrics = append(metrics, *metric)
+        }</span>
+
+        <span class="cov0" title="0">b, err := json.Marshal(metrics)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error marshal metrics", zap.Error(err))
+                return err
+        }</span>
+
+        <span class="cov0" title="0">err = os.WriteFile(f.FileStoragePath, b, 0666)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error write file", zap.Error(err))
+                return err
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (f *FileStorage) FullDump() error <span class="cov0" title="0">{
+        file, err := os.OpenFile(f.FileStoragePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_TRUNC, 0666)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error open file", zap.Error(err))
+                return err
+        }</span>
+        <span class="cov0" title="0">defer file.Close()
+
+        gauge, err := f.GetGauges(context.TODO())
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error get gauges", zap.Error(err))
+                return err
+        }</span>
+        <span class="cov0" title="0">counter, err := f.GetCounters(context.TODO())
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error get counters", zap.Error(err))
+                return err
+        }</span>
+        <span class="cov0" title="0">metrics := append(gauge, counter...)
+
+        b, err := json.Marshal(metrics)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error marshal metrics", zap.Error(err))
+                return err
+        }</span>
+        <span class="cov0" title="0">_, err = file.Write(b)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error write file", zap.Error(err))
+                return err
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (f *FileStorage) Load(ctx context.Context) error <span class="cov0" title="0">{
+        file, err := os.OpenFile(f.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
+        if err != nil </span><span class="cov0" title="0">{
+                if err == io.EOF </span><span class="cov0" title="0">{
+                        return nil
+                }</span>
+                <span class="cov0" title="0">logger.Log.Info("error open file", zap.Error(err))
+                return err</span>
+        }
+        <span class="cov0" title="0">defer file.Close()
+
+        data, err := io.ReadAll(file)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error read file", zap.Error(err))
+                return err
+        }</span>
+        <span class="cov0" title="0">var metrics []me.Metric
+        if err := json.Unmarshal(data, &amp;metrics); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">for _, metric := range metrics </span><span class="cov0" title="0">{
+                if err := f.UpdateMetric(ctx, &amp;metric); err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+        }
+        <span class="cov0" title="0">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file12" style="display: none">package storage
+
+import (
+        "context"
+        "errors"
+        "sync"
+
+        me "github.com/Vidkin/metrics/internal/metric"
+)
+
+const (
+        MetricTypeCounter = "counter"
+        MetricTypeGauge   = "gauge"
+)
+
+type MemoryStorage struct {
+        Gauge          map[string]float64
+        Counter        map[string]int64
+        GaugeMetrics   []*me.Metric
+        CounterMetrics []*me.Metric
+        AllMetrics     []*me.Metric
+        mu             sync.RWMutex
+}
+
+func (m *MemoryStorage) UpdateMetric(_ context.Context, metric *me.Metric) error <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        switch metric.MType </span>{
+        case MetricTypeGauge:<span class="cov0" title="0">
+                m.Gauge[metric.ID] = *metric.Value</span>
+        case MetricTypeCounter:<span class="cov0" title="0">
+                m.Counter[metric.ID] += *metric.Delta</span>
+        }
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (m *MemoryStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) error <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        for _, metric := range *metrics </span><span class="cov0" title="0">{
+                switch metric.MType </span>{
+                case MetricTypeGauge:<span class="cov0" title="0">
+                        m.Gauge[metric.ID] = *metric.Value</span>
+                case MetricTypeCounter:<span class="cov0" title="0">
+                        m.Counter[metric.ID] += *metric.Delta</span>
+                }
+        }
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (m *MemoryStorage) DeleteMetric(_ context.Context, mType string, name string) error <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        switch mType </span>{
+        case MetricTypeGauge:<span class="cov0" title="0">
+                delete(m.Gauge, name)</span>
+        case MetricTypeCounter:<span class="cov0" title="0">
+                delete(m.Counter, name)</span>
+        }
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (m *MemoryStorage) GetMetric(_ context.Context, mType string, name string) (*me.Metric, error) <span class="cov0" title="0">{
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+
+        var metric me.Metric
+        switch mType </span>{
+        case MetricTypeGauge:<span class="cov0" title="0">
+                v, ok := m.Gauge[name]
+                if !ok </span><span class="cov0" title="0">{
+                        return nil, errors.New("metric not found")
+                }</span>
+                <span class="cov0" title="0">metric.ID = name
+                metric.MType = MetricTypeGauge
+                metric.Value = &amp;v</span>
+        case MetricTypeCounter:<span class="cov0" title="0">
+                v, ok := m.Counter[name]
+                if !ok </span><span class="cov0" title="0">{
+                        return nil, errors.New("metric not found")
+                }</span>
+                <span class="cov0" title="0">metric.ID = name
+                metric.MType = MetricTypeCounter
+                metric.Delta = &amp;v</span>
+        }
+        <span class="cov0" title="0">return &amp;metric, nil</span>
+}
+
+func (m *MemoryStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) <span class="cov0" title="0">{
+        m.AllMetrics = m.AllMetrics[:0]
+        if _, err := m.GetGauges(ctx); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">if _, err := m.GetCounters(ctx); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">m.AllMetrics = append(m.AllMetrics, m.GaugeMetrics...)
+        m.AllMetrics = append(m.AllMetrics, m.CounterMetrics...)
+        return m.AllMetrics, nil</span>
+}
+
+func (m *MemoryStorage) GetGauges(_ context.Context) ([]*me.Metric, error) <span class="cov0" title="0">{
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+
+        m.GaugeMetrics = m.GaugeMetrics[:0]
+        for k, v := range m.Gauge </span><span class="cov0" title="0">{
+                m.GaugeMetrics = append(m.GaugeMetrics, &amp;me.Metric{
+                        ID:    k,
+                        Value: &amp;v,
+                        MType: MetricTypeGauge,
+                })
+        }</span>
+        <span class="cov0" title="0">return m.GaugeMetrics, nil</span>
+}
+
+func (m *MemoryStorage) GetCounters(_ context.Context) ([]*me.Metric, error) <span class="cov0" title="0">{
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+
+        m.CounterMetrics = m.CounterMetrics[:0]
+        for k, v := range m.Counter </span><span class="cov0" title="0">{
+                m.CounterMetrics = append(m.CounterMetrics, &amp;me.Metric{
+                        ID:    k,
+                        Delta: &amp;v,
+                        MType: MetricTypeCounter,
+                })
+        }</span>
+        <span class="cov0" title="0">return m.CounterMetrics, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file13" style="display: none">package storage
+
+import (
+        "context"
+        "database/sql"
+        "embed"
+        "errors"
+
+        _ "github.com/golang-migrate/migrate/v4/source/file"
+        _ "github.com/jackc/pgx/v5/stdlib"
+        "go.uber.org/zap"
+
+        "github.com/Vidkin/metrics/internal/logger"
+        me "github.com/Vidkin/metrics/internal/metric"
+)
+
+//go:embed migrations/*.sql
+var Migrations embed.FS
+
+type PostgresStorage struct {
+        Conn           *sql.DB
+        GaugeMetrics   []*me.Metric
+        CounterMetrics []*me.Metric
+        AllMetrics     []*me.Metric
+}
+
+func (p *PostgresStorage) UpdateMetric(ctx context.Context, metric *me.Metric) error <span class="cov8" title="1">{
+        switch metric.MType </span>{
+        case MetricTypeGauge:<span class="cov8" title="1">
+                _, err := p.GetMetric(ctx, metric.MType, metric.ID)
+                if errors.Is(err, sql.ErrNoRows) </span><span class="cov8" title="1">{
+                        _, err = p.Conn.ExecContext(ctx, "INSERT INTO gauge (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Value)
+                        return err
+                }</span>
+                <span class="cov8" title="1">if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("error get gauge metric", zap.Error(err))
+                        return err
+                }</span>
+                <span class="cov8" title="1">_, err = p.Conn.ExecContext(ctx, "UPDATE gauge SET metric_value=$1 WHERE metric_name=$2", *metric.Value, metric.ID)
+                return err</span>
+        case MetricTypeCounter:<span class="cov8" title="1">
+                _, err := p.GetMetric(ctx, metric.MType, metric.ID)
+                if errors.Is(err, sql.ErrNoRows) </span><span class="cov8" title="1">{
+                        _, err = p.Conn.ExecContext(ctx, "INSERT INTO counter (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Delta)
+                        return err
+                }</span>
+                <span class="cov8" title="1">if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("error get counter metric", zap.Error(err))
+                        return err
+                }</span>
+                <span class="cov8" title="1">_, err = p.Conn.ExecContext(ctx, "UPDATE counter SET metric_value=metric_value+$1 WHERE metric_name=$2", *metric.Delta, metric.ID)
+                return err</span>
+        default:<span class="cov8" title="1">
+                return errors.New("unknown metric type")</span>
+        }
+}
+
+func (p *PostgresStorage) UpdateMetrics(ctx context.Context, metrics *[]me.Metric) error <span class="cov8" title="1">{
+        tx, err := p.Conn.Begin()
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error begin tx", zap.Error(err))
+                return err
+        }</span>
+        <span class="cov8" title="1">defer tx.Rollback()
+        for _, metric := range *metrics </span><span class="cov8" title="1">{
+                switch metric.MType </span>{
+                case MetricTypeGauge:<span class="cov8" title="1">
+                        row := tx.QueryRowContext(ctx, "SELECT metric_id from gauge WHERE metric_name=$1", metric.ID)
+                        var metricID int64
+                        err = row.Scan(&amp;metricID)
+                        if err != nil </span><span class="cov8" title="1">{
+                                if errors.Is(err, sql.ErrNoRows) </span><span class="cov8" title="1">{
+                                        _, err = tx.ExecContext(ctx, "INSERT INTO gauge (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Value)
+                                        if err != nil </span><span class="cov0" title="0">{
+                                                logger.Log.Info("error insert gauge metric", zap.Error(err))
+                                                return err
+                                        }</span>
+                                } else<span class="cov0" title="0"> {
+                                        logger.Log.Info("error scan gauge metric", zap.Error(err))
+                                        return err
+                                }</span>
+                        }
+                        <span class="cov8" title="1">_, err = tx.ExecContext(ctx, "UPDATE gauge SET metric_value=$1 WHERE metric_id=$2", *metric.Value, metricID)
+                        if err != nil </span><span class="cov0" title="0">{
+                                logger.Log.Info("error update gauge metric", zap.Error(err))
+                                return err
+                        }</span>
+                case MetricTypeCounter:<span class="cov8" title="1">
+                        row := tx.QueryRowContext(ctx, "SELECT metric_id from counter WHERE metric_name=$1", metric.ID)
+                        var metricID int64
+                        err = row.Scan(&amp;metricID)
+                        if err != nil </span><span class="cov8" title="1">{
+                                if errors.Is(err, sql.ErrNoRows) </span><span class="cov8" title="1">{
+                                        _, err = tx.ExecContext(ctx, "INSERT INTO counter (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Delta)
+                                        if err != nil </span><span class="cov0" title="0">{
+                                                logger.Log.Info("error insert counter metric", zap.Error(err))
+                                                return err
+                                        }</span>
+                                } else<span class="cov0" title="0"> {
+                                        logger.Log.Info("error scan counter metric", zap.Error(err))
+                                        return err
+                                }</span>
+                        }
+                        <span class="cov8" title="1">_, err = tx.ExecContext(ctx, "UPDATE counter SET metric_value=metric_value+$1 WHERE metric_id=$2", *metric.Delta, metricID)
+                        if err != nil </span><span class="cov0" title="0">{
+                                logger.Log.Info("error update counter metric", zap.Error(err))
+                                return err
+                        }</span>
+                default:<span class="cov8" title="1">
+                        logger.Log.Info("unknown metric type")
+                        return errors.New("unknown metric type")</span>
+                }
+        }
+        <span class="cov8" title="1">return tx.Commit()</span>
+}
+
+func (p *PostgresStorage) DeleteMetric(ctx context.Context, mType string, name string) error <span class="cov8" title="1">{
+        switch mType </span>{
+        case MetricTypeGauge:<span class="cov8" title="1">
+                stmt, err := p.Conn.PrepareContext(ctx, "DELETE from gauge WHERE metric_name=$1")
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("error prepare stmt", zap.Error(err))
+                        return err
+                }</span>
+                <span class="cov8" title="1">defer stmt.Close()
+                _, err = stmt.ExecContext(ctx, name)
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("error delete gauge metric", zap.Error(err))
+                }</span>
+                <span class="cov8" title="1">return err</span>
+        case MetricTypeCounter:<span class="cov8" title="1">
+                stmt, err := p.Conn.PrepareContext(ctx, "DELETE from counter WHERE metric_name=$1")
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("error prepare stmt", zap.Error(err))
+                        return err
+                }</span>
+                <span class="cov8" title="1">defer stmt.Close()
+                _, err = stmt.ExecContext(ctx, name)
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("error delete counter metric", zap.Error(err))
+                }</span>
+                <span class="cov8" title="1">return err</span>
+        default:<span class="cov8" title="1">
+                logger.Log.Info("unknown metric type")
+                return errors.New("unknown metric type")</span>
+        }
+}
+
+func (p *PostgresStorage) GetMetric(ctx context.Context, mType string, name string) (*me.Metric, error) <span class="cov8" title="1">{
+        switch mType </span>{
+        case MetricTypeGauge:<span class="cov8" title="1">
+                stmt, err := p.Conn.PrepareContext(ctx, "SELECT metric_name, metric_value from gauge WHERE metric_name=$1")
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("error prepare stmt", zap.Error(err))
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">defer stmt.Close()
+                row := stmt.QueryRowContext(ctx, name)
+                var m me.Metric
+                err = row.Scan(&amp;m.ID, &amp;m.Value)
+                if err != nil </span><span class="cov8" title="1">{
+                        logger.Log.Info("error scan gauge metric", zap.Error(err))
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">m.MType = MetricTypeGauge
+                return &amp;m, nil</span>
+        case MetricTypeCounter:<span class="cov8" title="1">
+                stmt, err := p.Conn.PrepareContext(ctx, "SELECT metric_name, metric_value from counter WHERE metric_name=$1")
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("error prepare stmt", zap.Error(err))
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">defer stmt.Close()
+                row := stmt.QueryRowContext(ctx, name)
+                var m me.Metric
+                err = row.Scan(&amp;m.ID, &amp;m.Delta)
+                if err != nil </span><span class="cov8" title="1">{
+                        logger.Log.Info("error scan counter metric", zap.Error(err))
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">m.MType = MetricTypeCounter
+                return &amp;m, nil</span>
+        default:<span class="cov8" title="1">
+                logger.Log.Info("unknown metric type")
+                return nil, errors.New("unknown metric type")</span>
+        }
+}
+
+func (p *PostgresStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) <span class="cov8" title="1">{
+        p.AllMetrics = p.AllMetrics[:0]
+        if _, err := p.GetGauges(ctx); err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error get gauges", zap.Error(err))
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">if _, err := p.GetCounters(ctx); err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error get counters", zap.Error(err))
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">p.AllMetrics = append(p.AllMetrics, p.GaugeMetrics...)
+        p.AllMetrics = append(p.AllMetrics, p.CounterMetrics...)
+        return p.AllMetrics, nil</span>
+}
+
+func (p *PostgresStorage) GetGauges(ctx context.Context) ([]*me.Metric, error) <span class="cov8" title="1">{
+        p.GaugeMetrics = p.GaugeMetrics[:0]
+        stmt, err := p.Conn.PrepareContext(ctx, "SELECT metric_name, metric_value from gauge")
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error prepare stmt", zap.Error(err))
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">defer stmt.Close()
+        rows, err := stmt.QueryContext(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error get gauges", zap.Error(err))
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">defer rows.Close()
+
+        for rows.Next() </span><span class="cov8" title="1">{
+                var m me.Metric
+                if err = rows.Scan(&amp;m.ID, &amp;m.Value); err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("error scan gauge metric", zap.Error(err))
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">m.MType = MetricTypeGauge
+                p.GaugeMetrics = append(p.GaugeMetrics, &amp;m)</span>
+        }
+        <span class="cov8" title="1">if rows.Err() != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error rows", zap.Error(err))
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return p.GaugeMetrics, nil</span>
+}
+
+func (p *PostgresStorage) GetCounters(ctx context.Context) ([]*me.Metric, error) <span class="cov8" title="1">{
+        p.CounterMetrics = p.CounterMetrics[:0]
+        stmt, err := p.Conn.PrepareContext(ctx, "SELECT metric_name, metric_value from counter")
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error prepare stmt", zap.Error(err))
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">defer stmt.Close()
+        rows, err := stmt.QueryContext(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error get counters", zap.Error(err))
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">defer rows.Close()
+
+        for rows.Next() </span><span class="cov8" title="1">{
+                var m me.Metric
+                if err = rows.Scan(&amp;m.ID, &amp;m.Delta); err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("error scan counter metric", zap.Error(err))
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">m.MType = MetricTypeCounter
+                p.CounterMetrics = append(p.CounterMetrics, &amp;m)</span>
+        }
+        <span class="cov8" title="1">if rows.Err() != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error rows", zap.Error(err))
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return p.CounterMetrics, nil</span>
+}
+
+func (p *PostgresStorage) Ping(ctx context.Context) error <span class="cov8" title="1">{
+        return p.Conn.PingContext(ctx)
+}</span>
+
+func (p *PostgresStorage) Close() error <span class="cov8" title="1">{
+        return p.Conn.Close()
+}</span>
+</pre>
+		
+		<pre class="file" id="file14" style="display: none">// Package router provides an HTTP routing implementation for handling metrics-related operations.
+package router
+
+import (
+        "context"
+        "database/sql/driver"
+        "encoding/json"
+        "errors"
+        "fmt"
+        "io"
+        "net/http"
+        "os"
+        "strconv"
+        "time"
+
+        "github.com/go-chi/chi/v5"
+        "github.com/jackc/pgerrcode"
+        "github.com/jackc/pgx/v5/pgconn"
+        "go.uber.org/zap"
+
+        "github.com/Vidkin/metrics/internal/config"
+        "github.com/Vidkin/metrics/internal/logger"
+        "github.com/Vidkin/metrics/internal/metric"
+        "github.com/Vidkin/metrics/pkg/middleware"
+)
+
+// Constants for metric parameters and types.
+//
+// These constants are used in the context of metrics handling within the
+// MetricRouter. They define the names of URL parameters and the types of
+// metrics that can be processed.
+//
+// Parameters:
+//   - ParamMetricType: The name of the URL parameter that specifies the type
+//     of the metric (e.g., "counter" or "gauge").
+//   - ParamMetricName: The name of the URL parameter that specifies the name
+//     of the metric.
+//   - ParamMetricValue: The name of the URL parameter that specifies the value
+//     of the metric.
+//
+// Metric Types:
+//   - MetricTypeCounter: A constant representing the "counter" metric type.
+//   - MetricTypeGauge: A constant representing the "gauge" metric type.
+const (
+        ParamMetricType  = "metricType"
+        ParamMetricName  = "metricName"
+        ParamMetricValue = "metricValue"
+
+        MetricTypeCounter = "counter"
+        MetricTypeGauge   = "gauge"
+)
+
+// MetricRouter is a struct that manages HTTP routing for metrics-related
+// operations. It holds a reference to a Repository for data storage and
+// retrieval, as well as a chi.Router for handling HTTP requests. The
+// MetricRouter also maintains configuration settings such as the number
+// of retry attempts for database operations, the last time metrics were
+// stored, and the interval for storing metrics.
+//
+// Fields:
+//   - Repository: An instance of the Repository interface that provides
+//     methods for updating, retrieving, and deleting metrics from a data
+//     store.
+//   - Router: A chi.Router instance that defines the routing for HTTP
+//     requests related to metrics.
+//   - RetryCount: The number of times to retry database operations in case
+//     of transient errors.
+//   - LastStoreTime: A time.Time value that indicates the last time metrics
+//     were successfully stored in the repository.
+//   - StoreInterval: An integer that specifies the interval for storing
+//     metrics, which can be used to control when metrics should be dumped
+//     to the repository.
+type MetricRouter struct {
+        Repository    Repository
+        Router        chi.Router
+        LastStoreTime time.Time
+        RetryCount    int
+        StoreInterval int
+}
+
+// Repository defines the methods required for a metrics data store.
+// It provides an abstraction for updating, deleting, and retrieving
+// metrics from a persistent storage solution. Implementations of this
+// interface should handle the underlying data storage logic, allowing
+// the MetricRouter to interact with various data sources without
+// being tightly coupled to a specific implementation.
+type Repository interface {
+        UpdateMetric(ctx context.Context, metric *metric.Metric) error
+        UpdateMetrics(ctx context.Context, metrics *[]metric.Metric) error
+        DeleteMetric(ctx context.Context, mType string, name string) error
+
+        GetMetric(ctx context.Context, mType string, name string) (*metric.Metric, error)
+        GetMetrics(ctx context.Context) ([]*metric.Metric, error)
+        GetGauges(ctx context.Context) ([]*metric.Metric, error)
+        GetCounters(ctx context.Context) ([]*metric.Metric, error)
+}
+
+// Dumper defines the methods required for dump metrics
+// to a storage system or output format. Implementations of this interface
+// should provide functionality to save individual metrics as well as to
+// perform a complete dump of all metrics.
+type Dumper interface {
+        Dump(metric *metric.Metric) error
+        FullDump() error
+}
+
+// Ping checks the availability of the provided Repository by attempting to
+// ping it. If the Repository implements the driver.Pinger interface, it
+// calls the Ping method on it, passing the provided context. If the
+// Repository does not implement the Pinger interface, it returns an error
+// indicating that the provided Repository does not support pinging.
+//
+// Parameters:
+//   - r: A Repository instance that is expected to implement the Pinger
+//     interface.
+//   - ctx: A context.Context to control the lifetime of the ping operation.
+//
+// Returns:
+//   - An error if the ping operation fails or if the Repository does not
+//     implement the Pinger interface; otherwise, it returns nil.
+func Ping(r Repository, ctx context.Context) error <span class="cov8" title="1">{
+        if pinger, ok := r.(driver.Pinger); ok </span><span class="cov8" title="1">{
+                return pinger.Ping(ctx)
+        }</span>
+        <span class="cov0" title="0">return errors.New("provided Repository does not implement Pinger")</span>
+}
+
+// DumpMetric attempts to dump a given metric to the provided Repository.
+// It checks if the Repository implements the Dumper interface. If it does,
+// the function calls the Dump method of the Dumper interface to persist
+// the metric. If the Repository does not implement the Dumper interface,
+// the function returns an error indicating that the provided Repository
+// cannot perform the dump operation.
+//
+// Parameters:
+//   - r: A Repository instance that is expected to implement the Dumper
+//     interface.
+//   - m: A pointer to the metric.Metric that needs to be dumped.
+//
+// Returns:
+//   - An error if the dumping operation fails or if the Repository does
+//     not implement the Dumper interface; otherwise, it returns nil.
+func DumpMetric(r Repository, m *metric.Metric) error <span class="cov8" title="1">{
+        if dumper, ok := r.(Dumper); ok </span><span class="cov8" title="1">{
+                return dumper.Dump(m)
+        }</span>
+        <span class="cov0" title="0">return errors.New("provided Repository does not implement Dumper")</span>
+}
+
+// Close attempts to close the provided Repository if it implements the
+// io.Closer interface. If the Repository does implement the Closer
+// interface, the function calls its Close method to release any resources
+// or connections. If the Repository does not implement the Closer
+// interface, the function returns an error indicating that the provided
+// Repository cannot be closed.
+//
+// Parameters:
+//   - r: A Repository instance that is expected to implement the io.Closer
+//     interface.
+//
+// Returns:
+//   - An error if the closing operation fails or if the Repository does
+//     not implement the Closer interface; otherwise, it returns nil.
+func Close(r Repository) error <span class="cov0" title="0">{
+        if closer, ok := r.(io.Closer); ok </span><span class="cov0" title="0">{
+                return closer.Close()
+        }</span>
+        <span class="cov0" title="0">return errors.New("provided Repository does not implement Closer")</span>
+}
+
+// NewMetricRouter initializes a new MetricRouter with the provided chi.Mux,
+// Repository, and server configuration. It sets up the necessary middleware
+// for logging, hashing (if a key is provided), and gzip compression. The
+// function also defines the routing for various HTTP endpoints related to
+// metrics, including handlers for retrieving, updating, and checking the
+// status of metrics.
+//
+// Parameters:
+//   - router: A pointer to a chi.Mux instance that will handle the HTTP
+//     routing for the metrics API.
+//   - repository: An instance of the Repository interface that will be
+//     used for storing and retrieving metrics data.
+//   - serverConfig: A pointer to a config.ServerConfig struct that contains
+//     configuration settings such as the store interval and retry count.
+//
+// Returns:
+//   - A pointer to a newly created MetricRouter instance, which is ready
+//     to handle HTTP requests related to metrics.
+func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *config.ServerConfig) *MetricRouter <span class="cov8" title="1">{
+        var mr MetricRouter
+        router.Use(middleware.Logging)
+        if serverConfig.Key != "" </span><span class="cov8" title="1">{
+                router.Use(middleware.Hash(serverConfig.Key))
+        }</span>
+        <span class="cov8" title="1">router.Use(middleware.Gzip)
+
+        router.Route("/", func(r chi.Router) </span><span class="cov8" title="1">{
+                r.Get("/", mr.RootHandler)
+                r.Route("/ping", func(r chi.Router) </span><span class="cov8" title="1">{
+                        r.Get("/", mr.PingDBHandler)
+                }</span>)
+                <span class="cov8" title="1">r.Route("/value", func(r chi.Router) </span><span class="cov8" title="1">{
+                        r.Post("/", mr.GetMetricValueHandlerJSON)
+                        r.Get("/{metricType}/{metricName}", mr.GetMetricValueHandler)
+                }</span>)
+                <span class="cov8" title="1">r.Route("/update", func(r chi.Router) </span><span class="cov8" title="1">{
+                        r.Post("/", mr.UpdateMetricHandlerJSON)
+                        r.Post("/{metricType}/{metricName}/{metricValue}", mr.UpdateMetricHandler)
+                }</span>)
+                <span class="cov8" title="1">r.Route("/updates", func(r chi.Router) </span><span class="cov8" title="1">{
+                        r.Post("/", mr.UpdateMetricsHandlerJSON)
+                }</span>)
+        })
+        <span class="cov8" title="1">mr.Router = router
+        mr.Repository = repository
+        mr.StoreInterval = serverConfig.StoreInterval
+        mr.RetryCount = serverConfig.RetryCount
+        mr.LastStoreTime = time.Now()
+        return &amp;mr</span>
+}
+
+// RootHandler handles HTTP GET requests to the root endpoint ("/") of the
+// metrics API. It retrieves all metrics from the repository and writes
+// them to the HTTP response in a plain text format. The response content
+// type is set to "text/html".
+//
+// Parameters:
+//   - res: An http.ResponseWriter used to construct the HTTP response.
+//   - req: An http.Request containing the details of the incoming request.
+func (mr *MetricRouter) RootHandler(res http.ResponseWriter, req *http.Request) <span class="cov8" title="1">{
+        res.Header().Set("Content-Type", "text/html")
+
+        var (
+                metrics []*metric.Metric
+                err     error
+        )
+
+        for i := 0; i &lt;= mr.RetryCount; i++ </span><span class="cov8" title="1">{
+                metrics, err = mr.Repository.GetMetrics(req.Context())
+                if err != nil </span><span class="cov8" title="1">{
+                        var pgErr *pgconn.PgError
+                        if errors.As(err, &amp;pgErr) </span><span class="cov8" title="1">{
+                                if pgerrcode.IsConnectionException(pgErr.Code) &amp;&amp; i != mr.RetryCount </span><span class="cov8" title="1">{
+                                        logger.Log.Info("repository connection error", zap.Error(err))
+                                        time.Sleep(time.Duration(1+i*2) * time.Second)
+                                        continue</span>
+                                }
+                        }
+                        <span class="cov8" title="1">logger.Log.Info("error get metrics", zap.Error(err))
+                        http.Error(res, "error get metrics", http.StatusInternalServerError)
+                        return</span>
+                }
+                <span class="cov8" title="1">break</span>
+        }
+
+        <span class="cov8" title="1">for _, me := range metrics </span><span class="cov8" title="1">{
+                if me.MType == MetricTypeGauge </span><span class="cov8" title="1">{
+                        _, _ = io.WriteString(res, fmt.Sprintf("%s = %v\n", me.ID, *me.Value))
+                }</span>
+                <span class="cov8" title="1">if me.MType == MetricTypeCounter </span><span class="cov8" title="1">{
+                        _, _ = io.WriteString(res, fmt.Sprintf("%s = %d\n", me.ID, *me.Delta))
+                }</span>
+        }
+
+        <span class="cov8" title="1">res.WriteHeader(http.StatusOK)</span>
+}
+
+// PingDBHandler handles HTTP GET requests to the "/ping" endpoint of the
+// metrics API. It checks the availability of the database by attempting to
+// ping the repository associated with the MetricRouter.
+//
+// Parameters:
+//   - res: An http.ResponseWriter used to construct the HTTP response.
+//   - req: An http.Request containing the details of the incoming request.
+func (mr *MetricRouter) PingDBHandler(res http.ResponseWriter, req *http.Request) <span class="cov8" title="1">{
+        res.Header().Set("Content-Type", "text/plain")
+        if err := Ping(mr.Repository, req.Context()); err != nil </span><span class="cov8" title="1">{
+                logger.Log.Info("couldn't connect to database")
+                res.WriteHeader(http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">res.WriteHeader(http.StatusOK)</span>
+}
+
+// GetMetricValueHandler handles HTTP GET requests to retrieve the value of
+// a specific metric identified by its type and name. The metric type must
+// be either "gauge" or "counter".
+//
+// Parameters:
+//   - res: An http.ResponseWriter used to construct the HTTP response.
+//   - req: An http.Request containing the details of the incoming request.
+func (mr *MetricRouter) GetMetricValueHandler(res http.ResponseWriter, req *http.Request) <span class="cov8" title="1">{
+        metricType := chi.URLParam(req, ParamMetricType)
+        metricName := chi.URLParam(req, ParamMetricName)
+
+        if metricType != MetricTypeGauge &amp;&amp; metricType != MetricTypeCounter </span><span class="cov8" title="1">{
+                http.Error(res, "Bad metric type!", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">var (
+                me  *metric.Metric
+                err error
+        )
+
+        for i := 0; i &lt;= mr.RetryCount; i++ </span><span class="cov8" title="1">{
+                me, err = mr.Repository.GetMetric(req.Context(), metricType, metricName)
+                if err != nil </span><span class="cov8" title="1">{
+                        var pgErr *pgconn.PgError
+                        if errors.As(err, &amp;pgErr) </span><span class="cov8" title="1">{
+                                if pgerrcode.IsConnectionException(pgErr.Code) &amp;&amp; i != mr.RetryCount </span><span class="cov8" title="1">{
+                                        logger.Log.Info("repository connection error", zap.Error(err))
+                                        time.Sleep(time.Duration(1+i*2) * time.Second)
+                                        continue</span>
+                                }
+                        }
+                        <span class="cov8" title="1">logger.Log.Info("metric not found", zap.Error(err))
+                        http.Error(res, "metric not found", http.StatusNotFound)
+                        return</span>
+                }
+                <span class="cov8" title="1">break</span>
+        }
+
+        <span class="cov8" title="1">res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+        _, err = res.Write([]byte(me.ValueAsString()))
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("can't write metric value", zap.Error(err))
+                http.Error(res, "Can't write metric value", http.StatusInternalServerError)
+        }</span>
+        <span class="cov8" title="1">res.WriteHeader(http.StatusOK)</span>
+}
+
+// DumpMetric attempts to persist a given metric to the repository if the
+// StoreInterval is set to zero. The method retries the dumping operation
+// up to the configured RetryCount in case of transient errors, such as
+// connection issues.
+//
+// Parameters:
+//   - metric: A pointer to the metric.Metric that needs to be dumped.
+//
+// Returns:
+//   - An error if the dumping operation fails; otherwise, it returns nil.
+func (mr *MetricRouter) DumpMetric(metric *metric.Metric) error <span class="cov8" title="1">{
+        if mr.StoreInterval == 0 </span><span class="cov8" title="1">{
+                for i := 0; i &lt;= mr.RetryCount; i++ </span><span class="cov8" title="1">{
+                        err := DumpMetric(mr.Repository, metric)
+                        if err != nil </span><span class="cov8" title="1">{
+                                var pathErr *os.PathError
+                                if errors.As(err, &amp;pathErr) &amp;&amp; i != mr.RetryCount </span><span class="cov8" title="1">{
+                                        logger.Log.Info("repository connection error", zap.Error(err))
+                                        time.Sleep(time.Duration(1+i*2) * time.Second)
+                                        continue</span>
+                                }
+                                <span class="cov8" title="1">logger.Log.Info("error saving metric", zap.Error(err))
+                                return errors.New("error saving metric")</span>
+                        }
+                        <span class="cov8" title="1">break</span>
+                }
+        }
+        <span class="cov8" title="1">return nil</span>
+}
+
+// UpdateMetricHandler handles HTTP POST requests to update the value of
+// a specific metric identified by its type and name. The metric type must
+// be either "gauge" or "counter".
+//
+// Parameters:
+//   - res: An http.ResponseWriter used to construct the HTTP response.
+//   - req: An http.Request containing the details of the incoming request.
+func (mr *MetricRouter) UpdateMetricHandler(res http.ResponseWriter, req *http.Request) <span class="cov8" title="1">{
+        metricType := chi.URLParam(req, ParamMetricType)
+        metricName := chi.URLParam(req, ParamMetricName)
+        metricValue := chi.URLParam(req, ParamMetricValue)
+
+        if metricName == "" </span><span class="cov0" title="0">{
+                http.Error(res, "Empty metric name!", http.StatusNotFound)
+        }</span>
+
+        <span class="cov8" title="1">if metricType != MetricTypeGauge &amp;&amp; metricType != MetricTypeCounter </span><span class="cov8" title="1">{
+                http.Error(res, "Bad metric type!", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">me := metric.Metric{
+                ID:    metricName,
+                MType: metricType,
+        }
+
+        var (
+                floatValue float64
+                intValue   int64
+                err        error
+        )
+
+        if metricType == MetricTypeGauge </span><span class="cov8" title="1">{
+                floatValue, err = strconv.ParseFloat(metricValue, 64)
+                me.Value = &amp;floatValue
+        }</span>
+
+        <span class="cov8" title="1">if metricType == MetricTypeCounter </span><span class="cov8" title="1">{
+                intValue, err = strconv.ParseInt(metricValue, 10, 64)
+                me.Delta = &amp;intValue
+        }</span>
+
+        <span class="cov8" title="1">if err != nil </span><span class="cov8" title="1">{
+                logger.Log.Info("can't convert metric value", zap.Error(err))
+                http.Error(res, "Bad metric value!", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">for i := 0; i &lt;= mr.RetryCount; i++ </span><span class="cov8" title="1">{
+                err := mr.Repository.UpdateMetric(req.Context(), &amp;me)
+                if err != nil </span><span class="cov8" title="1">{
+                        var pgErr *pgconn.PgError
+                        if errors.As(err, &amp;pgErr) </span><span class="cov8" title="1">{
+                                if pgerrcode.IsConnectionException(pgErr.Code) &amp;&amp; i != mr.RetryCount </span><span class="cov8" title="1">{
+                                        logger.Log.Info("repository connection error", zap.Error(err))
+                                        time.Sleep(time.Duration(1+i*2) * time.Second)
+                                        continue</span>
+                                }
+                        }
+                        <span class="cov8" title="1">logger.Log.Info("bad metric value", zap.Error(err))
+                        http.Error(res, "bad metric value", http.StatusInternalServerError)
+                        return</span>
+                }
+                <span class="cov8" title="1">break</span>
+        }
+
+        <span class="cov8" title="1">if err := mr.DumpMetric(&amp;me); err != nil </span><span class="cov8" title="1">{
+                http.Error(res, "error saving metric", http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+        res.WriteHeader(http.StatusOK)</span>
+}
+
+// UpdateMetricHandlerJSON handles HTTP POST requests for updating a metric in JSON format.
+//
+// Parameters:
+// - res: An http.ResponseWriter used to construct the HTTP response.
+// - req: An http.Request containing the HTTP request data, including the JSON body.
+func (mr *MetricRouter) UpdateMetricHandlerJSON(res http.ResponseWriter, req *http.Request) <span class="cov8" title="1">{
+        if req.Header.Get("Content-Type") != "application/json" </span><span class="cov8" title="1">{
+                http.Error(res, "only application/json content-type allowed", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">var me metric.Metric
+        if err := json.NewDecoder(req.Body).Decode(&amp;me); err != nil </span><span class="cov8" title="1">{
+                http.Error(res, "can't decode request body", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">switch me.MType </span>{
+        case MetricTypeGauge:<span class="cov8" title="1">
+                if me.Value == nil </span><span class="cov8" title="1">{
+                        http.Error(res, "empty metric value", http.StatusBadRequest)
+                        return
+                }</span>
+        case MetricTypeCounter:<span class="cov8" title="1">
+                if me.Delta == nil </span><span class="cov8" title="1">{
+                        http.Error(res, "empty metric delta", http.StatusBadRequest)
+                        return
+                }</span>
+        default:<span class="cov8" title="1">
+                http.Error(res, "bad metric type", http.StatusBadRequest)
+                return</span>
+        }
+
+        <span class="cov8" title="1">for i := 0; i &lt;= mr.RetryCount; i++ </span><span class="cov8" title="1">{
+                err := mr.Repository.UpdateMetric(req.Context(), &amp;me)
+                if err != nil </span><span class="cov8" title="1">{
+                        var pgErr *pgconn.PgError
+                        if errors.As(err, &amp;pgErr) </span><span class="cov8" title="1">{
+                                if pgerrcode.IsConnectionException(pgErr.Code) &amp;&amp; i != mr.RetryCount </span><span class="cov8" title="1">{
+                                        logger.Log.Info("repository connection error", zap.Error(err))
+                                        time.Sleep(time.Duration(1+i*2) * time.Second)
+                                        continue</span>
+                                }
+                        }
+                        <span class="cov8" title="1">logger.Log.Info("error update metric", zap.Error(err))
+                        http.Error(res, "error update metric", http.StatusInternalServerError)
+                        return</span>
+                }
+                <span class="cov8" title="1">break</span>
+        }
+
+        <span class="cov8" title="1">if err := mr.DumpMetric(&amp;me); err != nil </span><span class="cov8" title="1">{
+                http.Error(res, "error saving metric", http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">var (
+                actualMetric *metric.Metric
+                err          error
+        )
+        for i := 0; i &lt;= mr.RetryCount; i++ </span><span class="cov8" title="1">{
+                actualMetric, err = mr.Repository.GetMetric(req.Context(), me.MType, me.ID)
+                if err != nil </span><span class="cov8" title="1">{
+                        var pgErr *pgconn.PgError
+                        if errors.As(err, &amp;pgErr) </span><span class="cov8" title="1">{
+                                if pgerrcode.IsConnectionException(pgErr.Code) &amp;&amp; i != mr.RetryCount </span><span class="cov8" title="1">{
+                                        logger.Log.Info("repository connection error", zap.Error(err))
+                                        time.Sleep(time.Duration(1+i*2) * time.Second)
+                                        continue</span>
+                                }
+                        }
+                        <span class="cov8" title="1">logger.Log.Info("error get actual metric value", zap.Error(err))
+                        http.Error(res, "error get actual metric value", http.StatusInternalServerError)
+                        return</span>
+                }
+                <span class="cov8" title="1">break</span>
+        }
+
+        <span class="cov8" title="1">res.Header().Set("Content-Type", "application/json")
+        data, err := json.Marshal(actualMetric)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error marshal json response", zap.Error(err))
+                http.Error(res, "error marshal json response", http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">_, err = res.Write(data)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error write response data", zap.Error(err))
+                http.Error(res, "error write response data", http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">res.WriteHeader(http.StatusOK)</span>
+}
+
+// GetMetricValueHandlerJSON handles HTTP POST requests for retrieving a metric value in JSON format.
+//
+// Parameters:
+// - res: An http.ResponseWriter used to construct the HTTP response.
+// - req: An http.Request containing the HTTP request data, including the JSON body.
+func (mr *MetricRouter) GetMetricValueHandlerJSON(res http.ResponseWriter, req *http.Request) <span class="cov8" title="1">{
+        if req.Header.Get("Content-Type") != "application/json" </span><span class="cov8" title="1">{
+                http.Error(res, "only application/json content-type allowed", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">var me metric.Metric
+        if err := json.NewDecoder(req.Body).Decode(&amp;me); err != nil </span><span class="cov8" title="1">{
+                http.Error(res, "can't decode request body", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">if me.MType != MetricTypeGauge &amp;&amp; me.MType != MetricTypeCounter </span><span class="cov8" title="1">{
+                http.Error(res, "Bad metric type!", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">var (
+                respMetric *metric.Metric
+                err        error
+        )
+        for i := 0; i &lt;= mr.RetryCount; i++ </span><span class="cov8" title="1">{
+                respMetric, err = mr.Repository.GetMetric(req.Context(), me.MType, me.ID)
+                if err != nil </span><span class="cov8" title="1">{
+                        var pgErr *pgconn.PgError
+                        if errors.As(err, &amp;pgErr) </span><span class="cov8" title="1">{
+                                if pgerrcode.IsConnectionException(pgErr.Code) &amp;&amp; i != mr.RetryCount </span><span class="cov8" title="1">{
+                                        logger.Log.Info("repository connection error", zap.Error(err))
+                                        time.Sleep(time.Duration(1+i*2) * time.Second)
+                                        continue</span>
+                                }
+                        }
+                        <span class="cov8" title="1">logger.Log.Info("metric not found", zap.Error(err))
+                        http.Error(res, "metric not found", http.StatusNotFound)
+                        return</span>
+                }
+                <span class="cov8" title="1">break</span>
+        }
+
+        <span class="cov8" title="1">res.Header().Set("Content-Type", "application/json")
+
+        data, err := json.Marshal(respMetric)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error marshal json response", zap.Error(err))
+                http.Error(res, "error marshal json response", http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">_, err = res.Write(data)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error write response data", zap.Error(err))
+                http.Error(res, "error write response data", http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">res.WriteHeader(http.StatusOK)</span>
+}
+
+// UpdateMetricsHandlerJSON handles HTTP POST requests for updating multiple metrics in JSON format.
+//
+// Parameters:
+// - res: An http.ResponseWriter used to construct the HTTP response.
+// - req: An http.Request containing the HTTP request data, including the JSON body.
+func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *http.Request) <span class="cov8" title="1">{
+        if req.Header.Get("Content-Type") != "application/json" </span><span class="cov8" title="1">{
+                http.Error(res, "only application/json content-type allowed", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">var metrics []metric.Metric
+        if err := json.NewDecoder(req.Body).Decode(&amp;metrics); err != nil </span><span class="cov8" title="1">{
+                http.Error(res, "can't decode request body", http.StatusBadRequest)
+                return
+        }</span>
+        <span class="cov8" title="1">defer func(body io.ReadCloser) </span><span class="cov8" title="1">{
+                err := body.Close()
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("can't close request body", zap.Error(err))
+                }</span>
+        }(req.Body)
+
+        <span class="cov8" title="1">for _, m := range metrics </span><span class="cov8" title="1">{
+                if (m.Value == nil &amp;&amp; m.Delta == nil) || (m.MType != MetricTypeCounter &amp;&amp; m.MType != MetricTypeGauge) </span><span class="cov8" title="1">{
+                        http.Error(res, "bad metric", http.StatusBadRequest)
+                        return
+                }</span>
+        }
+
+        <span class="cov8" title="1">for i := 0; i &lt;= mr.RetryCount; i++ </span><span class="cov8" title="1">{
+                err := mr.Repository.UpdateMetrics(req.Context(), &amp;metrics)
+                if err != nil </span><span class="cov8" title="1">{
+                        var pgErr *pgconn.PgError
+                        if errors.As(err, &amp;pgErr) </span><span class="cov8" title="1">{
+                                if pgerrcode.IsConnectionException(pgErr.Code) &amp;&amp; i != mr.RetryCount </span><span class="cov8" title="1">{
+                                        logger.Log.Info("repository connection error", zap.Error(err))
+                                        time.Sleep(time.Duration(1+i*2) * time.Second)
+                                        continue</span>
+                                }
+                        }
+                        <span class="cov8" title="1">logger.Log.Info("error update metrics", zap.Error(err))
+                        http.Error(res, "error update metrics", http.StatusInternalServerError)
+                        return</span>
+                }
+                <span class="cov8" title="1">break</span>
+        }
+
+        <span class="cov8" title="1">for _, me := range metrics </span><span class="cov8" title="1">{
+                if err := mr.DumpMetric(&amp;me); err != nil </span><span class="cov8" title="1">{
+                        http.Error(res, "error saving metric", http.StatusInternalServerError)
+                        return
+                }</span>
+        }
+
+        <span class="cov8" title="1">for i, m := range metrics </span><span class="cov8" title="1">{
+                var (
+                        updated *metric.Metric
+                        err     error
+                )
+                for r := 0; r &lt;= mr.RetryCount; r++ </span><span class="cov8" title="1">{
+                        updated, err = mr.Repository.GetMetric(req.Context(), m.MType, m.ID)
+                        if err != nil </span><span class="cov8" title="1">{
+                                var pgErr *pgconn.PgError
+                                if errors.As(err, &amp;pgErr) </span><span class="cov8" title="1">{
+                                        if pgerrcode.IsConnectionException(pgErr.Code) &amp;&amp; r != mr.RetryCount </span><span class="cov8" title="1">{
+                                                logger.Log.Info("repository connection error", zap.Error(err))
+                                                time.Sleep(time.Duration(1+r*2) * time.Second)
+                                                continue</span>
+                                        }
+                                }
+                                <span class="cov8" title="1">logger.Log.Info("error get updated metric", zap.Error(err))
+                                http.Error(res, "error get updated metric", http.StatusInternalServerError)
+                                return</span>
+                        }
+                        <span class="cov8" title="1">break</span>
+                }
+                <span class="cov8" title="1">metrics[i] = *updated</span>
+        }
+        <span class="cov8" title="1">res.Header().Set("Content-Type", "application/json")
+        enc := json.NewEncoder(res)
+        if err := enc.Encode(metrics); err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error encoding response", zap.Error(err))
+                http.Error(res, "error encoding response", http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">res.WriteHeader(http.StatusOK)</span>
+}
+</pre>
+		
+		<pre class="file" id="file15" style="display: none">package router
+
+import (
+        "context"
+        "database/sql"
+        "errors"
+        "os"
+        "time"
+
+        "github.com/golang-migrate/migrate/v4"
+        "github.com/golang-migrate/migrate/v4/database/postgres"
+        "github.com/golang-migrate/migrate/v4/source/iofs"
+        "go.uber.org/zap"
+
+        "github.com/Vidkin/metrics/internal/config"
+        "github.com/Vidkin/metrics/internal/logger"
+        me "github.com/Vidkin/metrics/internal/metric"
+        "github.com/Vidkin/metrics/internal/repository/storage"
+)
+
+func NewMemoryStorage() *storage.MemoryStorage <span class="cov8" title="1">{
+        var m storage.MemoryStorage
+        m.Gauge = make(map[string]float64)
+        m.Counter = make(map[string]int64)
+        m.GaugeMetrics = make([]*me.Metric, 0)
+        m.CounterMetrics = make([]*me.Metric, 0)
+        m.AllMetrics = make([]*me.Metric, 0)
+        return &amp;m
+}</span>
+
+func NewFileStorage(fileStoragePath string) *storage.FileStorage <span class="cov0" title="0">{
+        var f storage.FileStorage
+        f.Gauge = make(map[string]float64)
+        f.Counter = make(map[string]int64)
+        f.GaugeMetrics = make([]*me.Metric, 0)
+        f.CounterMetrics = make([]*me.Metric, 0)
+        f.AllMetrics = make([]*me.Metric, 0)
+        f.FileStoragePath = fileStoragePath
+        return &amp;f
+}</span>
+
+func NewPostgresStorage(dbDSN string) (*storage.PostgresStorage, error) <span class="cov8" title="1">{
+        var p storage.PostgresStorage
+        p.GaugeMetrics = make([]*me.Metric, 0)
+        p.CounterMetrics = make([]*me.Metric, 0)
+        p.AllMetrics = make([]*me.Metric, 0)
+
+        db, err := sql.Open("pgx", dbDSN)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Fatal("error open sql connection", zap.Error(err))
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">driver, err := postgres.WithInstance(db, &amp;postgres.Config{})
+        if err != nil </span><span class="cov8" title="1">{
+                logger.Log.Error("can't create postgres driver for migrations", zap.Error(err))
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">d, err := iofs.New(storage.Migrations, "migrations")
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Error("can't get migrations from FS", zap.Error(err))
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">m, err := migrate.NewWithInstance("iofs", d, "postgres", driver)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Error("can't create new migrate instance", zap.Error(err))
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">if err := m.Up(); err != nil &amp;&amp; err != migrate.ErrNoChange </span><span class="cov0" title="0">{
+                logger.Log.Error("can't exec migrations", zap.Error(err))
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">p.Conn = db
+        return &amp;p, nil</span>
+}
+
+func NewRepository(cfg *config.ServerConfig) (Repository, error) <span class="cov8" title="1">{
+        if cfg.DatabaseDSN != "" </span><span class="cov8" title="1">{
+                return NewPostgresStorage(cfg.DatabaseDSN)
+        }</span>
+
+        <span class="cov0" title="0">if cfg.FileStoragePath != "" </span><span class="cov0" title="0">{
+                fileStorage := NewFileStorage(cfg.FileStoragePath)
+                if cfg.Restore </span><span class="cov0" title="0">{
+                        ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+                        defer cancel()
+
+                        for i := 0; i &lt;= cfg.RetryCount; i++ </span><span class="cov0" title="0">{
+                                err := fileStorage.Load(ctx)
+                                if err != nil </span><span class="cov0" title="0">{
+                                        var pathErr *os.PathError
+                                        if errors.As(err, &amp;pathErr) &amp;&amp; i != cfg.RetryCount </span><span class="cov0" title="0">{
+                                                logger.Log.Info("repository connection error", zap.Error(err))
+                                                time.Sleep(time.Duration(1+i*2) * time.Second)
+                                                continue</span>
+                                        }
+                                        <span class="cov0" title="0">logger.Log.Info("error load saved metrics", zap.Error(err))</span>
+                                }
+                                <span class="cov0" title="0">break</span>
+                        }
+                }
+                <span class="cov0" title="0">return fileStorage, nil</span>
+        }
+
+        <span class="cov0" title="0">memStorage := NewMemoryStorage()
+        return memStorage, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file16" style="display: none">// Package compress provides a Reader and Writer for gzip-compressed data.
+// When writing a response, it automatically adds header “Content-Encoding”: “gzip”.
+package compress
+
+import (
+        "compress/gzip"
+        "io"
+        "net/http"
+
+        "go.uber.org/zap"
+
+        "github.com/Vidkin/metrics/internal/logger"
+)
+
+// Writer is a wrapper over http.ResponseWriter,
+// which adds support for data compression using gzip.
+type Writer struct {
+        w  http.ResponseWriter
+        zw *gzip.Writer
+}
+
+// NewCompressWriter creates a new instance of Writer,
+// initializing it with the given http.ResponseWriter.
+// This constructor also creates a new gzip.Writer,
+// which will be used to compress the data before sending it.
+//
+// Parameters:
+// - w: the http.ResponseWriter that will be used to send the compressed data.
+//
+// Returns:
+// - Pointer to a new Writer ready to be used.
+func NewCompressWriter(w http.ResponseWriter) *Writer <span class="cov8" title="1">{
+        return &amp;Writer{
+                w:  w,
+                zw: gzip.NewWriter(w),
+        }
+}</span>
+
+// Header returns the header map that will be sent by the ResponseWriter.
+// It allows setting HTTP headers before writing the response.
+func (c *Writer) Header() http.Header <span class="cov8" title="1">{
+        return c.w.Header()
+}</span>
+
+// Write writes the compressed data to the underlying ResponseWriter.
+// It sets the "Content-Encoding" header to "gzip" before writing the data.
+//
+// Parameters:
+// - p: a byte slice containing the data to be written.
+//
+// Returns:
+// - The number of bytes written and any error encountered.
+func (c *Writer) Write(p []byte) (int, error) <span class="cov8" title="1">{
+        c.w.Header().Set("Content-Encoding", "gzip")
+        return c.zw.Write(p)
+}</span>
+
+// WriteHeader sends an HTTP response header with the provided status code.
+// It allows setting the status code for the response.
+func (c *Writer) WriteHeader(statusCode int) <span class="cov8" title="1">{
+        c.w.WriteHeader(statusCode)
+}</span>
+
+// Close closes the gzip.Writer, flushing any buffered data to the underlying writer.
+// It should be called to ensure all data is sent before the response is completed.
+func (c *Writer) Close() error <span class="cov8" title="1">{
+        return c.zw.Close()
+}</span>
+
+// Reader is a wrapper over io.ReadCloser,
+// which adds support for reading gzip-compressed data.
+type Reader struct {
+        r  io.ReadCloser
+        zr *gzip.Reader
+}
+
+// NewCompressReader creates a new instance of Reader,
+// initializing it with the given io.ReadCloser.
+// This constructor also creates a new gzip.Reader,
+// which will be used to decompress the data being read.
+//
+// Parameters:
+// - r: the io.ReadCloser that will be used to read the compressed data.
+//
+// Returns:
+// - Pointer to a new Reader ready to be used, or an error if initialization fails.
+func NewCompressReader(r io.ReadCloser) (*Reader, error) <span class="cov8" title="1">{
+        zr, err := gzip.NewReader(r)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error init compress reader", zap.Error(err))
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return &amp;Reader{
+                r:  r,
+                zr: zr,
+        }, nil</span>
+}
+
+// Read reads the decompressed data from the gzip.Reader into the provided byte slice.
+//
+// Parameters:
+// - p: a byte slice to hold the read data.
+//
+// Returns:
+// - The number of bytes read and any error encountered.
+func (c Reader) Read(p []byte) (n int, err error) <span class="cov8" title="1">{
+        return c.zr.Read(p)
+}</span>
+
+// Close closes the gzip.Reader and the underlying ReadCloser.
+// It should be called to release resources associated with the reader.
+func (c *Reader) Close() error <span class="cov8" title="1">{
+        if err := c.r.Close(); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">return c.zr.Close()</span>
+}
+</pre>
+		
+		<pre class="file" id="file17" style="display: none">// Package exitcheck provides an analyzer that checks for the usage of
+// os.Exit in the main function of the main package.
+package exitcheck
+
+import (
+        "go/ast"
+
+        "golang.org/x/tools/go/analysis"
+)
+
+// ExitMainAnalyzer is an analyzer that checks for the usage of
+// os.Exit in the main function of the main package.
+var ExitMainAnalyzer = &amp;analysis.Analyzer{
+        Name: "exitmain",
+        Doc:  "check for os.Exit in main.Main",
+        Run:  run,
+}
+
+// run is the main analysis function for the ExitMainAnalyzer.
+// It inspects the abstract syntax tree (AST) of Go source files
+// to identify calls to os.Exit within the main function of the
+// main package.
+// Parameters:
+//   - pass: An analysis.Pass that contains the files to be analyzed
+//     and provides methods for reporting issues.
+//
+// Returns:
+//   - An interface{} (always nil in this case) and an error (always nil).
+func run(pass *analysis.Pass) (interface{}, error) <span class="cov8" title="1">{
+        for _, f := range pass.Files </span><span class="cov8" title="1">{
+                if f.Name.Name == "main" </span><span class="cov8" title="1">{
+                        ast.Inspect(f, func(n ast.Node) bool </span><span class="cov8" title="1">{
+                                switch x := n.(type) </span>{
+                                case *ast.FuncDecl:<span class="cov8" title="1">
+                                        if x.Name.Name == "main" </span><span class="cov8" title="1">{
+                                                for _, v := range x.Body.List </span><span class="cov8" title="1">{
+                                                        if ex, ok := v.(*ast.ExprStmt); ok </span><span class="cov8" title="1">{
+                                                                if call, ok := ex.X.(*ast.CallExpr); ok </span><span class="cov8" title="1">{
+                                                                        if sl, ok := call.Fun.(*ast.SelectorExpr); ok </span><span class="cov8" title="1">{
+                                                                                if id, ok := sl.X.(*ast.Ident); ok </span><span class="cov8" title="1">{
+                                                                                        if id.Name == "os" &amp;&amp; sl.Sel.Name == "Exit" </span><span class="cov8" title="1">{
+                                                                                                pass.Reportf(x.Pos(), "exit in main func of main package")
+                                                                                        }</span>
+                                                                                }
+                                                                        }
+                                                                }
+                                                        }
+                                                }
+
+                                        }
+                                }
+                                <span class="cov8" title="1">return true</span>
+                        })
+                }
+        }
+        <span class="cov8" title="1">return nil, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file18" style="display: none">// Package hash provides utilities for generating cryptographic hashes.
+//
+// This package includes functions to compute SHA-256 hashes, which can be used for
+// data integrity verification, digital signatures, and other security-related tasks.
+package hash
+
+import "crypto/sha256"
+
+// GetHashSHA256 computes the SHA-256 hash of the provided data combined with the specified key.
+//
+// Parameters:
+//   - key: A string that acts as a key in the hashing process. It is appended to the
+//     data before hashing, adding an additional layer of security and uniqueness to
+//     the resulting hash output.
+//   - data: A byte slice containing the data to be hashed. This is the main input
+//     that will be combined with the key to generate the hash.
+//
+// Returns:
+//   - A byte slice containing the SHA-256 hash of the concatenated data and key.
+//     The length of the returned slice is always 32 bytes, as SHA-256 produces a
+//     fixed-size output.
+func GetHashSHA256(key string, data []byte) []byte <span class="cov8" title="1">{
+        h := sha256.New()
+        h.Write(data)
+        h.Write([]byte(key))
+        return h.Sum(nil)
+}</span>
+</pre>
+		
+		<pre class="file" id="file19" style="display: none">package middleware
+
+import (
+        "net/http"
+        "strings"
+
+        "go.uber.org/zap"
+
+        "github.com/Vidkin/metrics/internal/logger"
+        "github.com/Vidkin/metrics/pkg/compress"
+)
+
+// Gzip is an HTTP middleware function that enables gzip compression for responses
+// and handles gzip decompression for incoming request bodies.
+//
+// Parameters:
+//   - h: An http.Handler that will be wrapped by the Gzip middleware. This is the
+//     handler that will process the request after any necessary compression or
+//     decompression has been applied.
+//
+// Returns:
+//   - An http.Handler that applies gzip compression for responses and decompression
+//     for request bodies, delegating the actual request processing to the provided
+//     handler.
+func Gzip(h http.Handler) http.Handler <span class="cov8" title="1">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                ow := w
+                acceptEncoding := r.Header.Get("Accept-Encoding")
+                if strings.Contains(acceptEncoding, "gzip") </span><span class="cov8" title="1">{
+                        cw := compress.NewCompressWriter(w)
+                        ow = cw
+                        defer func() </span><span class="cov8" title="1">{
+                                if err := cw.Close(); err != nil </span><span class="cov0" title="0">{
+                                        logger.Log.Error("error close compress writer", zap.Error(err))
+                                }</span>
+                        }()
+                }
+
+                <span class="cov8" title="1">contentEncoding := r.Header.Get("Content-Encoding")
+                if strings.Contains(contentEncoding, "gzip") </span><span class="cov8" title="1">{
+                        defer func() </span><span class="cov8" title="1">{
+                                if err := r.Body.Close(); err != nil </span><span class="cov0" title="0">{
+                                        logger.Log.Error("error close body", zap.Error(err))
+                                }</span>
+                        }()
+
+                        <span class="cov8" title="1">cr, err := compress.NewCompressReader(r.Body)
+                        if err != nil </span><span class="cov0" title="0">{
+                                logger.Log.Error("error init compress reader", zap.Error(err))
+                                ow.WriteHeader(http.StatusInternalServerError)
+                                return
+                        }</span>
+                        <span class="cov8" title="1">r.Body = cr
+                        defer func() </span><span class="cov8" title="1">{
+                                if err := cr.Close(); err != nil </span><span class="cov0" title="0">{
+                                        logger.Log.Error("error close compress reader", zap.Error(err))
+                                }</span>
+                        }()
+                }
+
+                <span class="cov8" title="1">h.ServeHTTP(ow, r)</span>
+        })
+}
+</pre>
+		
+		<pre class="file" id="file20" style="display: none">package middleware
+
+import (
+        "bytes"
+        "encoding/base64"
+        "io"
+        "net/http"
+
+        "go.uber.org/zap"
+
+        "github.com/Vidkin/metrics/internal/logger"
+        "github.com/Vidkin/metrics/pkg/hash"
+)
+
+type hashResponseWriter struct {
+        http.ResponseWriter
+        Key        string
+        HashSHA256 string
+}
+
+// Hash is an HTTP middleware function that validates the integrity of incoming
+// request bodies using SHA-256 hashes.
+//
+// Parameters:
+//   - key: A string that serves as a key in the hash computation. This key is
+//     used to generate the SHA-256 hash of the request body.
+//
+// Returns:
+//   - A function that takes an http.Handler and returns a new http.Handler
+//     that includes the hash validation logic.
+func Hash(key string) func(http.Handler) http.Handler <span class="cov8" title="1">{
+        return func(next http.Handler) http.Handler </span><span class="cov8" title="1">{
+                return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                        hEnc := r.Header.Get("HashSHA256")
+                        if hEnc == "" </span><span class="cov0" title="0">{
+                                logger.Log.Error("client does not provide any hash")
+                                w.WriteHeader(http.StatusBadRequest)
+                                return
+                        }</span> else<span class="cov8" title="1"> {
+                                hashA, err := base64.StdEncoding.DecodeString(hEnc)
+                                if err != nil </span><span class="cov0" title="0">{
+                                        logger.Log.Error("error decode hash from base64 string", zap.Error(err))
+                                        w.WriteHeader(http.StatusInternalServerError)
+                                        return
+                                }</span>
+
+                                <span class="cov8" title="1">var buf bytes.Buffer
+                                tee := io.TeeReader(r.Body, &amp;buf)
+
+                                defer func() </span><span class="cov8" title="1">{
+                                        if err = r.Body.Close(); err != nil </span><span class="cov0" title="0">{
+                                                logger.Log.Error("error close reader body", zap.Error(err))
+                                        }</span>
+                                }()
+
+                                <span class="cov8" title="1">body, err := io.ReadAll(tee)
+                                if err != nil </span><span class="cov0" title="0">{
+                                        logger.Log.Error("error read request body", zap.Error(err))
+                                        w.WriteHeader(http.StatusInternalServerError)
+                                        return
+                                }</span>
+
+                                <span class="cov8" title="1">hashB := hash.GetHashSHA256(key, body)
+                                if !bytes.Equal(hashA, hashB) </span><span class="cov8" title="1">{
+                                        logger.Log.Error("hashes don't match")
+                                        w.WriteHeader(http.StatusBadRequest)
+                                        return
+                                }</span>
+
+                                <span class="cov8" title="1">r.Body = io.NopCloser(&amp;buf)
+                                defer func() </span><span class="cov8" title="1">{
+                                        if err := r.Body.Close(); err != nil </span><span class="cov0" title="0">{
+                                                logger.Log.Error("error close reader body", zap.Error(err))
+                                        }</span>
+                                }()
+                        }
+
+                        <span class="cov8" title="1">hashRW := hashResponseWriter{
+                                ResponseWriter: w,
+                                Key:            key,
+                        }
+                        next.ServeHTTP(hashRW, r)</span>
+                })
+        }
+}
+</pre>
+		
+		<pre class="file" id="file21" style="display: none">package middleware
+
+import (
+        "net/http"
+        "time"
+
+        "go.uber.org/zap"
+
+        "github.com/Vidkin/metrics/internal/logger"
+)
+
+type (
+        loggingResponseData struct {
+                status int
+                size   int
+        }
+
+        loggingResponseWriter struct {
+                http.ResponseWriter
+                responseData *loggingResponseData
+        }
+)
+
+// Write writes the data to the underlying ResponseWriter and updates the size
+// of the response. It overrides the default Write method to keep track of the
+// total size of the response body.
+//
+// Parameters:
+// - data: A byte slice containing the data to be written to the response.
+//
+// Returns:
+// - The number of bytes written and any error encountered during the write operation.
+func (rw *loggingResponseWriter) Write(data []byte) (int, error) <span class="cov8" title="1">{
+        size, err := rw.ResponseWriter.Write(data)
+        rw.responseData.size += size
+        return size, err
+}</span>
+
+// WriteHeader sends an HTTP response header with the provided status code.
+// It overrides the default WriteHeader method to record the status code
+// of the response.
+//
+// Parameters:
+//   - statusCode: An integer representing the HTTP status code to be sent
+//     in the response.
+func (rw *loggingResponseWriter) WriteHeader(statusCode int) <span class="cov8" title="1">{
+        rw.ResponseWriter.WriteHeader(statusCode)
+        rw.responseData.status = statusCode
+}</span>
+
+// Logging is an HTTP middleware function that logs details about incoming
+// requests and outgoing responses.
+//
+// This function wraps the provided HTTP handler and logs the HTTP method,
+// request URI, response status code, response size, and the duration of
+// the request processing. It uses a custom loggingResponseWriter to capture
+// the response data.
+//
+// Parameters:
+// - h: An http.Handler that will be wrapped by the Logging middleware.
+//
+// Returns:
+//   - An http.Handler that includes the logging functionality for requests
+//     and responses.
+func Logging(h http.Handler) http.Handler <span class="cov8" title="1">{
+        return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) </span><span class="cov8" title="1">{
+                startTime := time.Now()
+                rData := &amp;loggingResponseData{
+                        status: 0,
+                        size:   0,
+                }
+                loggingRW := loggingResponseWriter{
+                        responseData:   rData,
+                        ResponseWriter: rw,
+                }
+                h.ServeHTTP(&amp;loggingRW, req)
+                duration := time.Since(startTime)
+
+                logger.Log.Info(
+                        "Request data",
+                        zap.String("method", req.Method),
+                        zap.String("URI", req.RequestURI),
+                        zap.Duration("duration", duration),
+                )
+
+                logger.Log.Info(
+                        "Response data",
+                        zap.Int("status", rData.status),
+                        zap.Int("size", rData.size),
+                )
+        }</span>)
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
