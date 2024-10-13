@@ -24,12 +24,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if err := logger.Initialize(agentConfig.LogLevel); err != nil {
+	if err = logger.Initialize(agentConfig.LogLevel); err != nil {
 		panic(err)
 	}
 	memoryStorage := router.NewFileStorage("")
 	memStats := &runtime.MemStats{}
 	client := resty.New()
+	if agentConfig.CryptoKey != "" {
+		client.SetRootCertificate(agentConfig.CryptoKey + "cert.pem")
+	}
 	client.SetDoNotParseResponse(true)
 	mw := agent.New(memoryStorage, memStats, client, agentConfig)
 
