@@ -15,7 +15,7 @@ import (
 )
 
 func saveFile(path string, data []byte) error {
-	return os.WriteFile(path, data, 755)
+	return os.WriteFile(path, data, 0755)
 }
 
 func main() {
