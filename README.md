@@ -38,7 +38,9 @@ git fetch template && git checkout template/main .github
 В проекте присутствует docker-compose.yaml конфиг, с помощью которого можно поднять контейнер с postgresql. 
 
 Команда запуска тестов (из корневого каталога проекта):
+```shell
 go test -cover ./...
+```
 
 ## Линтер
 
@@ -49,14 +51,16 @@ go test -cover ./...
 #### Использование
 
 Чтобы воспользоваться инструментом staticlint, выполните в терминале следующую команду:
-
-	go run /path/to/multichecker.go /path/to/your/package
+```shell
+go run /path/to/multichecker.go /path/to/your/package
+```
 
 Это приведет к выполнению всех настроенных проверок статического анализа Go-кода в текущем каталоге.
 
 Чтобы получить дополнительную информацию об используемых анализаторах кода, выполните в терминале следующую команду:
-
-	go run /path/to/multichecker.go --help
+```shell
+go run /path/to/multichecker.go --help
+```
 
 #### Коды выхода
 
@@ -66,11 +70,13 @@ go test -cover ./...
 #### Пример
 
 Чтобы запустить staticlint на конкретном пакете, можно указать путь к пакету:
-
-	go run path/to/multichecker.go /path/to/package
+```shell
+go run path/to/multichecker.go /path/to/package
+```
 
 Указанный пакет будет проанализирован и вы получите сообщения о найденных проблемах.
 
 Вы можете указать анализаторы, которые хотите запустить, например:
-
-	go run path/to/multichecker.go -ST1006 /path/to/package
+```shell
+go run path/to/multichecker.go -ST1006 /path/to/package
+```
