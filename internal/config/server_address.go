@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	DefaultServerAddress = "localhost"
+	DefaultServerAddress = "127.0.0.1"
 	DefaultServerPort    = 8080
 )
 

@@ -28,6 +28,7 @@ const (
 type AgentConfig struct {
 	ServerAddress  *ServerAddress
 	Key            string `env:"KEY"`
+	CryptoKey      string `env:"CRYPTO_KEY"`
 	LogLevel       string
 	ReportInterval int `env:"REPORT_INTERVAL"`
 	PollInterval   int `env:"POLL_INTERVAL"`
@@ -57,6 +58,7 @@ func (config *AgentConfig) parseFlags() error {
 	flag.IntVar(&config.PollInterval, "p", DefaultAgentPollInterval, "Agent poll interval (sec)")
 	flag.IntVar(&config.RateLimit, "l", 5, "Rate limit")
 	flag.StringVar(&config.Key, "k", "", "Hash key")
+	flag.StringVar(&config.CryptoKey, "crypto-key", "", "Crypto key")
 	flag.Parse()
 
 	err := env.Parse(config.ServerAddress)

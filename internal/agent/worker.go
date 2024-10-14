@@ -269,7 +269,11 @@ func (mw *MetricWorker) SendMetrics(chIn chan *metric.Metric, serverURL string) 
 
 func (mw *MetricWorker) Poll() {
 	startTime := time.Now()
-	var serverURL = "http://" + mw.config.ServerAddress.Address + "/updates/"
+	protocol := "http"
+	if mw.config.CryptoKey != "" {
+		protocol = "https"
+	}
+	var serverURL = protocol + "://" + mw.config.ServerAddress.Address + "/updates/"
 	var count int64 = 0
 	for {
 		currentTime := time.Now()
