@@ -8,6 +8,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"path"
 	"syscall"
 	"time"
 
@@ -56,7 +57,7 @@ func (a *ServerApp) Serve() {
 		}
 	}()
 	if a.config.CryptoKey != "" {
-		if err := a.srv.ListenAndServeTLS(a.config.CryptoKey+"/cert.pem", a.config.CryptoKey+"/privateKey.pem"); err != nil && err != http.ErrServerClosed {
+		if err := a.srv.ListenAndServeTLS(path.Join(a.config.CryptoKey, "cert.pem"), path.Join(a.config.CryptoKey, "privateKey.pem")); err != nil && err != http.ErrServerClosed {
 			logger.Log.Fatal("listen and serve tls fatal error", zap.Error(err))
 		}
 	} else {

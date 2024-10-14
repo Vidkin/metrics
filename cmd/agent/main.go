@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"path"
 	"runtime"
 
 	"github.com/go-resty/resty/v2"
@@ -31,7 +32,7 @@ func main() {
 	memStats := &runtime.MemStats{}
 	client := resty.New()
 	if agentConfig.CryptoKey != "" {
-		client.SetRootCertificate(agentConfig.CryptoKey + "cert.pem")
+		client.SetRootCertificate(path.Join(agentConfig.CryptoKey, "cert.pem"))
 	}
 	client.SetDoNotParseResponse(true)
 	mw := agent.New(memoryStorage, memStats, client, agentConfig)
