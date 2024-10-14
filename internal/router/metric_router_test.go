@@ -21,7 +21,7 @@ import (
 	"github.com/Vidkin/metrics/internal/repository/mock"
 )
 
-func (s *MetricRouterTestSuite) TestMetricRouter_GzipCompression() {
+func (s *MetricRouterTestSuite) TestMetricRouter_GzipMiddleware() {
 	requestBody := `{
 		"id": "test",
 		"type": "gauge",
@@ -79,15 +79,57 @@ func (s *MetricRouterTestSuite) TestMetricRouter_GzipCompression() {
 	})
 }
 
+func (s *MetricRouterTestSuite) TestMetricRouter_HashMiddleware() {
+	requestBody := `{
+		"id": "test",
+		"type": "gauge",
+		"value": 13.5
+	}`
+
+	successBody := `{
+		"id": "test",
+		"type": "gauge",
+		"value": 13.5
+	}`
+
+	s.Run("check_with_good_key", func() {
+		s.mockRepository.EXPECT().
+			UpdateMetric(gomock.Any(), gomock.Any()).
+			Return(nil)
+		s.mockRepository.EXPECT().
+			Dump(gomock.Any()).
+			Return(nil)
+
+		value := 13.5
+		s.mockRepository.EXPECT().
+			GetMetric(gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(&metric.Metric{ID: "test", MType: MetricTypeGauge, Value: &value}, nil)
+		resp, respBody := s.RequestTest(http.MethodPost, "/update", requestBody, "application/json", true, false)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusOK, resp.StatusCode)
+		s.Require().JSONEq(successBody, string(respBody))
+	})
+
+	s.Run("check_with_bad_key", func() {
+		goodKey := s.Key
+		s.Key = "badKey"
+
+		resp, _ := s.RequestTest(http.MethodPost, "/update", requestBody, "application/json", true, false)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+		s.Key = goodKey
+	})
+}
+
 func (s *MetricRouterTestSuite) TestMetricRouter_PingDBHandler() {
 	type want struct {
-		statusCode int
 		response   string
+		statusCode int
 	}
 	tests := []struct {
 		name        string
-		want        want
 		contentType string
+		want        want
 	}{
 		{
 			name:        "test db is not available",
@@ -128,9 +170,9 @@ func (s *MetricRouterTestSuite) TestMetricRouter_PingDBHandler() {
 
 func (s *MetricRouterTestSuite) TestMetricRouter_RootHandler() {
 	type want struct {
-		statusCode int
 		err        string
 		response   []*metric.Metric
+		statusCode int
 	}
 
 	var (
@@ -143,8 +185,8 @@ func (s *MetricRouterTestSuite) TestMetricRouter_RootHandler() {
 	)
 	tests := []struct {
 		name        string
-		want        want
 		contentType string
+		want        want
 	}{
 		{
 			name:        "db is not available",
@@ -215,9 +257,9 @@ func (s *MetricRouterTestSuite) TestMetricRouter_RootHandler() {
 
 func (s *MetricRouterTestSuite) TestMetricRouter_GetMetricValueHandlerJSON() {
 	type want struct {
-		statusCode int
-		err        string
 		response   *metric.Metric
+		err        string
+		statusCode int
 	}
 
 	const (
@@ -229,9 +271,9 @@ func (s *MetricRouterTestSuite) TestMetricRouter_GetMetricValueHandlerJSON() {
 	)
 	tests := []struct {
 		name        string
-		want        want
 		body        string
 		contentType string
+		want        want
 	}{
 		{
 			name:        "bad content type",
@@ -353,10 +395,10 @@ func (s *MetricRouterTestSuite) TestMetricRouter_GetMetricValueHandlerJSON() {
 
 func (s *MetricRouterTestSuite) TestMetricRouter_GetMetricValueHandler() {
 	type want struct {
-		statusCode    int
-		err           string
 		response      *metric.Metric
+		err           string
 		responseValue string
+		statusCode    int
 	}
 
 	const (
@@ -368,10 +410,10 @@ func (s *MetricRouterTestSuite) TestMetricRouter_GetMetricValueHandler() {
 	)
 	tests := []struct {
 		name        string
-		want        want
 		contentType string
 		mType       string
 		mName       string
+		want        want
 	}{
 		{
 			name:        "bad metric type",
@@ -459,9 +501,9 @@ func (s *MetricRouterTestSuite) TestMetricRouter_GetMetricValueHandler() {
 
 func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandlerJSON() {
 	type want struct {
-		statusCode int
-		err        string
 		response   *metric.Metric
+		err        string
+		statusCode int
 	}
 
 	const (
@@ -477,9 +519,9 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandlerJSON() {
 	)
 	tests := []struct {
 		name        string
-		want        want
 		body        string
 		contentType string
+		want        want
 	}{
 		{
 			name:        "bad content type",
@@ -721,9 +763,8 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandlerJSON() {
 
 func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandler() {
 	type want struct {
-		statusCode int
 		err        string
-		response   *metric.Metric
+		statusCode int
 	}
 
 	const (
@@ -735,11 +776,11 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandler() {
 
 	tests := []struct {
 		name        string
-		want        want
 		mType       string
 		mName       string
 		mValue      string
 		contentType string
+		want        want
 	}{
 		{
 			name:        "empty metric name",
@@ -900,9 +941,9 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricHandler() {
 
 func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricsHandlerJSON() {
 	type want struct {
-		statusCode int
-		err        string
 		response   *metric.Metric
+		err        string
+		statusCode int
 	}
 
 	const (
@@ -918,9 +959,9 @@ func (s *MetricRouterTestSuite) TestMetricRouter_UpdateMetricsHandlerJSON() {
 	)
 	tests := []struct {
 		name        string
-		want        want
 		body        string
 		contentType string
+		want        want
 	}{
 		{
 			name:        "bad content type",

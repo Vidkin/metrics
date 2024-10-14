@@ -1,3 +1,4 @@
+// Package logger provides a simple logging utility using the Zap logging library.
 package logger
 
 import (

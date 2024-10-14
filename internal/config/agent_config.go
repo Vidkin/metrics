@@ -27,11 +27,11 @@ const (
 // of the agent's settings.
 type AgentConfig struct {
 	ServerAddress  *ServerAddress
-	ReportInterval int    `env:"REPORT_INTERVAL"`
-	PollInterval   int    `env:"POLL_INTERVAL"`
 	Key            string `env:"KEY"`
-	RateLimit      int    `env:"RATE_LIMIT"`
 	LogLevel       string
+	ReportInterval int `env:"REPORT_INTERVAL"`
+	PollInterval   int `env:"POLL_INTERVAL"`
+	RateLimit      int `env:"RATE_LIMIT"`
 }
 
 // NewAgentConfig initializes a new AgentConfig instance with default values

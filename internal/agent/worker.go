@@ -1,3 +1,4 @@
+// Package agent provides functionality for collecting and sending metrics from the agent to a server.
 package agent
 
 import (
@@ -199,7 +200,7 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 		return 0, "", err
 	}
 	defer func(body io.ReadCloser) {
-		err := body.Close()
+		err = body.Close()
 		if err != nil {
 			logger.Log.Info("error close resp raw body", zap.Error(err))
 		}
@@ -208,7 +209,8 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 	contentEncoding := resp.Header().Get("Content-Encoding")
 	var or io.ReadCloser
 	if strings.Contains(contentEncoding, "gzip") {
-		cr, err := gzip.NewReader(resp.RawBody())
+		var cr *gzip.Reader
+		cr, err = gzip.NewReader(resp.RawBody())
 		if err != nil {
 			logger.Log.Info("error init gzip reader", zap.Error(err))
 			return 0, "", err

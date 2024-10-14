@@ -16,8 +16,6 @@ type hashResponseWriter struct {
 	http.ResponseWriter
 	Key        string
 	HashSHA256 string
-	statusCode int
-	written    bool
 }
 
 // Hash is an HTTP middleware function that validates the integrity of incoming
@@ -34,7 +32,11 @@ func Hash(key string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			hEnc := r.Header.Get("HashSHA256")
-			if hEnc != "" {
+			if hEnc == "" {
+				logger.Log.Error("client does not provide any hash")
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			} else {
 				hashA, err := base64.StdEncoding.DecodeString(hEnc)
 				if err != nil {
 					logger.Log.Error("error decode hash from base64 string", zap.Error(err))
@@ -46,7 +48,7 @@ func Hash(key string) func(http.Handler) http.Handler {
 				tee := io.TeeReader(r.Body, &buf)
 
 				defer func() {
-					if err := r.Body.Close(); err != nil {
+					if err = r.Body.Close(); err != nil {
 						logger.Log.Error("error close reader body", zap.Error(err))
 					}
 				}()

@@ -18,10 +18,10 @@ import (
 var Migrations embed.FS
 
 type PostgresStorage struct {
+	Conn           *sql.DB
 	GaugeMetrics   []*me.Metric
 	CounterMetrics []*me.Metric
 	AllMetrics     []*me.Metric
-	Conn           *sql.DB
 }
 
 func (p *PostgresStorage) UpdateMetric(ctx context.Context, metric *me.Metric) error {
@@ -29,7 +29,7 @@ func (p *PostgresStorage) UpdateMetric(ctx context.Context, metric *me.Metric) e
 	case MetricTypeGauge:
 		_, err := p.GetMetric(ctx, metric.MType, metric.ID)
 		if errors.Is(err, sql.ErrNoRows) {
-			_, err := p.Conn.ExecContext(ctx, "INSERT INTO gauge (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Value)
+			_, err = p.Conn.ExecContext(ctx, "INSERT INTO gauge (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Value)
 			return err
 		}
 		if err != nil {
@@ -41,7 +41,7 @@ func (p *PostgresStorage) UpdateMetric(ctx context.Context, metric *me.Metric) e
 	case MetricTypeCounter:
 		_, err := p.GetMetric(ctx, metric.MType, metric.ID)
 		if errors.Is(err, sql.ErrNoRows) {
-			_, err := p.Conn.ExecContext(ctx, "INSERT INTO counter (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Delta)
+			_, err = p.Conn.ExecContext(ctx, "INSERT INTO counter (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Delta)
 			return err
 		}
 		if err != nil {
@@ -70,7 +70,7 @@ func (p *PostgresStorage) UpdateMetrics(ctx context.Context, metrics *[]me.Metri
 			err = row.Scan(&metricID)
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
-					_, err := tx.ExecContext(ctx, "INSERT INTO gauge (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Value)
+					_, err = tx.ExecContext(ctx, "INSERT INTO gauge (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Value)
 					if err != nil {
 						logger.Log.Info("error insert gauge metric", zap.Error(err))
 						return err
@@ -91,7 +91,7 @@ func (p *PostgresStorage) UpdateMetrics(ctx context.Context, metrics *[]me.Metri
 			err = row.Scan(&metricID)
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
-					_, err := tx.ExecContext(ctx, "INSERT INTO counter (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Delta)
+					_, err = tx.ExecContext(ctx, "INSERT INTO counter (metric_name, metric_value) VALUES ($1, $2)", metric.ID, *metric.Delta)
 					if err != nil {
 						logger.Log.Info("error insert counter metric", zap.Error(err))
 						return err
@@ -218,7 +218,7 @@ func (p *PostgresStorage) GetGauges(ctx context.Context) ([]*me.Metric, error) {
 
 	for rows.Next() {
 		var m me.Metric
-		if err := rows.Scan(&m.ID, &m.Value); err != nil {
+		if err = rows.Scan(&m.ID, &m.Value); err != nil {
 			logger.Log.Info("error scan gauge metric", zap.Error(err))
 			return nil, err
 		}
@@ -249,7 +249,7 @@ func (p *PostgresStorage) GetCounters(ctx context.Context) ([]*me.Metric, error)
 
 	for rows.Next() {
 		var m me.Metric
-		if err := rows.Scan(&m.ID, &m.Delta); err != nil {
+		if err = rows.Scan(&m.ID, &m.Delta); err != nil {
 			logger.Log.Info("error scan counter metric", zap.Error(err))
 			return nil, err
 		}

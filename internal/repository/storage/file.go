@@ -15,13 +15,13 @@ import (
 )
 
 type FileStorage struct {
-	mu              sync.RWMutex
 	Gauge           map[string]float64
 	Counter         map[string]int64
+	FileStoragePath string
 	GaugeMetrics    []*me.Metric
 	CounterMetrics  []*me.Metric
 	AllMetrics      []*me.Metric
-	FileStoragePath string
+	mu              sync.RWMutex
 }
 
 func (f *FileStorage) UpdateMetric(_ context.Context, metric *me.Metric) error {
@@ -142,15 +142,15 @@ func (f *FileStorage) Dump(metric *me.Metric) error {
 	}
 	defer file.Close()
 
-	var metrics []me.Metric
 	data, err := io.ReadAll(file)
 	if err != nil {
 		logger.Log.Info("error read file", zap.Error(err))
 		return err
 	}
 
+	var metrics []me.Metric
 	if len(data) != 0 {
-		if err := json.Unmarshal(data, &metrics); err != nil {
+		if err = json.Unmarshal(data, &metrics); err != nil {
 			return err
 		}
 	}
@@ -231,12 +231,12 @@ func (f *FileStorage) Load(ctx context.Context) error {
 	}
 	defer file.Close()
 
-	var metrics []me.Metric
 	data, err := io.ReadAll(file)
 	if err != nil {
 		logger.Log.Info("error read file", zap.Error(err))
 		return err
 	}
+	var metrics []me.Metric
 	if err := json.Unmarshal(data, &metrics); err != nil {
 		return err
 	}

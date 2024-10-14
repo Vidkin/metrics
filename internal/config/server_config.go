@@ -14,13 +14,13 @@ import (
 // flexible configuration without hardcoding values.
 type ServerConfig struct {
 	ServerAddress   *ServerAddress
-	StoreInterval   int    `env:"STORE_INTERVAL"`
+	LogLevel        string
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
-	Restore         bool   `env:"RESTORE"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	Key             string `env:"KEY"`
+	StoreInterval   int    `env:"STORE_INTERVAL"`
+	Restore         bool   `env:"RESTORE"`
 	RetryCount      int
-	LogLevel        string
 }
 
 // NewServerConfig initializes a new ServerConfig instance with default values
