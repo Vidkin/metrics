@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -85,8 +86,7 @@ func New(repository router.Repository, memStats *runtime.MemStats, client *resty
 	}
 }
 
-func (mw *MetricWorker) CollectMetrics(chIn chan *metric.Metric, count int64) {
-	defer close(chIn)
+func (mw *MetricWorker) CollectMetrics(ctx context.Context, chIn chan *metric.Metric, count int64) {
 	runtime.ReadMemStats(mw.memStats)
 
 	vmStat, err := mem.VirtualMemory()
@@ -139,7 +139,7 @@ func (mw *MetricWorker) CollectMetrics(chIn chan *metric.Metric, count int64) {
 		gaugeMetrics[GaugeMetricCPUutilization+strconv.Itoa(i+1)] = percentage
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	for k, v := range gaugeMetrics {
 		gMetric := &metric.Metric{
@@ -167,7 +167,7 @@ func (mw *MetricWorker) CollectMetrics(chIn chan *metric.Metric, count int64) {
 	}
 }
 
-func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, string, error) {
+func (mw *MetricWorker) SendMetric(ctx context.Context, url string, metric *metric.Metric) (int, string, error) {
 	body, err := json.Marshal(metric)
 	if err != nil {
 		logger.Log.Info("error marshal body", zap.Error(err))
@@ -188,13 +188,13 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 		return 0, "", err
 	}
 
-	resp, err := mw.client.R().
+	req := mw.client.R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Accept-Encoding", "gzip").
-		SetBody(buf).
-		Post(url)
+		SetBody(buf)
 
+	resp, err := req.SetContext(ctx).Post(url)
 	if err != nil {
 		logger.Log.Info("error post request", zap.Error(err))
 		return 0, "", err
@@ -219,55 +219,70 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
 	} else {
 		or = resp.RawBody()
 	}
-	respBody, err := io.ReadAll(or)
-	if err != nil {
-		logger.Log.Info("error read response body", zap.Error(err))
-		return 0, "", err
-	}
 
-	return resp.StatusCode(), string(respBody), nil
+	select {
+	case <-ctx.Done():
+		logger.Log.Info("SendMetric shutdown due to context cancellation")
+		return 0, "", ctx.Err() // Возвращаем ошибку отмены контекста
+	default:
+		respBody, err := io.ReadAll(or)
+		if err != nil {
+			logger.Log.Info("error read response body", zap.Error(err))
+			return 0, "", err
+		}
+		return resp.StatusCode(), string(respBody), nil
+	}
 }
 
-func (mw *MetricWorker) SendMetrics(chIn chan *metric.Metric, serverURL string) {
-	for m := range chIn {
-		body, _ := json.Marshal([]*metric.Metric{m})
-		buf := bytes.NewBuffer([]byte{})
-		zb := gzip.NewWriter(buf)
-		_, _ = zb.Write(body)
-		err := zb.Close()
-		if err != nil {
-			logger.Log.Info("error close gzip writer", zap.Error(err))
-		}
-
-		for i := 0; i <= RequestRetryCount; i++ {
-			req := mw.client.R()
-			if mw.config.Key != "" {
-				h := hash.GetHashSHA256(mw.config.Key, buf.Bytes())
-				hEnc := base64.StdEncoding.EncodeToString(h)
-				req.SetHeader("HashSHA256", hEnc)
-			}
-			_, err := req.
-				SetHeader("Content-Type", "application/json").
-				SetHeader("Content-Encoding", "gzip").
-				SetHeader("Accept-Encoding", "gzip").
-				SetBody(buf).
-				Post(serverURL)
-			if err != nil {
-				var urlErr *url.Error
-				if errors.As(err, &urlErr) && i != RequestRetryCount {
-					logger.Log.Info("error post request", zap.Error(err))
-					time.Sleep(time.Duration(1+i*2) * time.Second)
-					continue
-				}
-				logger.Log.Info("error post request", zap.Error(err))
+func (mw *MetricWorker) SendMetrics(ctx context.Context, chIn chan *metric.Metric, serverURL string) {
+	for {
+		select {
+		case m, ok := <-chIn:
+			if !ok {
 				return
 			}
-			break
+			body, _ := json.Marshal([]*metric.Metric{m})
+			buf := bytes.NewBuffer([]byte{})
+			zb := gzip.NewWriter(buf)
+			_, _ = zb.Write(body)
+			err := zb.Close()
+			if err != nil {
+				logger.Log.Info("error close gzip writer", zap.Error(err))
+			}
+
+			for i := 0; i <= RequestRetryCount; i++ {
+				req := mw.client.R()
+				if mw.config.Key != "" {
+					h := hash.GetHashSHA256(mw.config.Key, buf.Bytes())
+					hEnc := base64.StdEncoding.EncodeToString(h)
+					req.SetHeader("HashSHA256", hEnc)
+				}
+				_, err = req.
+					SetHeader("Content-Type", "application/json").
+					SetHeader("Content-Encoding", "gzip").
+					SetHeader("Accept-Encoding", "gzip").
+					SetBody(buf).
+					Post(serverURL)
+				if err != nil {
+					var urlErr *url.Error
+					if errors.As(err, &urlErr) && i != RequestRetryCount {
+						logger.Log.Info("error post request", zap.Error(err))
+						time.Sleep(time.Duration(1+i*2) * time.Second)
+						continue
+					}
+					logger.Log.Info("error post request", zap.Error(err))
+					return
+				}
+				break
+			}
+
+		case <-ctx.Done():
+			return
 		}
 	}
 }
 
-func (mw *MetricWorker) Poll() {
+func (mw *MetricWorker) Poll(ctx context.Context) {
 	startTime := time.Now()
 	protocol := "http"
 	if mw.config.CryptoKey != "" {
@@ -275,18 +290,38 @@ func (mw *MetricWorker) Poll() {
 	}
 	var serverURL = protocol + "://" + mw.config.ServerAddress.Address + "/updates/"
 	var count int64 = 0
-	for {
-		currentTime := time.Now()
-		chIn := make(chan *metric.Metric, mw.config.RateLimit)
-		go mw.CollectMetrics(chIn, count)
 
-		if currentTime.Sub(startTime).Seconds() >= float64(mw.config.ReportInterval) {
-			startTime = currentTime
-			for w := 1; w <= mw.config.RateLimit; w++ {
-				go mw.SendMetrics(chIn, serverURL)
+	chIn := make(chan *metric.Metric, mw.config.RateLimit)
+	var wg sync.WaitGroup
+
+	for {
+		select {
+		case <-ctx.Done():
+			logger.Log.Info("application shutdown")
+			wg.Wait()
+			close(chIn)
+			return
+		default:
+			currentTime := time.Now()
+
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				mw.CollectMetrics(ctx, chIn, count)
+			}()
+
+			if currentTime.Sub(startTime).Seconds() >= float64(mw.config.ReportInterval) {
+				startTime = currentTime
+				for w := 1; w <= mw.config.RateLimit; w++ {
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						mw.SendMetrics(ctx, chIn, serverURL)
+					}()
+				}
 			}
+			time.Sleep(time.Duration(mw.config.PollInterval) * time.Second)
+			count++
 		}
-		time.Sleep(time.Duration(mw.config.PollInterval) * time.Second)
-		count++
 	}
 }

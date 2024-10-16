@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os/signal"
 	"path"
 	"runtime"
+	"sync"
+	"syscall"
 
 	"github.com/go-resty/resty/v2"
 
@@ -37,5 +41,16 @@ func main() {
 	client.SetDoNotParseResponse(true)
 	mw := agent.New(memoryStorage, memStats, client, agentConfig)
 
-	mw.Poll()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGINT)
+	defer stop()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		mw.Poll(ctx)
+	}()
+
+	wg.Wait()
 }
