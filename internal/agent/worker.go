@@ -292,14 +292,17 @@ func (mw *MetricWorker) Poll(ctx context.Context) {
 	var count int64 = 0
 
 	chIn := make(chan *metric.Metric, mw.config.RateLimit)
+	defer close(chIn)
 	var wg sync.WaitGroup
 
 	for {
 		select {
 		case <-ctx.Done():
 			logger.Log.Info("application shutdown")
+			ctxTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			mw.SendMetrics(ctxTimeout, chIn, serverURL)
 			wg.Wait()
-			close(chIn)
 			return
 		default:
 			currentTime := time.Now()
