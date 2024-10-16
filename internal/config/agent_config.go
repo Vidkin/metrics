@@ -1,9 +1,14 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
+	"os"
 
 	"github.com/caarlos0/env/v6"
+	"go.uber.org/zap"
+
+	"github.com/Vidkin/metrics/internal/logger"
 )
 
 // Constants for default agent intervals.
@@ -26,13 +31,14 @@ const (
 // flags and environment variables, allowing for flexible deployment and management
 // of the agent's settings.
 type AgentConfig struct {
-	ServerAddress  *ServerAddress
-	Key            string `env:"KEY"`
-	CryptoKey      string `env:"CRYPTO_KEY"`
+	ServerAddress  *ServerAddress `json:"address"`
+	ConfigPath     string         `env:"CONFIG"`
+	Key            string         `env:"KEY" json:"hash_key"`
+	CryptoKey      string         `env:"CRYPTO_KEY" json:"crypto_key"`
 	LogLevel       string
-	ReportInterval int `env:"REPORT_INTERVAL"`
-	PollInterval   int `env:"POLL_INTERVAL"`
-	RateLimit      int `env:"RATE_LIMIT"`
+	ReportInterval Interval `env:"REPORT_INTERVAL" json:"report_interval"`
+	PollInterval   Interval `env:"POLL_INTERVAL" json:"poll_interval"`
+	RateLimit      int      `env:"RATE_LIMIT" json:"rate_limit"`
 }
 
 // NewAgentConfig initializes a new AgentConfig instance with default values
@@ -54,12 +60,20 @@ func NewAgentConfig() (*AgentConfig, error) {
 
 func (config *AgentConfig) parseFlags() error {
 	flag.Var(config.ServerAddress, "a", "Server address host:port")
-	flag.IntVar(&config.ReportInterval, "r", DefaultAgentReportInterval, "Agent report poll interval (sec)")
-	flag.IntVar(&config.PollInterval, "p", DefaultAgentPollInterval, "Agent poll interval (sec)")
+	flag.StringVar(&config.ConfigPath, "c", "", "Path to json config file")
+	flag.StringVar(&config.ConfigPath, "config", "", "Path to json config file")
+	flag.IntVar((*int)(&config.ReportInterval), "r", DefaultAgentReportInterval, "Agent report poll interval (sec)")
+	flag.IntVar((*int)(&config.PollInterval), "p", DefaultAgentPollInterval, "Agent poll interval (sec)")
 	flag.IntVar(&config.RateLimit, "l", 5, "Rate limit")
 	flag.StringVar(&config.Key, "k", "", "Hash key")
 	flag.StringVar(&config.CryptoKey, "crypto-key", "", "Crypto key")
 	flag.Parse()
+
+	if config.ConfigPath != "" {
+		if err := config.loadJSONConfig(config.ConfigPath); err != nil {
+			logger.Log.Error("error parse json config file", zap.Error(err))
+		}
+	}
 
 	err := env.Parse(config.ServerAddress)
 	if err != nil {
@@ -68,6 +82,67 @@ func (config *AgentConfig) parseFlags() error {
 
 	if config.ServerAddress.Address == "" {
 		config.ServerAddress.Address = config.ServerAddress.String()
+	}
+
+	return nil
+}
+
+func (config *AgentConfig) loadJSONConfig(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var jsonAgentConfig AgentConfig
+	if err = json.Unmarshal(data, &jsonAgentConfig); err != nil {
+		return err
+	}
+
+	if config.ServerAddress.Address == "" {
+		config.ServerAddress = jsonAgentConfig.ServerAddress
+	}
+
+	cryptoKeyPassed := false
+	reportIntervalPassed := false
+	pollIntervalPassed := false
+	hashKeyPassed := false
+	rateLimitPassed := false
+
+	args := os.Args[1:]
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch arg {
+		case "--p", "-p":
+			pollIntervalPassed = true
+		case "--crypto-key", "-crypto-key":
+			cryptoKeyPassed = true
+		case "--r", "-r":
+			reportIntervalPassed = true
+		case "--l", "-l":
+			rateLimitPassed = true
+		case "--k", "-k":
+			hashKeyPassed = true
+		}
+	}
+
+	if !cryptoKeyPassed {
+		config.CryptoKey = jsonAgentConfig.CryptoKey
+	}
+
+	if !reportIntervalPassed {
+		config.ReportInterval = jsonAgentConfig.ReportInterval
+	}
+
+	if !pollIntervalPassed {
+		config.PollInterval = jsonAgentConfig.PollInterval
+	}
+
+	if !rateLimitPassed {
+		config.RateLimit = jsonAgentConfig.RateLimit
+	}
+
+	if !hashKeyPassed {
+		config.Key = jsonAgentConfig.Key
 	}
 
 	return nil

@@ -1,0 +1,8 @@
+{
+  "address": "127.0.0.1:8080",
+  "report_interval": "10s",
+  "poll_interval": "2s",
+  "hash_key": "",
+  "rate_limit": 5,
+  "crypto_key": "/Users/skim/GolandProjects/yandex-praktikum/metrics/internal/certs"
+}

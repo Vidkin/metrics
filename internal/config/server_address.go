@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"net"
 	"strconv"
 	"strings"
 )
@@ -70,5 +71,28 @@ func (s *ServerAddress) Set(flagRunAddr string) error {
 	s.Host = splittedAddress[0]
 	s.Port = port
 
+	return nil
+}
+
+// UnmarshalJSON unmarshals a JSON object into a ServerAddress struct.
+// It expects the JSON to contain an "address" field in the format "host:port".
+//
+// Parameters:
+//   - data: A byte slice containing the JSON data to unmarshal.
+//
+// Returns:
+//   - An error if the input format is invalid or if the port cannot be converted to an integer.
+func (s *ServerAddress) UnmarshalJSON(data []byte) error {
+	address := strings.Trim(string(data), "\"")
+	host, portStr, err := net.SplitHostPort(address)
+	if err != nil {
+		return err
+	}
+	s.Host = host
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return err
+	}
+	s.Port = port
 	return nil
 }

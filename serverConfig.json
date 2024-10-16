@@ -1,0 +1,8 @@
+{
+  "address": "127.0.0.1:8080",
+  "restore": true,
+  "store_interval": "300s",
+  "store_file": "/path/to/file.db",
+  "database_dsn": "postgres://postgres:postgres@localhost:5432/postgres",
+  "crypto_key": "/Users/skim/GolandProjects/yandex-praktikum/metrics/internal/certs"
+}
