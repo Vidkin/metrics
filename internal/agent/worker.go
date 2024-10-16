@@ -302,7 +302,14 @@ func (mw *MetricWorker) Poll(ctx context.Context) {
 			ctxTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			mw.SendMetrics(ctxTimeout, chIn, serverURL)
-			wg.Wait()
+
+			ctxWait, cancelWait := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancelWait()
+			go func() {
+				wg.Wait()
+			}()
+
+			<-ctxWait.Done()
 			return
 		default:
 			currentTime := time.Now()
