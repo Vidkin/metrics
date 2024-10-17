@@ -38,46 +38,52 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 
 // DeleteMetric mocks base method.
 func (m *MockRepository) DeleteMetric(arg0 context.Context, arg1, arg2 string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteMetric", arg0, arg1, arg2)
-	ret0, _ := ret[0].(error)
-	return ret0
+	//m.ctrl.T.Helper()
+	//ret := m.ctrl.Call(m, "DeleteMetric", arg0, arg1, arg2)
+	//ret0, _ := ret[0].(error)
+	//return ret0
+	return nil
 }
 
 // DeleteMetric indicates an expected call of DeleteMetric.
 func (mr *MockRepositoryMockRecorder) DeleteMetric(arg0, arg1, arg2 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMetric", reflect.TypeOf((*MockRepository)(nil).DeleteMetric), arg0, arg1, arg2)
+	//mr.mock.ctrl.T.Helper()
+	//return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMetric", reflect.TypeOf((*MockRepository)(nil).DeleteMetric), arg0, arg1, arg2)
+	return nil
 }
 
 // GetCounters mocks base method.
 func (m *MockRepository) GetCounters(arg0 context.Context) ([]*metric.Metric, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCounters", arg0)
-	ret0, _ := ret[0].([]*metric.Metric)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	//m.ctrl.T.Helper()
+	//ret := m.ctrl.Call(m, "GetCounters", arg0)
+	//ret0, _ := ret[0].([]*metric.Metric)
+	//ret1, _ := ret[1].(error)
+	//return ret0, ret1
+	return nil, nil
 }
 
 // GetCounters indicates an expected call of GetCounters.
 func (mr *MockRepositoryMockRecorder) GetCounters(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCounters", reflect.TypeOf((*MockRepository)(nil).GetCounters), arg0)
+	//mr.mock.ctrl.T.Helper()
+	//return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCounters", reflect.TypeOf((*MockRepository)(nil).GetCounters), arg0)
+	return nil
 }
 
 // GetGauges mocks base method.
 func (m *MockRepository) GetGauges(arg0 context.Context) ([]*metric.Metric, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetGauges", arg0)
-	ret0, _ := ret[0].([]*metric.Metric)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	//m.ctrl.T.Helper()
+	//ret := m.ctrl.Call(m, "GetGauges", arg0)
+	//ret0, _ := ret[0].([]*metric.Metric)
+	//ret1, _ := ret[1].(error)
+	//return ret0, ret1
+	return nil, nil
 }
 
 // GetGauges indicates an expected call of GetGauges.
 func (mr *MockRepositoryMockRecorder) GetGauges(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGauges", reflect.TypeOf((*MockRepository)(nil).GetGauges), arg0)
+	//mr.mock.ctrl.T.Helper()
+	//return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGauges", reflect.TypeOf((*MockRepository)(nil).GetGauges), arg0)
+	return nil
 }
 
 // GetMetric mocks base method.
@@ -154,16 +160,18 @@ func (mr *MockRepositoryMockRecorder) Dump(arg0 interface{}) *gomock.Call {
 
 // FullDump mocks base method.
 func (m *MockRepository) FullDump() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FullDump")
-	ret0, _ := ret[0].(error)
-	return ret0
+	//m.ctrl.T.Helper()
+	//ret := m.ctrl.Call(m, "FullDump")
+	//ret0, _ := ret[0].(error)
+	//return ret0
+	return nil
 }
 
 // FullDump indicates an expected call of FullDump.
 func (mr *MockRepositoryMockRecorder) FullDump() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullDump", reflect.TypeOf((*MockRepository)(nil).FullDump))
+	//mr.mock.ctrl.T.Helper()
+	//return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullDump", reflect.TypeOf((*MockRepository)(nil).FullDump))
+	return nil
 }
 
 // Ping mocks base method.

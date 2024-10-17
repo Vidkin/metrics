@@ -36,9 +36,9 @@ func BenchmarkCollectAndSendMetrics(b *testing.B) {
 		var count int64 = 1
 		for i := 0; i < 100; i++ {
 			chIn := make(chan *metric.Metric, 10)
-			go mw.CollectMetrics(chIn, count)
+			go mw.CollectMetrics(context.TODO(), chIn, count)
 			for w := 1; w <= mw.config.RateLimit; w++ {
-				go mw.SendMetrics(chIn, serverURL)
+				go mw.SendMetrics(context.TODO(), chIn, serverURL)
 			}
 		}
 	})
@@ -77,16 +77,16 @@ func TestSendMetrics(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
 			chIn := make(chan *metric.Metric, 10)
-			go mw.CollectMetrics(chIn, 10)
+			go mw.CollectMetrics(context.TODO(), chIn, 10)
 
 			if test.sendToWrongURL {
-				mw.SendMetrics(chIn, ts.URL+"/wrong_url/")
+				mw.SendMetrics(context.TODO(), chIn, ts.URL+"/wrong_url/")
 				ctx := context.TODO()
 				testMetrics, _ := mw.repository.GetMetrics(ctx)
 				serverMetrics, _ := serverRepository.GetMetrics(ctx)
 				assert.NotEqual(t, testMetrics, serverMetrics)
 			} else {
-				mw.SendMetrics(chIn, ts.URL+"/updates/")
+				mw.SendMetrics(context.TODO(), chIn, ts.URL+"/updates/")
 				ctx := context.TODO()
 				testMetrics, _ := mw.repository.GetMetrics(ctx)
 				serverMetrics, _ := serverRepository.GetMetrics(ctx)
@@ -190,10 +190,10 @@ func TestSendMetric(t *testing.T) {
 			clear(serverRepository.Counter)
 
 			if test.sendToWrongURL {
-				_, _, err := mw.SendMetric(ts.URL+"/wrong_url/", &test.metric)
+				_, _, err := mw.SendMetric(context.TODO(), ts.URL+"/wrong_url/", &test.metric)
 				assert.NotNil(t, err)
 			} else {
-				respCode, respBody, err := mw.SendMetric(ts.URL+"/update/", &test.metric)
+				respCode, respBody, err := mw.SendMetric(context.TODO(), ts.URL+"/update/", &test.metric)
 				assert.Equal(t, test.want.statusCode, respCode)
 				if test.want.statusCode == http.StatusOK {
 					assert.JSONEq(t, test.want.resp, respBody)

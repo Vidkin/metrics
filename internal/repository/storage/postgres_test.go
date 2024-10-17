@@ -11,7 +11,7 @@ import (
 	me "github.com/Vidkin/metrics/internal/metric"
 )
 
-func TestPing(t *testing.T) {
+func TestPostgresStorage_Ping(t *testing.T) {
 	tests := []struct {
 		name    string
 		wantErr bool
@@ -65,7 +65,7 @@ func TestPing(t *testing.T) {
 	}
 }
 
-func TestClose(t *testing.T) {
+func TestPostgresStorage_Close(t *testing.T) {
 	tests := []struct {
 		name string
 	}{
@@ -91,7 +91,7 @@ func TestClose(t *testing.T) {
 	}
 }
 
-func TestUpdateMetric(t *testing.T) {
+func TestPostgresStorage_Metric(t *testing.T) {
 	floatValue := 16.4
 	floatValue2 := 16.5
 	intValue := int64(12)
@@ -211,7 +211,7 @@ func TestUpdateMetric(t *testing.T) {
 	}
 }
 
-func TestDeleteMetric(t *testing.T) {
+func TestPostgresStorage_DeleteMetric(t *testing.T) {
 	floatValue := 16.4
 	intValue := int64(12)
 	tests := []struct {
@@ -300,7 +300,7 @@ func TestDeleteMetric(t *testing.T) {
 	}
 }
 
-func TestGetMetric(t *testing.T) {
+func TestPostgresStorage_GetMetric(t *testing.T) {
 	floatValue := 16.4
 	intValue := int64(12)
 	tests := []struct {
@@ -390,7 +390,7 @@ func TestGetMetric(t *testing.T) {
 	}
 }
 
-func TestGetMetrics(t *testing.T) {
+func TestPostgresStorage_GetMetrics(t *testing.T) {
 	floatValue := 16.4
 	intValue := int64(12)
 	tests := []struct {
@@ -467,7 +467,7 @@ func TestGetMetrics(t *testing.T) {
 	}
 }
 
-func TestUpdateMetrics(t *testing.T) {
+func TestPostgresStorage_UpdateMetrics(t *testing.T) {
 	floatValue := 16.4
 	floatValue2 := 15.4
 	intValue := int64(12)

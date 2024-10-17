@@ -213,7 +213,7 @@ func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *confi
 	})
 	mr.Router = router
 	mr.Repository = repository
-	mr.StoreInterval = serverConfig.StoreInterval
+	mr.StoreInterval = (int)(serverConfig.StoreInterval)
 	mr.RetryCount = serverConfig.RetryCount
 	mr.LastStoreTime = time.Now()
 	return &mr
