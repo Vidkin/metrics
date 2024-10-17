@@ -40,7 +40,6 @@ func BenchmarkCollectAndSendMetrics(b *testing.B) {
 			for w := 1; w <= mw.config.RateLimit; w++ {
 				go mw.SendMetrics(context.TODO(), chIn, serverURL)
 			}
-			close(chIn)
 		}
 	})
 }
@@ -93,7 +92,6 @@ func TestSendMetrics(t *testing.T) {
 				serverMetrics, _ := serverRepository.GetMetrics(ctx)
 				assert.ElementsMatch(t, testMetrics, serverMetrics)
 			}
-			close(chIn)
 		})
 	}
 }

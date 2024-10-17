@@ -87,6 +87,7 @@ func New(repository router.Repository, memStats *runtime.MemStats, client *resty
 }
 
 func (mw *MetricWorker) CollectMetrics(ctx context.Context, chIn chan *metric.Metric, count int64) {
+	defer close(chIn)
 	runtime.ReadMemStats(mw.memStats)
 
 	vmStat, err := mem.VirtualMemory()
@@ -291,11 +292,10 @@ func (mw *MetricWorker) Poll(ctx context.Context) {
 	var serverURL = protocol + "://" + mw.config.ServerAddress.Address + "/updates/"
 	var count int64 = 0
 
-	chIn := make(chan *metric.Metric, mw.config.RateLimit)
-	defer close(chIn)
 	var wg sync.WaitGroup
 
 	for {
+		chIn := make(chan *metric.Metric, mw.config.RateLimit)
 		select {
 		case <-ctx.Done():
 			logger.Log.Info("application shutdown")
