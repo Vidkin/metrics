@@ -33,6 +33,8 @@ func (f *FileStorage) UpdateMetric(_ context.Context, metric *me.Metric) error {
 		f.Gauge[metric.ID] = *metric.Value
 	case MetricTypeCounter:
 		f.Counter[metric.ID] += *metric.Delta
+	default:
+		return errors.New("unknown metric type")
 	}
 	return nil
 }
@@ -47,6 +49,8 @@ func (f *FileStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) err
 			f.Gauge[metric.ID] = *metric.Value
 		case MetricTypeCounter:
 			f.Counter[metric.ID] += *metric.Delta
+		default:
+			return errors.New("unknown metric type")
 		}
 	}
 	return nil
@@ -61,6 +65,8 @@ func (f *FileStorage) DeleteMetric(_ context.Context, mType string, name string)
 		delete(f.Gauge, name)
 	case MetricTypeCounter:
 		delete(f.Counter, name)
+	default:
+		return errors.New("unknown metric type")
 	}
 	return nil
 }
@@ -87,6 +93,8 @@ func (f *FileStorage) GetMetric(_ context.Context, mType string, name string) (*
 		metric.ID = name
 		metric.MType = MetricTypeCounter
 		metric.Delta = &v
+	default:
+		return nil, errors.New("unknown metric type")
 	}
 	return &metric, nil
 }
