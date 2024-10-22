@@ -8,6 +8,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"path"
 	"syscall"
 	"time"
 
@@ -55,8 +56,14 @@ func (a *ServerApp) Serve() {
 			logger.Log.Error("error start pprof endpoint", zap.Error(err))
 		}
 	}()
-	if err := a.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		logger.Log.Fatal("listen and serve fatal error", zap.Error(err))
+	if a.config.CryptoKey != "" {
+		if err := a.srv.ListenAndServeTLS(path.Join(a.config.CryptoKey, "cert.pem"), path.Join(a.config.CryptoKey, "privateKey.pem")); err != nil && err != http.ErrServerClosed {
+			logger.Log.Fatal("listen and serve tls fatal error", zap.Error(err))
+		}
+	} else {
+		if err := a.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Log.Fatal("listen and serve fatal error", zap.Error(err))
+		}
 	}
 }
 
@@ -95,7 +102,7 @@ func (a *ServerApp) Run() {
 	}
 
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	<-quit
 
 	defer a.Stop()

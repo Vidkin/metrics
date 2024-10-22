@@ -63,41 +63,45 @@
 				
 				<option value="file3">github.com/Vidkin/metrics/cmd/staticlint/multichecker.go (0.0%)</option>
 				
-				<option value="file4">github.com/Vidkin/metrics/internal/agent/worker.go (57.1%)</option>
+				<option value="file4">github.com/Vidkin/metrics/internal/agent/worker.go (48.5%)</option>
 				
-				<option value="file5">github.com/Vidkin/metrics/internal/config/agent_config.go (0.0%)</option>
+				<option value="file5">github.com/Vidkin/metrics/internal/certs/x509.go (0.0%)</option>
 				
-				<option value="file6">github.com/Vidkin/metrics/internal/config/server_address.go (0.0%)</option>
+				<option value="file6">github.com/Vidkin/metrics/internal/config/agent_config.go (0.0%)</option>
 				
-				<option value="file7">github.com/Vidkin/metrics/internal/config/server_config.go (0.0%)</option>
+				<option value="file7">github.com/Vidkin/metrics/internal/config/interval.go (0.0%)</option>
 				
-				<option value="file8">github.com/Vidkin/metrics/internal/logger/logger.go (0.0%)</option>
+				<option value="file8">github.com/Vidkin/metrics/internal/config/server_address.go (0.0%)</option>
 				
-				<option value="file9">github.com/Vidkin/metrics/internal/metric/metric.go (100.0%)</option>
+				<option value="file9">github.com/Vidkin/metrics/internal/config/server_config.go (0.0%)</option>
 				
-				<option value="file10">github.com/Vidkin/metrics/internal/repository/mock/mock_repository.go (61.8%)</option>
+				<option value="file10">github.com/Vidkin/metrics/internal/logger/logger.go (0.0%)</option>
 				
-				<option value="file11">github.com/Vidkin/metrics/internal/repository/storage/file.go (0.0%)</option>
+				<option value="file11">github.com/Vidkin/metrics/internal/metric/metric.go (100.0%)</option>
 				
-				<option value="file12">github.com/Vidkin/metrics/internal/repository/storage/memory.go (0.0%)</option>
+				<option value="file12">github.com/Vidkin/metrics/internal/repository/mock/mock_repository.go (84.0%)</option>
 				
-				<option value="file13">github.com/Vidkin/metrics/internal/repository/storage/postgres.go (71.1%)</option>
+				<option value="file13">github.com/Vidkin/metrics/internal/repository/storage/file.go (79.1%)</option>
 				
-				<option value="file14">github.com/Vidkin/metrics/internal/router/metric_router.go (91.5%)</option>
+				<option value="file14">github.com/Vidkin/metrics/internal/repository/storage/memory.go (93.3%)</option>
 				
-				<option value="file15">github.com/Vidkin/metrics/internal/router/storage_factory.go (43.3%)</option>
+				<option value="file15">github.com/Vidkin/metrics/internal/repository/storage/postgres.go (71.1%)</option>
 				
-				<option value="file16">github.com/Vidkin/metrics/pkg/compress/gzip.go (80.0%)</option>
+				<option value="file16">github.com/Vidkin/metrics/internal/router/metric_router.go (91.5%)</option>
 				
-				<option value="file17">github.com/Vidkin/metrics/pkg/exitcheck/exit.go (100.0%)</option>
+				<option value="file17">github.com/Vidkin/metrics/internal/router/storage_factory.go (43.3%)</option>
 				
-				<option value="file18">github.com/Vidkin/metrics/pkg/hash/sha256.go (100.0%)</option>
+				<option value="file18">github.com/Vidkin/metrics/pkg/compress/gzip.go (80.0%)</option>
 				
-				<option value="file19">github.com/Vidkin/metrics/pkg/middleware/gzip.go (75.0%)</option>
+				<option value="file19">github.com/Vidkin/metrics/pkg/exitcheck/exit.go (100.0%)</option>
 				
-				<option value="file20">github.com/Vidkin/metrics/pkg/middleware/hash.go (66.7%)</option>
+				<option value="file20">github.com/Vidkin/metrics/pkg/hash/sha256.go (100.0%)</option>
 				
-				<option value="file21">github.com/Vidkin/metrics/pkg/middleware/logging.go (100.0%)</option>
+				<option value="file21">github.com/Vidkin/metrics/pkg/middleware/gzip.go (75.0%)</option>
+				
+				<option value="file22">github.com/Vidkin/metrics/pkg/middleware/hash.go (66.7%)</option>
+				
+				<option value="file23">github.com/Vidkin/metrics/pkg/middleware/logging.go (100.0%)</option>
 				
 				</select>
 			</div>
@@ -121,6 +125,7 @@ import (
         _ "net/http/pprof"
         "os"
         "os/signal"
+        "path"
         "syscall"
         "time"
 
@@ -168,9 +173,15 @@ func (a *ServerApp) Serve() <span class="cov0" title="0">{
                         logger.Log.Error("error start pprof endpoint", zap.Error(err))
                 }</span>
         }()
-        <span class="cov0" title="0">if err := a.srv.ListenAndServe(); err != nil &amp;&amp; err != http.ErrServerClosed </span><span class="cov0" title="0">{
-                logger.Log.Fatal("listen and serve fatal error", zap.Error(err))
-        }</span>
+        <span class="cov0" title="0">if a.config.CryptoKey != "" </span><span class="cov0" title="0">{
+                if err := a.srv.ListenAndServeTLS(path.Join(a.config.CryptoKey, "cert.pem"), path.Join(a.config.CryptoKey, "privateKey.pem")); err != nil &amp;&amp; err != http.ErrServerClosed </span><span class="cov0" title="0">{
+                        logger.Log.Fatal("listen and serve tls fatal error", zap.Error(err))
+                }</span>
+        } else<span class="cov0" title="0"> {
+                if err := a.srv.ListenAndServe(); err != nil &amp;&amp; err != http.ErrServerClosed </span><span class="cov0" title="0">{
+                        logger.Log.Fatal("listen and serve fatal error", zap.Error(err))
+                }</span>
+        }
 }
 
 func (a *ServerApp) DumpToFile() error <span class="cov0" title="0">{
@@ -208,7 +219,7 @@ func (a *ServerApp) Run() <span class="cov0" title="0">{
         }
 
         <span class="cov0" title="0">quit := make(chan os.Signal, 1)
-        signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+        signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
         &lt;-quit
 
         defer a.Stop()</span>
@@ -241,8 +252,13 @@ func (a *ServerApp) Stop() <span class="cov0" title="0">{
 		<pre class="file" id="file1" style="display: none">package main
 
 import (
+        "context"
         "fmt"
+        "os/signal"
+        "path"
         "runtime"
+        "sync"
+        "syscall"
 
         "github.com/go-resty/resty/v2"
 
@@ -264,16 +280,30 @@ func main() <span class="cov0" title="0">{
         if err != nil </span><span class="cov0" title="0">{
                 panic(err)</span>
         }
-        <span class="cov0" title="0">if err := logger.Initialize(agentConfig.LogLevel); err != nil </span><span class="cov0" title="0">{
+        <span class="cov0" title="0">if err = logger.Initialize(agentConfig.LogLevel); err != nil </span><span class="cov0" title="0">{
                 panic(err)</span>
         }
         <span class="cov0" title="0">memoryStorage := router.NewFileStorage("")
         memStats := &amp;runtime.MemStats{}
         client := resty.New()
-        client.SetDoNotParseResponse(true)
+        if agentConfig.CryptoKey != "" </span><span class="cov0" title="0">{
+                client.SetRootCertificate(path.Join(agentConfig.CryptoKey, "cert.pem"))
+        }</span>
+        <span class="cov0" title="0">client.SetDoNotParseResponse(true)
         mw := agent.New(memoryStorage, memStats, client, agentConfig)
 
-        mw.Poll()</span>
+        ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGINT)
+        defer stop()
+
+        var wg sync.WaitGroup
+        wg.Add(1)
+
+        go func() </span><span class="cov0" title="0">{
+                defer wg.Done()
+                mw.Poll(ctx)
+        }</span>()
+
+        <span class="cov0" title="0">wg.Wait()</span>
 }
 </pre>
 		
@@ -307,7 +337,41 @@ func main() <span class="cov0" title="0">{
 }
 </pre>
 		
-		<pre class="file" id="file3" style="display: none">package main
+		<pre class="file" id="file3" style="display: none">/*
+Package staticlint provides a command-line tool that runs a collection of static analysis checks on Go code.
+
+The tool includes checks for common programming mistakes, performance issues, and adherence to best practices.
+
+## Usage
+
+To use the staticlint tool, run the following command in your terminal:
+
+        go run /path/to/multichecker.go /path/to/your/package
+
+This will execute all the configured static analysis checks on the Go code in the current directory.
+
+To get more information about the used code analyzers, run the following command in your terminal:
+
+        go run /path/to/multichecker.go --help
+
+## Exit Codes
+
+The staticlint tool will return a non-zero exit code if any of the checks fail, allowing for integration
+with CI/CD pipelines and other automated systems.
+
+## Example
+
+To run staticlint on a specific package, you can specify the package path:
+
+        go run path/to/multichecker.go /path/to/package
+
+This will analyze the specified package and report any issues found.
+
+You can specify the analyzers you want to run, for example:
+
+        go run path/to/multichecker.go -ST1006 /path/to/package
+*/
+package main
 
 import (
         "strings"
@@ -438,6 +502,8 @@ func getAnalysisAnalizers() []*analysis.Analyzer <span class="cov0" title="0">{
         return res
 }</span>
 
+// main is the entry point of the staticlint tool. It initializes and runs a collection of static analysis checks
+// on Go code. Need to build with flag: -ldflags=-checklinkname=0 cause of structslop.Analyzer
 func main() <span class="cov0" title="0">{
         allChecks := make([]*analysis.Analyzer, 0)
         allChecks = append(allChecks, analysis2.ExitMainAnalyzer)
@@ -467,6 +533,7 @@ import (
         "runtime"
         "strconv"
         "strings"
+        "sync"
         "time"
 
         "github.com/go-resty/resty/v2"
@@ -538,7 +605,7 @@ func New(repository router.Repository, memStats *runtime.MemStats, client *resty
         }
 }</span>
 
-func (mw *MetricWorker) CollectMetrics(chIn chan *metric.Metric, count int64) <span class="cov8" title="1">{
+func (mw *MetricWorker) CollectMetrics(ctx context.Context, chIn chan *metric.Metric, count int64) <span class="cov8" title="1">{
         defer close(chIn)
         runtime.ReadMemStats(mw.memStats)
 
@@ -592,7 +659,7 @@ func (mw *MetricWorker) CollectMetrics(chIn chan *metric.Metric, count int64) <s
                 gaugeMetrics[GaugeMetricCPUutilization+strconv.Itoa(i+1)] = percentage
         }</span>
 
-        <span class="cov8" title="1">ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+        <span class="cov8" title="1">ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
         defer cancel()
         for k, v := range gaugeMetrics </span><span class="cov8" title="1">{
                 gMetric := &amp;metric.Metric{
@@ -620,7 +687,7 @@ func (mw *MetricWorker) CollectMetrics(chIn chan *metric.Metric, count int64) <s
         }</span>
 }
 
-func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, string, error) <span class="cov8" title="1">{
+func (mw *MetricWorker) SendMetric(ctx context.Context, url string, metric *metric.Metric) (int, string, error) <span class="cov8" title="1">{
         body, err := json.Marshal(metric)
         if err != nil </span><span class="cov0" title="0">{
                 logger.Log.Info("error marshal body", zap.Error(err))
@@ -641,13 +708,13 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
                 return 0, "", err
         }</span>
 
-        <span class="cov8" title="1">resp, err := mw.client.R().
+        <span class="cov8" title="1">req := mw.client.R().
                 SetHeader("Content-Type", "application/json").
                 SetHeader("Content-Encoding", "gzip").
                 SetHeader("Accept-Encoding", "gzip").
-                SetBody(buf).
-                Post(url)
+                SetBody(buf)
 
+        resp, err := req.SetContext(ctx).Post(url)
         if err != nil </span><span class="cov0" title="0">{
                 logger.Log.Info("error post request", zap.Error(err))
                 return 0, "", err
@@ -672,81 +739,217 @@ func (mw *MetricWorker) SendMetric(url string, metric *metric.Metric) (int, stri
         } else<span class="cov8" title="1"> {
                 or = resp.RawBody()
         }</span>
-        <span class="cov8" title="1">respBody, err := io.ReadAll(or)
-        if err != nil </span><span class="cov0" title="0">{
-                logger.Log.Info("error read response body", zap.Error(err))
-                return 0, "", err
-        }</span>
 
-        <span class="cov8" title="1">return resp.StatusCode(), string(respBody), nil</span>
+        <span class="cov8" title="1">select </span>{
+        case &lt;-ctx.Done():<span class="cov0" title="0">
+                logger.Log.Info("SendMetric shutdown due to context cancellation")
+                return 0, "", ctx.Err()</span> // Возвращаем ошибку отмены контекста
+        default:<span class="cov8" title="1">
+                respBody, err := io.ReadAll(or)
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Info("error read response body", zap.Error(err))
+                        return 0, "", err
+                }</span>
+                <span class="cov8" title="1">return resp.StatusCode(), string(respBody), nil</span>
+        }
 }
 
-func (mw *MetricWorker) SendMetrics(chIn chan *metric.Metric, serverURL string) <span class="cov8" title="1">{
-        for m := range chIn </span><span class="cov8" title="1">{
-                body, _ := json.Marshal([]*metric.Metric{m})
-                buf := bytes.NewBuffer([]byte{})
-                zb := gzip.NewWriter(buf)
-                _, _ = zb.Write(body)
-                err := zb.Close()
-                if err != nil </span><span class="cov0" title="0">{
-                        logger.Log.Info("error close gzip writer", zap.Error(err))
-                }</span>
-
-                <span class="cov8" title="1">for i := 0; i &lt;= RequestRetryCount; i++ </span><span class="cov8" title="1">{
-                        req := mw.client.R()
-                        if mw.config.Key != "" </span><span class="cov0" title="0">{
-                                h := hash.GetHashSHA256(mw.config.Key, buf.Bytes())
-                                hEnc := base64.StdEncoding.EncodeToString(h)
-                                req.SetHeader("HashSHA256", hEnc)
+func (mw *MetricWorker) SendMetrics(ctx context.Context, chIn chan *metric.Metric, serverURL string) <span class="cov8" title="1">{
+        for </span><span class="cov8" title="1">{
+                select </span>{
+                case m, ok := &lt;-chIn:<span class="cov8" title="1">
+                        if !ok </span><span class="cov8" title="1">{
+                                return
                         }</span>
-                        <span class="cov8" title="1">_, err := req.
-                                SetHeader("Content-Type", "application/json").
-                                SetHeader("Content-Encoding", "gzip").
-                                SetHeader("Accept-Encoding", "gzip").
-                                SetBody(buf).
-                                Post(serverURL)
+                        <span class="cov8" title="1">body, _ := json.Marshal([]*metric.Metric{m})
+                        buf := bytes.NewBuffer([]byte{})
+                        zb := gzip.NewWriter(buf)
+                        _, _ = zb.Write(body)
+                        err := zb.Close()
                         if err != nil </span><span class="cov0" title="0">{
-                                var urlErr *url.Error
-                                if errors.As(err, &amp;urlErr) &amp;&amp; i != RequestRetryCount </span><span class="cov0" title="0">{
-                                        logger.Log.Info("error post request", zap.Error(err))
-                                        time.Sleep(time.Duration(1+i*2) * time.Second)
-                                        continue</span>
+                                logger.Log.Info("error close gzip writer", zap.Error(err))
+                        }</span>
+
+                        <span class="cov8" title="1">for i := 0; i &lt;= RequestRetryCount; i++ </span><span class="cov8" title="1">{
+                                req := mw.client.R()
+                                if mw.config.Key != "" </span><span class="cov0" title="0">{
+                                        h := hash.GetHashSHA256(mw.config.Key, buf.Bytes())
+                                        hEnc := base64.StdEncoding.EncodeToString(h)
+                                        req.SetHeader("HashSHA256", hEnc)
+                                }</span>
+                                <span class="cov8" title="1">_, err = req.
+                                        SetHeader("Content-Type", "application/json").
+                                        SetHeader("Content-Encoding", "gzip").
+                                        SetHeader("Accept-Encoding", "gzip").
+                                        SetBody(buf).
+                                        Post(serverURL)
+                                if err != nil </span><span class="cov0" title="0">{
+                                        var urlErr *url.Error
+                                        if errors.As(err, &amp;urlErr) &amp;&amp; i != RequestRetryCount </span><span class="cov0" title="0">{
+                                                logger.Log.Info("error post request", zap.Error(err))
+                                                time.Sleep(time.Duration(1+i*2) * time.Second)
+                                                continue</span>
+                                        }
+                                        <span class="cov0" title="0">logger.Log.Info("error post request", zap.Error(err))
+                                        return</span>
                                 }
-                                <span class="cov0" title="0">logger.Log.Info("error post request", zap.Error(err))
-                                return</span>
+                                <span class="cov8" title="1">break</span>
                         }
-                        <span class="cov8" title="1">break</span>
+
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        return</span>
                 }
         }
 }
 
-func (mw *MetricWorker) Poll() <span class="cov0" title="0">{
+func (mw *MetricWorker) Poll(ctx context.Context) <span class="cov0" title="0">{
         startTime := time.Now()
-        var serverURL = "http://" + mw.config.ServerAddress.Address + "/updates/"
+        protocol := "http"
+        if mw.config.CryptoKey != "" </span><span class="cov0" title="0">{
+                protocol = "https"
+        }</span>
+        <span class="cov0" title="0">var serverURL = protocol + "://" + mw.config.ServerAddress.Address + "/updates/"
         var count int64 = 0
-        for </span><span class="cov0" title="0">{
-                currentTime := time.Now()
-                chIn := make(chan *metric.Metric, mw.config.RateLimit)
-                go mw.CollectMetrics(chIn, count)
 
-                if currentTime.Sub(startTime).Seconds() &gt;= float64(mw.config.ReportInterval) </span><span class="cov0" title="0">{
-                        startTime = currentTime
-                        for w := 1; w &lt;= mw.config.RateLimit; w++ </span><span class="cov0" title="0">{
-                                go mw.SendMetrics(chIn, serverURL)
-                        }</span>
+        var wg sync.WaitGroup
+
+        for </span><span class="cov0" title="0">{
+                chIn := make(chan *metric.Metric, mw.config.RateLimit)
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        logger.Log.Info("application shutdown")
+                        ctxTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+                        defer cancel()
+                        mw.SendMetrics(ctxTimeout, chIn, serverURL)
+
+                        ctxWait, cancelWait := context.WithTimeout(context.Background(), 2*time.Second)
+                        defer cancelWait()
+                        go func() </span><span class="cov0" title="0">{
+                                wg.Wait()
+                        }</span>()
+
+                        <span class="cov0" title="0">&lt;-ctxWait.Done()
+                        return</span>
+                default:<span class="cov0" title="0">
+                        currentTime := time.Now()
+
+                        wg.Add(1)
+                        go func() </span><span class="cov0" title="0">{
+                                defer wg.Done()
+                                mw.CollectMetrics(ctx, chIn, count)
+                        }</span>()
+
+                        <span class="cov0" title="0">if currentTime.Sub(startTime).Seconds() &gt;= float64(mw.config.ReportInterval) </span><span class="cov0" title="0">{
+                                startTime = currentTime
+                                for w := 1; w &lt;= mw.config.RateLimit; w++ </span><span class="cov0" title="0">{
+                                        wg.Add(1)
+                                        go func() </span><span class="cov0" title="0">{
+                                                defer wg.Done()
+                                                mw.SendMetrics(ctx, chIn, serverURL)
+                                        }</span>()
+                                }
+                        }
+                        <span class="cov0" title="0">time.Sleep(time.Duration(mw.config.PollInterval) * time.Second)
+                        count++</span>
                 }
-                <span class="cov0" title="0">time.Sleep(time.Duration(mw.config.PollInterval) * time.Second)
-                count++</span>
         }
 }
 </pre>
 		
-		<pre class="file" id="file5" style="display: none">package config
+		<pre class="file" id="file5" style="display: none">package main
 
 import (
+        "bytes"
+        "crypto/rand"
+        "crypto/rsa"
+        "crypto/x509"
+        "crypto/x509/pkix"
+        "encoding/pem"
+        "log"
+        "math/big"
+        "net"
+        "os"
+        "time"
+)
+
+func saveFile(path string, data []byte) error <span class="cov0" title="0">{
+        return os.WriteFile(path, data, 0755)
+}</span>
+
+func main() <span class="cov0" title="0">{
+        // создаём шаблон сертификата
+        cert := &amp;x509.Certificate{
+                // указываем уникальный номер сертификата
+                SerialNumber: big.NewInt(1),
+                // заполняем базовую информацию о владельце сертификата
+                Subject: pkix.Name{
+                        Organization: []string{"Yandex.Praktikum.Sirkin"},
+                        Country:      []string{"RU"},
+                },
+                // разрешаем использование сертификата для 127.0.0.1 и ::1
+                IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+                // сертификат верен, начиная со времени создания
+                NotBefore: time.Now(),
+                // время жизни сертификата — 10 лет
+                NotAfter:     time.Now().AddDate(10, 0, 0),
+                SubjectKeyId: []byte{1, 2, 3, 4, 6},
+                // устанавливаем использование ключа для цифровой подписи,
+                // а также клиентской и серверной авторизации
+                ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+                KeyUsage:    x509.KeyUsageDigitalSignature,
+        }
+
+        // создаём новый приватный RSA-ключ длиной 4096 бит
+        // обратите внимание, что для генерации ключа и сертификата
+        // используется rand.Reader в качестве источника случайных данных
+        privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatal(err)
+        }</span>
+
+        // создаём сертификат x.509
+        <span class="cov0" title="0">certBytes, err := x509.CreateCertificate(rand.Reader, cert, cert, &amp;privateKey.PublicKey, privateKey)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatal(err)
+        }</span>
+
+        // кодируем сертификат и ключ в формате PEM, который
+        // используется для хранения и обмена криптографическими ключами
+        <span class="cov0" title="0">var certPEM bytes.Buffer
+        pem.Encode(&amp;certPEM, &amp;pem.Block{
+                Type:  "CERTIFICATE",
+                Bytes: certBytes,
+        })
+
+        var privateKeyPEM bytes.Buffer
+        pem.Encode(&amp;privateKeyPEM, &amp;pem.Block{
+                Type:  "RSA PRIVATE KEY",
+                Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+        })
+
+        err = saveFile("cert.pem", certPEM.Bytes())
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatal(err)
+        }</span>
+
+        <span class="cov0" title="0">err = saveFile("privateKey.pem", privateKeyPEM.Bytes())
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatal(err)
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package config
+
+import (
+        "encoding/json"
         "flag"
+        "os"
 
         "github.com/caarlos0/env/v6"
+        "go.uber.org/zap"
+
+        "github.com/Vidkin/metrics/internal/logger"
 )
 
 // Constants for default agent intervals.
@@ -769,12 +972,14 @@ const (
 // flags and environment variables, allowing for flexible deployment and management
 // of the agent's settings.
 type AgentConfig struct {
-        ServerAddress  *ServerAddress
-        Key            string `env:"KEY"`
+        ServerAddress  *ServerAddress `json:"address"`
+        ConfigPath     string         `env:"CONFIG"`
+        Key            string         `env:"KEY" json:"hash_key"`
+        CryptoKey      string         `env:"CRYPTO_KEY" json:"crypto_key"`
         LogLevel       string
-        ReportInterval int `env:"REPORT_INTERVAL"`
-        PollInterval   int `env:"POLL_INTERVAL"`
-        RateLimit      int `env:"RATE_LIMIT"`
+        ReportInterval Interval `env:"REPORT_INTERVAL" json:"report_interval"`
+        PollInterval   Interval `env:"POLL_INTERVAL" json:"poll_interval"`
+        RateLimit      int      `env:"RATE_LIMIT" json:"rate_limit"`
 }
 
 // NewAgentConfig initializes a new AgentConfig instance with default values
@@ -796,13 +1001,22 @@ func NewAgentConfig() (*AgentConfig, error) <span class="cov0" title="0">{
 
 func (config *AgentConfig) parseFlags() error <span class="cov0" title="0">{
         flag.Var(config.ServerAddress, "a", "Server address host:port")
-        flag.IntVar(&amp;config.ReportInterval, "r", DefaultAgentReportInterval, "Agent report poll interval (sec)")
-        flag.IntVar(&amp;config.PollInterval, "p", DefaultAgentPollInterval, "Agent poll interval (sec)")
+        flag.StringVar(&amp;config.ConfigPath, "c", "", "Path to json config file")
+        flag.StringVar(&amp;config.ConfigPath, "config", "", "Path to json config file")
+        flag.IntVar((*int)(&amp;config.ReportInterval), "r", DefaultAgentReportInterval, "Agent report poll interval (sec)")
+        flag.IntVar((*int)(&amp;config.PollInterval), "p", DefaultAgentPollInterval, "Agent poll interval (sec)")
         flag.IntVar(&amp;config.RateLimit, "l", 5, "Rate limit")
         flag.StringVar(&amp;config.Key, "k", "", "Hash key")
+        flag.StringVar(&amp;config.CryptoKey, "crypto-key", "", "Crypto key")
         flag.Parse()
 
-        err := env.Parse(config.ServerAddress)
+        if config.ConfigPath != "" </span><span class="cov0" title="0">{
+                if err := config.loadJSONConfig(config.ConfigPath); err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Error("error parse json config file", zap.Error(err))
+                }</span>
+        }
+
+        <span class="cov0" title="0">err := env.Parse(config.ServerAddress)
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
@@ -813,18 +1027,111 @@ func (config *AgentConfig) parseFlags() error <span class="cov0" title="0">{
 
         <span class="cov0" title="0">return nil</span>
 }
+
+func (config *AgentConfig) loadJSONConfig(path string) error <span class="cov0" title="0">{
+        data, err := os.ReadFile(path)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">var jsonAgentConfig AgentConfig
+        if err = json.Unmarshal(data, &amp;jsonAgentConfig); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">if config.ServerAddress.Address == "" </span><span class="cov0" title="0">{
+                config.ServerAddress = jsonAgentConfig.ServerAddress
+        }</span>
+
+        <span class="cov0" title="0">cryptoKeyPassed := false
+        reportIntervalPassed := false
+        pollIntervalPassed := false
+        hashKeyPassed := false
+        rateLimitPassed := false
+
+        args := os.Args[1:]
+        for i := 0; i &lt; len(args); i++ </span><span class="cov0" title="0">{
+                arg := args[i]
+                switch arg </span>{
+                case "--p", "-p":<span class="cov0" title="0">
+                        pollIntervalPassed = true</span>
+                case "--crypto-key", "-crypto-key":<span class="cov0" title="0">
+                        cryptoKeyPassed = true</span>
+                case "--r", "-r":<span class="cov0" title="0">
+                        reportIntervalPassed = true</span>
+                case "--l", "-l":<span class="cov0" title="0">
+                        rateLimitPassed = true</span>
+                case "--k", "-k":<span class="cov0" title="0">
+                        hashKeyPassed = true</span>
+                }
+        }
+
+        <span class="cov0" title="0">if !cryptoKeyPassed </span><span class="cov0" title="0">{
+                config.CryptoKey = jsonAgentConfig.CryptoKey
+        }</span>
+
+        <span class="cov0" title="0">if !reportIntervalPassed </span><span class="cov0" title="0">{
+                config.ReportInterval = jsonAgentConfig.ReportInterval
+        }</span>
+
+        <span class="cov0" title="0">if !pollIntervalPassed </span><span class="cov0" title="0">{
+                config.PollInterval = jsonAgentConfig.PollInterval
+        }</span>
+
+        <span class="cov0" title="0">if !rateLimitPassed </span><span class="cov0" title="0">{
+                config.RateLimit = jsonAgentConfig.RateLimit
+        }</span>
+
+        <span class="cov0" title="0">if !hashKeyPassed </span><span class="cov0" title="0">{
+                config.Key = jsonAgentConfig.Key
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
 </pre>
 		
-		<pre class="file" id="file6" style="display: none">package config
+		<pre class="file" id="file7" style="display: none">package config
+
+import (
+        "encoding/json"
+        "fmt"
+        "strconv"
+        "strings"
+)
+
+type Interval int
+
+func (i *Interval) UnmarshalJSON(data []byte) error <span class="cov0" title="0">{
+        var intervalStr string
+
+        if err := json.Unmarshal(data, &amp;intervalStr); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">if strings.HasSuffix(intervalStr, "s") </span><span class="cov0" title="0">{
+                seconds, err := strconv.Atoi(strings.TrimSuffix(intervalStr, "s"))
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov0" title="0">*i = Interval(seconds)</span>
+        } else<span class="cov0" title="0"> {
+                return fmt.Errorf("invalid interval format: %s", intervalStr)
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package config
 
 import (
         "errors"
+        "net"
         "strconv"
         "strings"
 )
 
 const (
-        DefaultServerAddress = "localhost"
+        DefaultServerAddress = "127.0.0.1"
         DefaultServerPort    = 8080
 )
 
@@ -889,14 +1196,42 @@ func (s *ServerAddress) Set(flagRunAddr string) error <span class="cov0" title="
 
         return nil</span>
 }
+
+// UnmarshalJSON unmarshals a JSON object into a ServerAddress struct.
+// It expects the JSON to contain an "address" field in the format "host:port".
+//
+// Parameters:
+//   - data: A byte slice containing the JSON data to unmarshal.
+//
+// Returns:
+//   - An error if the input format is invalid or if the port cannot be converted to an integer.
+func (s *ServerAddress) UnmarshalJSON(data []byte) error <span class="cov0" title="0">{
+        address := strings.Trim(string(data), "\"")
+        host, portStr, err := net.SplitHostPort(address)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">s.Host = host
+        port, err := strconv.Atoi(portStr)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">s.Port = port
+        return nil</span>
+}
 </pre>
 		
-		<pre class="file" id="file7" style="display: none">package config
+		<pre class="file" id="file9" style="display: none">package config
 
 import (
+        "encoding/json"
         "flag"
+        "os"
 
         "github.com/caarlos0/env/v6"
+        "go.uber.org/zap"
+
+        "github.com/Vidkin/metrics/internal/logger"
 )
 
 // ServerConfig holds the configuration settings for the server.
@@ -906,13 +1241,15 @@ import (
 // The fields can be populated from environment variables, allowing for
 // flexible configuration without hardcoding values.
 type ServerConfig struct {
-        ServerAddress   *ServerAddress
+        ServerAddress   *ServerAddress `json:"address"`
         LogLevel        string
-        FileStoragePath string `env:"FILE_STORAGE_PATH"`
-        DatabaseDSN     string `env:"DATABASE_DSN"`
-        Key             string `env:"KEY"`
-        StoreInterval   int    `env:"STORE_INTERVAL"`
-        Restore         bool   `env:"RESTORE"`
+        ConfigPath      string   `env:"CONFIG"`
+        FileStoragePath string   `env:"FILE_STORAGE_PATH" json:"store_file"`
+        DatabaseDSN     string   `env:"DATABASE_DSN" json:"database_dsn"`
+        Key             string   `env:"KEY" json:"hash_key"`
+        CryptoKey       string   `env:"CRYPTO_KEY" json:"crypto_key"`
+        StoreInterval   Interval `env:"STORE_INTERVAL" json:"store_interval"`
+        Restore         bool     `env:"RESTORE" json:"restore"`
         RetryCount      int
 }
 
@@ -935,15 +1272,24 @@ func NewServerConfig() (*ServerConfig, error) <span class="cov0" title="0">{
 
 func (config *ServerConfig) parseFlags() error <span class="cov0" title="0">{
         flag.Var(config.ServerAddress, "a", "Net address host:port")
+        flag.StringVar(&amp;config.ConfigPath, "c", "", "Path to json config file")
+        flag.StringVar(&amp;config.ConfigPath, "config", "", "Path to json config file")
         flag.StringVar(&amp;config.LogLevel, "l", "info", "Log level")
-        flag.IntVar(&amp;config.StoreInterval, "i", 300, "Config store interval")
+        flag.IntVar((*int)(&amp;config.StoreInterval), "i", 300, "Config store interval")
         flag.StringVar(&amp;config.FileStoragePath, "f", "", "Metrics file storage path")
         flag.StringVar(&amp;config.DatabaseDSN, "d", "", "Database DSN")
         flag.StringVar(&amp;config.Key, "k", "", "Hash key")
+        flag.StringVar(&amp;config.CryptoKey, "crypto-key", "", "Crypto key")
         flag.BoolVar(&amp;config.Restore, "r", true, "Restore metrics on startup")
         flag.Parse()
 
-        err := env.Parse(config)
+        if config.ConfigPath != "" </span><span class="cov0" title="0">{
+                if err := config.loadJSONConfig(config.ConfigPath); err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Error("error parse json config file", zap.Error(err))
+                }</span>
+        }
+
+        <span class="cov0" title="0">err := env.Parse(config)
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
@@ -954,9 +1300,77 @@ func (config *ServerConfig) parseFlags() error <span class="cov0" title="0">{
 
         <span class="cov0" title="0">return nil</span>
 }
+
+func (config *ServerConfig) loadJSONConfig(path string) error <span class="cov0" title="0">{
+        data, err := os.ReadFile(path)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">var jsonServerConfig ServerConfig
+        if err = json.Unmarshal(data, &amp;jsonServerConfig); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">if config.ServerAddress.Address == "" </span><span class="cov0" title="0">{
+                config.ServerAddress = jsonServerConfig.ServerAddress
+        }</span>
+
+        <span class="cov0" title="0">storeFilePassed := false
+        dbDSNPassed := false
+        cryptoKeyPassed := false
+        storeIntervalPassed := false
+        restorePassed := false
+        hashKeyPassed := false
+
+        args := os.Args[1:]
+        for i := 0; i &lt; len(args); i++ </span><span class="cov0" title="0">{
+                arg := args[i]
+                switch arg </span>{
+                case "--f", "-f":<span class="cov0" title="0">
+                        storeFilePassed = true</span>
+                case "--i", "-i":<span class="cov0" title="0">
+                        storeIntervalPassed = true</span>
+                case "--d", "-d":<span class="cov0" title="0">
+                        dbDSNPassed = true</span>
+                case "--crypto-key", "-crypto-key":<span class="cov0" title="0">
+                        cryptoKeyPassed = true</span>
+                case "--r", "-r":<span class="cov0" title="0">
+                        restorePassed = true</span>
+                case "--k", "-k":<span class="cov0" title="0">
+                        hashKeyPassed = true</span>
+                }
+        }
+
+        <span class="cov0" title="0">if !dbDSNPassed </span><span class="cov0" title="0">{
+                config.DatabaseDSN = jsonServerConfig.DatabaseDSN
+        }</span>
+
+        <span class="cov0" title="0">if !storeFilePassed </span><span class="cov0" title="0">{
+                config.FileStoragePath = jsonServerConfig.FileStoragePath
+        }</span>
+
+        <span class="cov0" title="0">if !cryptoKeyPassed </span><span class="cov0" title="0">{
+                config.CryptoKey = jsonServerConfig.CryptoKey
+        }</span>
+
+        <span class="cov0" title="0">if !storeIntervalPassed </span><span class="cov0" title="0">{
+                config.StoreInterval = jsonServerConfig.StoreInterval
+        }</span>
+
+        <span class="cov0" title="0">if !restorePassed </span><span class="cov0" title="0">{
+                config.Restore = jsonServerConfig.Restore
+        }</span>
+
+        <span class="cov0" title="0">if !hashKeyPassed </span><span class="cov0" title="0">{
+                config.Key = jsonServerConfig.Key
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
 </pre>
 		
-		<pre class="file" id="file8" style="display: none">// Package logger provides a simple logging utility using the Zap logging library.
+		<pre class="file" id="file10" style="display: none">// Package logger provides a simple logging utility using the Zap logging library.
 package logger
 
 import (
@@ -985,7 +1399,7 @@ func Initialize(logLevel string) error <span class="cov0" title="0">{
 }
 </pre>
 		
-		<pre class="file" id="file9" style="display: none">// Package metric provides defining of metrics used in monitoring systems.
+		<pre class="file" id="file11" style="display: none">// Package metric provides defining of metrics used in monitoring systems.
 package metric
 
 import (
@@ -1015,7 +1429,7 @@ func (m *Metric) ValueAsString() string <span class="cov8" title="1">{
 }
 </pre>
 		
-		<pre class="file" id="file10" style="display: none">// Code generated by MockGen. DO NOT EDIT.
+		<pre class="file" id="file12" style="display: none">// Code generated by MockGen. DO NOT EDIT.
 // Source: github.com/Vidkin/metrics/internal/router (interfaces: Repository)
 
 // Package mock is a generated GoMock package.
@@ -1055,46 +1469,52 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder <span class="cov8"
 
 // DeleteMetric mocks base method.
 func (m *MockRepository) DeleteMetric(arg0 context.Context, arg1, arg2 string) error <span class="cov0" title="0">{
-        m.ctrl.T.Helper()
-        ret := m.ctrl.Call(m, "DeleteMetric", arg0, arg1, arg2)
-        ret0, _ := ret[0].(error)
-        return ret0
+        //m.ctrl.T.Helper()
+        //ret := m.ctrl.Call(m, "DeleteMetric", arg0, arg1, arg2)
+        //ret0, _ := ret[0].(error)
+        //return ret0
+        return nil
 }</span>
 
 // DeleteMetric indicates an expected call of DeleteMetric.
 func (mr *MockRepositoryMockRecorder) DeleteMetric(arg0, arg1, arg2 interface{}) *gomock.Call <span class="cov0" title="0">{
-        mr.mock.ctrl.T.Helper()
-        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMetric", reflect.TypeOf((*MockRepository)(nil).DeleteMetric), arg0, arg1, arg2)
+        //mr.mock.ctrl.T.Helper()
+        //return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMetric", reflect.TypeOf((*MockRepository)(nil).DeleteMetric), arg0, arg1, arg2)
+        return nil
 }</span>
 
 // GetCounters mocks base method.
 func (m *MockRepository) GetCounters(arg0 context.Context) ([]*metric.Metric, error) <span class="cov0" title="0">{
-        m.ctrl.T.Helper()
-        ret := m.ctrl.Call(m, "GetCounters", arg0)
-        ret0, _ := ret[0].([]*metric.Metric)
-        ret1, _ := ret[1].(error)
-        return ret0, ret1
+        //m.ctrl.T.Helper()
+        //ret := m.ctrl.Call(m, "GetCounters", arg0)
+        //ret0, _ := ret[0].([]*metric.Metric)
+        //ret1, _ := ret[1].(error)
+        //return ret0, ret1
+        return nil, nil
 }</span>
 
 // GetCounters indicates an expected call of GetCounters.
 func (mr *MockRepositoryMockRecorder) GetCounters(arg0 interface{}) *gomock.Call <span class="cov0" title="0">{
-        mr.mock.ctrl.T.Helper()
-        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCounters", reflect.TypeOf((*MockRepository)(nil).GetCounters), arg0)
+        //mr.mock.ctrl.T.Helper()
+        //return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCounters", reflect.TypeOf((*MockRepository)(nil).GetCounters), arg0)
+        return nil
 }</span>
 
 // GetGauges mocks base method.
 func (m *MockRepository) GetGauges(arg0 context.Context) ([]*metric.Metric, error) <span class="cov0" title="0">{
-        m.ctrl.T.Helper()
-        ret := m.ctrl.Call(m, "GetGauges", arg0)
-        ret0, _ := ret[0].([]*metric.Metric)
-        ret1, _ := ret[1].(error)
-        return ret0, ret1
+        //m.ctrl.T.Helper()
+        //ret := m.ctrl.Call(m, "GetGauges", arg0)
+        //ret0, _ := ret[0].([]*metric.Metric)
+        //ret1, _ := ret[1].(error)
+        //return ret0, ret1
+        return nil, nil
 }</span>
 
 // GetGauges indicates an expected call of GetGauges.
 func (mr *MockRepositoryMockRecorder) GetGauges(arg0 interface{}) *gomock.Call <span class="cov0" title="0">{
-        mr.mock.ctrl.T.Helper()
-        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGauges", reflect.TypeOf((*MockRepository)(nil).GetGauges), arg0)
+        //mr.mock.ctrl.T.Helper()
+        //return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGauges", reflect.TypeOf((*MockRepository)(nil).GetGauges), arg0)
+        return nil
 }</span>
 
 // GetMetric mocks base method.
@@ -1171,16 +1591,18 @@ func (mr *MockRepositoryMockRecorder) Dump(arg0 interface{}) *gomock.Call <span 
 
 // FullDump mocks base method.
 func (m *MockRepository) FullDump() error <span class="cov0" title="0">{
-        m.ctrl.T.Helper()
-        ret := m.ctrl.Call(m, "FullDump")
-        ret0, _ := ret[0].(error)
-        return ret0
+        //m.ctrl.T.Helper()
+        //ret := m.ctrl.Call(m, "FullDump")
+        //ret0, _ := ret[0].(error)
+        //return ret0
+        return nil
 }</span>
 
 // FullDump indicates an expected call of FullDump.
 func (mr *MockRepositoryMockRecorder) FullDump() *gomock.Call <span class="cov0" title="0">{
-        mr.mock.ctrl.T.Helper()
-        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullDump", reflect.TypeOf((*MockRepository)(nil).FullDump))
+        //mr.mock.ctrl.T.Helper()
+        //return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullDump", reflect.TypeOf((*MockRepository)(nil).FullDump))
+        return nil
 }</span>
 
 // Ping mocks base method.
@@ -1198,7 +1620,7 @@ func (mr *MockRepositoryMockRecorder) Ping(arg0 interface{}) *gomock.Call <span 
 }</span>
 </pre>
 		
-		<pre class="file" id="file11" style="display: none">package storage
+		<pre class="file" id="file13" style="display: none">package storage
 
 import (
         "context"
@@ -1224,123 +1646,131 @@ type FileStorage struct {
         mu              sync.RWMutex
 }
 
-func (f *FileStorage) UpdateMetric(_ context.Context, metric *me.Metric) error <span class="cov0" title="0">{
+func (f *FileStorage) UpdateMetric(_ context.Context, metric *me.Metric) error <span class="cov8" title="1">{
         f.mu.Lock()
         defer f.mu.Unlock()
 
         switch metric.MType </span>{
-        case MetricTypeGauge:<span class="cov0" title="0">
+        case MetricTypeGauge:<span class="cov8" title="1">
                 f.Gauge[metric.ID] = *metric.Value</span>
-        case MetricTypeCounter:<span class="cov0" title="0">
+        case MetricTypeCounter:<span class="cov8" title="1">
                 f.Counter[metric.ID] += *metric.Delta</span>
+        default:<span class="cov8" title="1">
+                return errors.New("unknown metric type")</span>
         }
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
-func (f *FileStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) error <span class="cov0" title="0">{
+func (f *FileStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) error <span class="cov8" title="1">{
         f.mu.Lock()
         defer f.mu.Unlock()
 
-        for _, metric := range *metrics </span><span class="cov0" title="0">{
+        for _, metric := range *metrics </span><span class="cov8" title="1">{
                 switch metric.MType </span>{
-                case MetricTypeGauge:<span class="cov0" title="0">
+                case MetricTypeGauge:<span class="cov8" title="1">
                         f.Gauge[metric.ID] = *metric.Value</span>
-                case MetricTypeCounter:<span class="cov0" title="0">
+                case MetricTypeCounter:<span class="cov8" title="1">
                         f.Counter[metric.ID] += *metric.Delta</span>
+                default:<span class="cov8" title="1">
+                        return errors.New("unknown metric type")</span>
                 }
         }
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
-func (f *FileStorage) DeleteMetric(_ context.Context, mType string, name string) error <span class="cov0" title="0">{
+func (f *FileStorage) DeleteMetric(_ context.Context, mType string, name string) error <span class="cov8" title="1">{
         f.mu.Lock()
         defer f.mu.Unlock()
 
         switch mType </span>{
-        case MetricTypeGauge:<span class="cov0" title="0">
+        case MetricTypeGauge:<span class="cov8" title="1">
                 delete(f.Gauge, name)</span>
-        case MetricTypeCounter:<span class="cov0" title="0">
+        case MetricTypeCounter:<span class="cov8" title="1">
                 delete(f.Counter, name)</span>
+        default:<span class="cov8" title="1">
+                return errors.New("unknown metric type")</span>
         }
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
-func (f *FileStorage) GetMetric(_ context.Context, mType string, name string) (*me.Metric, error) <span class="cov0" title="0">{
+func (f *FileStorage) GetMetric(_ context.Context, mType string, name string) (*me.Metric, error) <span class="cov8" title="1">{
         f.mu.RLock()
         defer f.mu.RUnlock()
 
         var metric me.Metric
         switch mType </span>{
-        case MetricTypeGauge:<span class="cov0" title="0">
+        case MetricTypeGauge:<span class="cov8" title="1">
                 v, ok := f.Gauge[name]
                 if !ok </span><span class="cov0" title="0">{
                         return nil, errors.New("metric not found")
                 }</span>
-                <span class="cov0" title="0">metric.ID = name
+                <span class="cov8" title="1">metric.ID = name
                 metric.MType = MetricTypeGauge
                 metric.Value = &amp;v</span>
-        case MetricTypeCounter:<span class="cov0" title="0">
+        case MetricTypeCounter:<span class="cov8" title="1">
                 v, ok := f.Counter[name]
                 if !ok </span><span class="cov0" title="0">{
                         return nil, errors.New("metric not found")
                 }</span>
-                <span class="cov0" title="0">metric.ID = name
+                <span class="cov8" title="1">metric.ID = name
                 metric.MType = MetricTypeCounter
                 metric.Delta = &amp;v</span>
+        default:<span class="cov8" title="1">
+                return nil, errors.New("unknown metric type")</span>
         }
-        <span class="cov0" title="0">return &amp;metric, nil</span>
+        <span class="cov8" title="1">return &amp;metric, nil</span>
 }
 
-func (f *FileStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) <span class="cov0" title="0">{
+func (f *FileStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) <span class="cov8" title="1">{
         f.AllMetrics = f.AllMetrics[:0]
         if _, err := f.GetGauges(ctx); err != nil </span><span class="cov0" title="0">{
                 return nil, err
         }</span>
-        <span class="cov0" title="0">if _, err := f.GetCounters(ctx); err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if _, err := f.GetCounters(ctx); err != nil </span><span class="cov0" title="0">{
                 return nil, err
         }</span>
-        <span class="cov0" title="0">f.AllMetrics = append(f.AllMetrics, f.GaugeMetrics...)
+        <span class="cov8" title="1">f.AllMetrics = append(f.AllMetrics, f.GaugeMetrics...)
         f.AllMetrics = append(f.AllMetrics, f.CounterMetrics...)
         return f.AllMetrics, nil</span>
 }
 
-func (f *FileStorage) GetGauges(_ context.Context) ([]*me.Metric, error) <span class="cov0" title="0">{
+func (f *FileStorage) GetGauges(_ context.Context) ([]*me.Metric, error) <span class="cov8" title="1">{
         f.mu.RLock()
         defer f.mu.RUnlock()
 
         f.GaugeMetrics = f.GaugeMetrics[:0]
-        for k, v := range f.Gauge </span><span class="cov0" title="0">{
+        for k, v := range f.Gauge </span><span class="cov8" title="1">{
                 f.GaugeMetrics = append(f.GaugeMetrics, &amp;me.Metric{
                         ID:    k,
                         Value: &amp;v,
                         MType: MetricTypeGauge,
                 })
         }</span>
-        <span class="cov0" title="0">return f.GaugeMetrics, nil</span>
+        <span class="cov8" title="1">return f.GaugeMetrics, nil</span>
 }
 
-func (f *FileStorage) GetCounters(_ context.Context) ([]*me.Metric, error) <span class="cov0" title="0">{
+func (f *FileStorage) GetCounters(_ context.Context) ([]*me.Metric, error) <span class="cov8" title="1">{
         f.mu.RLock()
         defer f.mu.RUnlock()
 
         f.CounterMetrics = f.CounterMetrics[:0]
-        for k, v := range f.Counter </span><span class="cov0" title="0">{
+        for k, v := range f.Counter </span><span class="cov8" title="1">{
                 f.CounterMetrics = append(f.CounterMetrics, &amp;me.Metric{
                         ID:    k,
                         Delta: &amp;v,
                         MType: MetricTypeCounter,
                 })
         }</span>
-        <span class="cov0" title="0">return f.CounterMetrics, nil</span>
+        <span class="cov8" title="1">return f.CounterMetrics, nil</span>
 }
 
-func (f *FileStorage) Dump(metric *me.Metric) error <span class="cov0" title="0">{
+func (f *FileStorage) Dump(metric *me.Metric) error <span class="cov8" title="1">{
         file, err := os.OpenFile(f.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
-        if err != nil &amp;&amp; err != io.EOF </span><span class="cov0" title="0">{
+        if err != nil &amp;&amp; err != io.EOF </span><span class="cov8" title="1">{
                 logger.Log.Info("error open file", zap.Error(err))
                 return err
         }</span>
-        <span class="cov0" title="0">defer file.Close()
+        <span class="cov8" title="1">defer file.Close()
 
         data, err := io.ReadAll(file)
         if err != nil </span><span class="cov0" title="0">{
@@ -1348,79 +1778,79 @@ func (f *FileStorage) Dump(metric *me.Metric) error <span class="cov0" title="0"
                 return err
         }</span>
 
-        <span class="cov0" title="0">var metrics []me.Metric
-        if len(data) != 0 </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">var metrics []me.Metric
+        if len(data) != 0 </span><span class="cov8" title="1">{
                 if err = json.Unmarshal(data, &amp;metrics); err != nil </span><span class="cov0" title="0">{
                         return err
                 }</span>
         }
 
-        <span class="cov0" title="0">found := false
-        for index, met := range metrics </span><span class="cov0" title="0">{
-                if met.ID == metric.ID &amp;&amp; met.MType == metric.MType </span><span class="cov0" title="0">{
-                        if met.MType == MetricTypeCounter </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">found := false
+        for index, met := range metrics </span><span class="cov8" title="1">{
+                if met.ID == metric.ID &amp;&amp; met.MType == metric.MType </span><span class="cov8" title="1">{
+                        if met.MType == MetricTypeCounter </span><span class="cov8" title="1">{
                                 metrics[index].Delta = metric.Delta
                         }</span>
-                        <span class="cov0" title="0">if met.MType == MetricTypeGauge </span><span class="cov0" title="0">{
+                        <span class="cov8" title="1">if met.MType == MetricTypeGauge </span><span class="cov8" title="1">{
                                 metrics[index].Value = metric.Value
                         }</span>
-                        <span class="cov0" title="0">found = true
+                        <span class="cov8" title="1">found = true
                         break</span>
                 }
         }
 
-        <span class="cov0" title="0">if !found </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !found </span><span class="cov8" title="1">{
                 metrics = append(metrics, *metric)
         }</span>
 
-        <span class="cov0" title="0">b, err := json.Marshal(metrics)
+        <span class="cov8" title="1">b, err := json.Marshal(metrics)
         if err != nil </span><span class="cov0" title="0">{
                 logger.Log.Info("error marshal metrics", zap.Error(err))
                 return err
         }</span>
 
-        <span class="cov0" title="0">err = os.WriteFile(f.FileStoragePath, b, 0666)
+        <span class="cov8" title="1">err = os.WriteFile(f.FileStoragePath, b, 0666)
         if err != nil </span><span class="cov0" title="0">{
                 logger.Log.Info("error write file", zap.Error(err))
                 return err
         }</span>
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
-func (f *FileStorage) FullDump() error <span class="cov0" title="0">{
+func (f *FileStorage) FullDump() error <span class="cov8" title="1">{
         file, err := os.OpenFile(f.FileStoragePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_TRUNC, 0666)
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 logger.Log.Info("error open file", zap.Error(err))
                 return err
         }</span>
-        <span class="cov0" title="0">defer file.Close()
+        <span class="cov8" title="1">defer file.Close()
 
         gauge, err := f.GetGauges(context.TODO())
         if err != nil </span><span class="cov0" title="0">{
                 logger.Log.Info("error get gauges", zap.Error(err))
                 return err
         }</span>
-        <span class="cov0" title="0">counter, err := f.GetCounters(context.TODO())
+        <span class="cov8" title="1">counter, err := f.GetCounters(context.TODO())
         if err != nil </span><span class="cov0" title="0">{
                 logger.Log.Info("error get counters", zap.Error(err))
                 return err
         }</span>
-        <span class="cov0" title="0">metrics := append(gauge, counter...)
+        <span class="cov8" title="1">metrics := append(gauge, counter...)
 
         b, err := json.Marshal(metrics)
         if err != nil </span><span class="cov0" title="0">{
                 logger.Log.Info("error marshal metrics", zap.Error(err))
                 return err
         }</span>
-        <span class="cov0" title="0">_, err = file.Write(b)
+        <span class="cov8" title="1">_, err = file.Write(b)
         if err != nil </span><span class="cov0" title="0">{
                 logger.Log.Info("error write file", zap.Error(err))
                 return err
         }</span>
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
-func (f *FileStorage) Load(ctx context.Context) error <span class="cov0" title="0">{
+func (f *FileStorage) Load(ctx context.Context) error <span class="cov8" title="1">{
         file, err := os.OpenFile(f.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
         if err != nil </span><span class="cov0" title="0">{
                 if err == io.EOF </span><span class="cov0" title="0">{
@@ -1429,28 +1859,28 @@ func (f *FileStorage) Load(ctx context.Context) error <span class="cov0" title="
                 <span class="cov0" title="0">logger.Log.Info("error open file", zap.Error(err))
                 return err</span>
         }
-        <span class="cov0" title="0">defer file.Close()
+        <span class="cov8" title="1">defer file.Close()
 
         data, err := io.ReadAll(file)
         if err != nil </span><span class="cov0" title="0">{
                 logger.Log.Info("error read file", zap.Error(err))
                 return err
         }</span>
-        <span class="cov0" title="0">var metrics []me.Metric
+        <span class="cov8" title="1">var metrics []me.Metric
         if err := json.Unmarshal(data, &amp;metrics); err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
 
-        <span class="cov0" title="0">for _, metric := range metrics </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">for _, metric := range metrics </span><span class="cov0" title="0">{
                 if err := f.UpdateMetric(ctx, &amp;metric); err != nil </span><span class="cov0" title="0">{
                         return err
                 }</span>
         }
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 </pre>
 		
-		<pre class="file" id="file12" style="display: none">package storage
+		<pre class="file" id="file14" style="display: none">package storage
 
 import (
         "context"
@@ -1474,118 +1904,126 @@ type MemoryStorage struct {
         mu             sync.RWMutex
 }
 
-func (m *MemoryStorage) UpdateMetric(_ context.Context, metric *me.Metric) error <span class="cov0" title="0">{
+func (m *MemoryStorage) UpdateMetric(_ context.Context, metric *me.Metric) error <span class="cov8" title="1">{
         m.mu.Lock()
         defer m.mu.Unlock()
 
         switch metric.MType </span>{
-        case MetricTypeGauge:<span class="cov0" title="0">
+        case MetricTypeGauge:<span class="cov8" title="1">
                 m.Gauge[metric.ID] = *metric.Value</span>
-        case MetricTypeCounter:<span class="cov0" title="0">
+        case MetricTypeCounter:<span class="cov8" title="1">
                 m.Counter[metric.ID] += *metric.Delta</span>
+        default:<span class="cov8" title="1">
+                return errors.New("unknown metric type")</span>
         }
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
-func (m *MemoryStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) error <span class="cov0" title="0">{
+func (m *MemoryStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) error <span class="cov8" title="1">{
         m.mu.Lock()
         defer m.mu.Unlock()
 
-        for _, metric := range *metrics </span><span class="cov0" title="0">{
+        for _, metric := range *metrics </span><span class="cov8" title="1">{
                 switch metric.MType </span>{
-                case MetricTypeGauge:<span class="cov0" title="0">
+                case MetricTypeGauge:<span class="cov8" title="1">
                         m.Gauge[metric.ID] = *metric.Value</span>
-                case MetricTypeCounter:<span class="cov0" title="0">
+                case MetricTypeCounter:<span class="cov8" title="1">
                         m.Counter[metric.ID] += *metric.Delta</span>
+                default:<span class="cov8" title="1">
+                        return errors.New("unknown metric type")</span>
                 }
         }
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
-func (m *MemoryStorage) DeleteMetric(_ context.Context, mType string, name string) error <span class="cov0" title="0">{
+func (m *MemoryStorage) DeleteMetric(_ context.Context, mType string, name string) error <span class="cov8" title="1">{
         m.mu.Lock()
         defer m.mu.Unlock()
 
         switch mType </span>{
-        case MetricTypeGauge:<span class="cov0" title="0">
+        case MetricTypeGauge:<span class="cov8" title="1">
                 delete(m.Gauge, name)</span>
-        case MetricTypeCounter:<span class="cov0" title="0">
+        case MetricTypeCounter:<span class="cov8" title="1">
                 delete(m.Counter, name)</span>
+        default:<span class="cov8" title="1">
+                return errors.New("unknown metric type")</span>
         }
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
-func (m *MemoryStorage) GetMetric(_ context.Context, mType string, name string) (*me.Metric, error) <span class="cov0" title="0">{
+func (m *MemoryStorage) GetMetric(_ context.Context, mType string, name string) (*me.Metric, error) <span class="cov8" title="1">{
         m.mu.RLock()
         defer m.mu.RUnlock()
 
         var metric me.Metric
         switch mType </span>{
-        case MetricTypeGauge:<span class="cov0" title="0">
+        case MetricTypeGauge:<span class="cov8" title="1">
                 v, ok := m.Gauge[name]
                 if !ok </span><span class="cov0" title="0">{
                         return nil, errors.New("metric not found")
                 }</span>
-                <span class="cov0" title="0">metric.ID = name
+                <span class="cov8" title="1">metric.ID = name
                 metric.MType = MetricTypeGauge
                 metric.Value = &amp;v</span>
-        case MetricTypeCounter:<span class="cov0" title="0">
+        case MetricTypeCounter:<span class="cov8" title="1">
                 v, ok := m.Counter[name]
                 if !ok </span><span class="cov0" title="0">{
                         return nil, errors.New("metric not found")
                 }</span>
-                <span class="cov0" title="0">metric.ID = name
+                <span class="cov8" title="1">metric.ID = name
                 metric.MType = MetricTypeCounter
                 metric.Delta = &amp;v</span>
+        default:<span class="cov8" title="1">
+                return nil, errors.New("unknown metric type")</span>
         }
-        <span class="cov0" title="0">return &amp;metric, nil</span>
+        <span class="cov8" title="1">return &amp;metric, nil</span>
 }
 
-func (m *MemoryStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) <span class="cov0" title="0">{
+func (m *MemoryStorage) GetMetrics(ctx context.Context) ([]*me.Metric, error) <span class="cov8" title="1">{
         m.AllMetrics = m.AllMetrics[:0]
         if _, err := m.GetGauges(ctx); err != nil </span><span class="cov0" title="0">{
                 return nil, err
         }</span>
-        <span class="cov0" title="0">if _, err := m.GetCounters(ctx); err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if _, err := m.GetCounters(ctx); err != nil </span><span class="cov0" title="0">{
                 return nil, err
         }</span>
-        <span class="cov0" title="0">m.AllMetrics = append(m.AllMetrics, m.GaugeMetrics...)
+        <span class="cov8" title="1">m.AllMetrics = append(m.AllMetrics, m.GaugeMetrics...)
         m.AllMetrics = append(m.AllMetrics, m.CounterMetrics...)
         return m.AllMetrics, nil</span>
 }
 
-func (m *MemoryStorage) GetGauges(_ context.Context) ([]*me.Metric, error) <span class="cov0" title="0">{
+func (m *MemoryStorage) GetGauges(_ context.Context) ([]*me.Metric, error) <span class="cov8" title="1">{
         m.mu.RLock()
         defer m.mu.RUnlock()
 
         m.GaugeMetrics = m.GaugeMetrics[:0]
-        for k, v := range m.Gauge </span><span class="cov0" title="0">{
+        for k, v := range m.Gauge </span><span class="cov8" title="1">{
                 m.GaugeMetrics = append(m.GaugeMetrics, &amp;me.Metric{
                         ID:    k,
                         Value: &amp;v,
                         MType: MetricTypeGauge,
                 })
         }</span>
-        <span class="cov0" title="0">return m.GaugeMetrics, nil</span>
+        <span class="cov8" title="1">return m.GaugeMetrics, nil</span>
 }
 
-func (m *MemoryStorage) GetCounters(_ context.Context) ([]*me.Metric, error) <span class="cov0" title="0">{
+func (m *MemoryStorage) GetCounters(_ context.Context) ([]*me.Metric, error) <span class="cov8" title="1">{
         m.mu.RLock()
         defer m.mu.RUnlock()
 
         m.CounterMetrics = m.CounterMetrics[:0]
-        for k, v := range m.Counter </span><span class="cov0" title="0">{
+        for k, v := range m.Counter </span><span class="cov8" title="1">{
                 m.CounterMetrics = append(m.CounterMetrics, &amp;me.Metric{
                         ID:    k,
                         Delta: &amp;v,
                         MType: MetricTypeCounter,
                 })
         }</span>
-        <span class="cov0" title="0">return m.CounterMetrics, nil</span>
+        <span class="cov8" title="1">return m.CounterMetrics, nil</span>
 }
 </pre>
 		
-		<pre class="file" id="file13" style="display: none">package storage
+		<pre class="file" id="file15" style="display: none">package storage
 
 import (
         "context"
@@ -1859,7 +2297,7 @@ func (p *PostgresStorage) Close() error <span class="cov8" title="1">{
 }</span>
 </pre>
 		
-		<pre class="file" id="file14" style="display: none">// Package router provides an HTTP routing implementation for handling metrics-related operations.
+		<pre class="file" id="file16" style="display: none">// Package router provides an HTTP routing implementation for handling metrics-related operations.
 package router
 
 import (
@@ -2074,7 +2512,7 @@ func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *confi
         })
         <span class="cov8" title="1">mr.Router = router
         mr.Repository = repository
-        mr.StoreInterval = serverConfig.StoreInterval
+        mr.StoreInterval = (int)(serverConfig.StoreInterval)
         mr.RetryCount = serverConfig.RetryCount
         mr.LastStoreTime = time.Now()
         return &amp;mr</span>
@@ -2539,7 +2977,7 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 }
 </pre>
 		
-		<pre class="file" id="file15" style="display: none">package router
+		<pre class="file" id="file17" style="display: none">package router
 
 import (
         "context"
@@ -2651,7 +3089,7 @@ func NewRepository(cfg *config.ServerConfig) (Repository, error) <span class="co
 }
 </pre>
 		
-		<pre class="file" id="file16" style="display: none">// Package compress provides a Reader and Writer for gzip-compressed data.
+		<pre class="file" id="file18" style="display: none">// Package compress provides a Reader and Writer for gzip-compressed data.
 // When writing a response, it automatically adds header “Content-Encoding”: “gzip”.
 package compress
 
@@ -2771,7 +3209,7 @@ func (c *Reader) Close() error <span class="cov8" title="1">{
 }
 </pre>
 		
-		<pre class="file" id="file17" style="display: none">// Package exitcheck provides an analyzer that checks for the usage of
+		<pre class="file" id="file19" style="display: none">// Package exitcheck provides an analyzer that checks for the usage of
 // os.Exit in the main function of the main package.
 package exitcheck
 
@@ -2830,7 +3268,7 @@ func run(pass *analysis.Pass) (interface{}, error) <span class="cov8" title="1">
 }
 </pre>
 		
-		<pre class="file" id="file18" style="display: none">// Package hash provides utilities for generating cryptographic hashes.
+		<pre class="file" id="file20" style="display: none">// Package hash provides utilities for generating cryptographic hashes.
 //
 // This package includes functions to compute SHA-256 hashes, which can be used for
 // data integrity verification, digital signatures, and other security-related tasks.
@@ -2859,7 +3297,7 @@ func GetHashSHA256(key string, data []byte) []byte <span class="cov8" title="1">
 }</span>
 </pre>
 		
-		<pre class="file" id="file19" style="display: none">package middleware
+		<pre class="file" id="file21" style="display: none">package middleware
 
 import (
         "net/http"
@@ -2924,7 +3362,7 @@ func Gzip(h http.Handler) http.Handler <span class="cov8" title="1">{
 }
 </pre>
 		
-		<pre class="file" id="file20" style="display: none">package middleware
+		<pre class="file" id="file22" style="display: none">package middleware
 
 import (
         "bytes"
@@ -3011,7 +3449,7 @@ func Hash(key string) func(http.Handler) http.Handler <span class="cov8" title="
 }
 </pre>
 		
-		<pre class="file" id="file21" style="display: none">package middleware
+		<pre class="file" id="file23" style="display: none">package middleware
 
 import (
         "net/http"

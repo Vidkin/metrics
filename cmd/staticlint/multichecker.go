@@ -164,7 +164,7 @@ func getAnalysisAnalizers() []*analysis.Analyzer {
 }
 
 // main is the entry point of the staticlint tool. It initializes and runs a collection of static analysis checks
-// on Go code.
+// on Go code. Need to build with flag: -ldflags=-checklinkname=0 cause of structslop.Analyzer
 func main() {
 	allChecks := make([]*analysis.Analyzer, 0)
 	allChecks = append(allChecks, analysis2.ExitMainAnalyzer)

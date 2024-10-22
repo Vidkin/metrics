@@ -31,6 +31,8 @@ func (m *MemoryStorage) UpdateMetric(_ context.Context, metric *me.Metric) error
 		m.Gauge[metric.ID] = *metric.Value
 	case MetricTypeCounter:
 		m.Counter[metric.ID] += *metric.Delta
+	default:
+		return errors.New("unknown metric type")
 	}
 	return nil
 }
@@ -45,6 +47,8 @@ func (m *MemoryStorage) UpdateMetrics(_ context.Context, metrics *[]me.Metric) e
 			m.Gauge[metric.ID] = *metric.Value
 		case MetricTypeCounter:
 			m.Counter[metric.ID] += *metric.Delta
+		default:
+			return errors.New("unknown metric type")
 		}
 	}
 	return nil
@@ -59,6 +63,8 @@ func (m *MemoryStorage) DeleteMetric(_ context.Context, mType string, name strin
 		delete(m.Gauge, name)
 	case MetricTypeCounter:
 		delete(m.Counter, name)
+	default:
+		return errors.New("unknown metric type")
 	}
 	return nil
 }
@@ -85,6 +91,8 @@ func (m *MemoryStorage) GetMetric(_ context.Context, mType string, name string) 
 		metric.ID = name
 		metric.MType = MetricTypeCounter
 		metric.Delta = &v
+	default:
+		return nil, errors.New("unknown metric type")
 	}
 	return &metric, nil
 }
