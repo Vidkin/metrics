@@ -4,5 +4,6 @@
   "store_interval": "300s",
   "store_file": "/path/to/file.db",
   "database_dsn": "postgres://postgres:postgres@localhost:5432/postgres",
-  "crypto_key": "/Users/skim/GolandProjects/yandex-praktikum/metrics/internal/certs"
+  "crypto_key": "/Users/skim/GolandProjects/yandex-praktikum/metrics/internal/certs",
+  "trusted_subnet": "255.255.255.0"
 }

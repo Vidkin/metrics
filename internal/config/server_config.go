@@ -20,6 +20,7 @@ import (
 type ServerConfig struct {
 	ServerAddress   *ServerAddress `json:"address"`
 	LogLevel        string
+	TrustedSubnet   string   `evn:"TRUSTED_SUBNET" json:"trusted_subnet"`
 	ConfigPath      string   `env:"CONFIG"`
 	FileStoragePath string   `env:"FILE_STORAGE_PATH" json:"store_file"`
 	DatabaseDSN     string   `env:"DATABASE_DSN" json:"database_dsn"`
@@ -57,6 +58,7 @@ func (config *ServerConfig) parseFlags() error {
 	flag.StringVar(&config.DatabaseDSN, "d", "", "Database DSN")
 	flag.StringVar(&config.Key, "k", "", "Hash key")
 	flag.StringVar(&config.CryptoKey, "crypto-key", "", "Crypto key")
+	flag.StringVar(&config.CryptoKey, "t", "", "Agent trusted subnet")
 	flag.BoolVar(&config.Restore, "r", true, "Restore metrics on startup")
 	flag.Parse()
 
@@ -99,6 +101,7 @@ func (config *ServerConfig) loadJSONConfig(path string) error {
 	storeIntervalPassed := false
 	restorePassed := false
 	hashKeyPassed := false
+	trustedSubnetPassed := false
 
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
@@ -116,7 +119,13 @@ func (config *ServerConfig) loadJSONConfig(path string) error {
 			restorePassed = true
 		case "--k", "-k":
 			hashKeyPassed = true
+		case "--t", "-t":
+			trustedSubnetPassed = true
 		}
+	}
+
+	if !trustedSubnetPassed {
+		config.TrustedSubnet = jsonServerConfig.TrustedSubnet
 	}
 
 	if !dbDSNPassed {
