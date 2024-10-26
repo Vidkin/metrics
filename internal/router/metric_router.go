@@ -189,6 +189,9 @@ func Close(r Repository) error {
 func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *config.ServerConfig) *MetricRouter {
 	var mr MetricRouter
 	router.Use(middleware.Logging)
+	if serverConfig.TrustedSubnet != "" {
+		router.Use(middleware.TrustedSubnet(serverConfig.TrustedSubnet))
+	}
 	if serverConfig.Key != "" {
 		router.Use(middleware.Hash(serverConfig.Key))
 	}

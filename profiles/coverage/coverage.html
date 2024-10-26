@@ -87,7 +87,7 @@
 				
 				<option value="file15">github.com/Vidkin/metrics/internal/repository/storage/postgres.go (71.1%)</option>
 				
-				<option value="file16">github.com/Vidkin/metrics/internal/router/metric_router.go (91.5%)</option>
+				<option value="file16">github.com/Vidkin/metrics/internal/router/metric_router.go (91.6%)</option>
 				
 				<option value="file17">github.com/Vidkin/metrics/internal/router/storage_factory.go (43.3%)</option>
 				
@@ -102,6 +102,8 @@
 				<option value="file22">github.com/Vidkin/metrics/pkg/middleware/hash.go (66.7%)</option>
 				
 				<option value="file23">github.com/Vidkin/metrics/pkg/middleware/logging.go (100.0%)</option>
+				
+				<option value="file24">github.com/Vidkin/metrics/pkg/middleware/trusted_subnet.go (100.0%)</option>
 				
 				</select>
 			</div>
@@ -1243,6 +1245,7 @@ import (
 type ServerConfig struct {
         ServerAddress   *ServerAddress `json:"address"`
         LogLevel        string
+        TrustedSubnet   string   `evn:"TRUSTED_SUBNET" json:"trusted_subnet"`
         ConfigPath      string   `env:"CONFIG"`
         FileStoragePath string   `env:"FILE_STORAGE_PATH" json:"store_file"`
         DatabaseDSN     string   `env:"DATABASE_DSN" json:"database_dsn"`
@@ -1280,6 +1283,7 @@ func (config *ServerConfig) parseFlags() error <span class="cov0" title="0">{
         flag.StringVar(&amp;config.DatabaseDSN, "d", "", "Database DSN")
         flag.StringVar(&amp;config.Key, "k", "", "Hash key")
         flag.StringVar(&amp;config.CryptoKey, "crypto-key", "", "Crypto key")
+        flag.StringVar(&amp;config.CryptoKey, "t", "", "Agent trusted subnet")
         flag.BoolVar(&amp;config.Restore, "r", true, "Restore metrics on startup")
         flag.Parse()
 
@@ -1322,6 +1326,7 @@ func (config *ServerConfig) loadJSONConfig(path string) error <span class="cov0"
         storeIntervalPassed := false
         restorePassed := false
         hashKeyPassed := false
+        trustedSubnetPassed := false
 
         args := os.Args[1:]
         for i := 0; i &lt; len(args); i++ </span><span class="cov0" title="0">{
@@ -1339,8 +1344,14 @@ func (config *ServerConfig) loadJSONConfig(path string) error <span class="cov0"
                         restorePassed = true</span>
                 case "--k", "-k":<span class="cov0" title="0">
                         hashKeyPassed = true</span>
+                case "--t", "-t":<span class="cov0" title="0">
+                        trustedSubnetPassed = true</span>
                 }
         }
+
+        <span class="cov0" title="0">if !trustedSubnetPassed </span><span class="cov0" title="0">{
+                config.TrustedSubnet = jsonServerConfig.TrustedSubnet
+        }</span>
 
         <span class="cov0" title="0">if !dbDSNPassed </span><span class="cov0" title="0">{
                 config.DatabaseDSN = jsonServerConfig.DatabaseDSN
@@ -2488,7 +2499,10 @@ func Close(r Repository) error <span class="cov0" title="0">{
 func NewMetricRouter(router *chi.Mux, repository Repository, serverConfig *config.ServerConfig) *MetricRouter <span class="cov8" title="1">{
         var mr MetricRouter
         router.Use(middleware.Logging)
-        if serverConfig.Key != "" </span><span class="cov8" title="1">{
+        if serverConfig.TrustedSubnet != "" </span><span class="cov8" title="1">{
+                router.Use(middleware.TrustedSubnet(serverConfig.TrustedSubnet))
+        }</span>
+        <span class="cov8" title="1">if serverConfig.Key != "" </span><span class="cov8" title="1">{
                 router.Use(middleware.Hash(serverConfig.Key))
         }</span>
         <span class="cov8" title="1">router.Use(middleware.Gzip)
@@ -3540,6 +3554,54 @@ func Logging(h http.Handler) http.Handler <span class="cov8" title="1">{
                         zap.Int("size", rData.size),
                 )
         }</span>)
+}
+</pre>
+		
+		<pre class="file" id="file24" style="display: none">package middleware
+
+import (
+        "net"
+        "net/http"
+
+        "github.com/Vidkin/metrics/internal/logger"
+)
+
+// TrustedSubnet is an HTTP middleware function that restricts access to
+// incoming requests based on the client's IP address, allowing only
+// requests from a specified subnet.
+//
+// Parameters:
+//   - subnet: A string representing the CIDR notation of the trusted subnet.
+//     Only clients with IP addresses within this subnet will be allowed to
+//     access the next handler in the chain.
+//
+// Returns:
+//   - A function that takes an http.Handler and returns a new http.Handler
+//     that includes the subnet validation logic.
+func TrustedSubnet(subnet string) func(http.Handler) http.Handler <span class="cov8" title="1">{
+        return func(next http.Handler) http.Handler </span><span class="cov8" title="1">{
+                return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                        _, IPNet, err := net.ParseCIDR(subnet)
+                        if err != nil </span><span class="cov8" title="1">{
+                                logger.Log.Error("error parse subnet")
+                                w.WriteHeader(http.StatusForbidden)
+                                return
+                        }</span>
+                        <span class="cov8" title="1">ipStr := r.Header.Get("X-Real-IP")
+                        ip := net.ParseIP(ipStr)
+                        if ip == nil </span><span class="cov8" title="1">{
+                                logger.Log.Error("error parse ip")
+                                w.WriteHeader(http.StatusForbidden)
+                                return
+                        }</span>
+                        <span class="cov8" title="1">if IPNet.Contains(ip) </span><span class="cov8" title="1">{
+                                next.ServeHTTP(w, r)
+                        }</span>
+                        <span class="cov8" title="1">logger.Log.Error("error check trusted subnet")
+                        w.WriteHeader(http.StatusForbidden)
+                        return</span>
+                })
+        }
 }
 </pre>
 		

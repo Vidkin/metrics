@@ -7,4 +7,6 @@
 //
 // logging.go includes middleware for logging request and response data,
 // which can be useful for monitoring and debugging purposes.
+//
+// trusted_subnet.go includes middleware for checking that real ip of agent is in the server trusted subnet.
 package middleware
