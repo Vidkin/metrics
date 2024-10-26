@@ -5,5 +5,5 @@
   "store_file": "/path/to/file.db",
   "database_dsn": "postgres://postgres:postgres@localhost:5432/postgres",
   "crypto_key": "/Users/skim/GolandProjects/yandex-praktikum/metrics/internal/certs",
-  "trusted_subnet": "192.168.1.0/24"
+  "trusted_subnet": "127.0.0.0/24"
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/Vidkin/metrics/internal/metric"
 	"github.com/Vidkin/metrics/internal/router"
 	"github.com/Vidkin/metrics/pkg/hash"
+	"github.com/Vidkin/metrics/pkg/ip"
 )
 
 const (
@@ -189,10 +190,21 @@ func (mw *MetricWorker) SendMetric(ctx context.Context, url string, metric *metr
 		return 0, "", err
 	}
 
+	interfaces, err := ip.GetMyInterfaces()
+	if err != nil {
+		logger.Log.Info("error get net interfaces", zap.Error(err))
+		return 0, "", err
+	}
+	if len(interfaces) == 0 {
+		logger.Log.Info("error get net interfaces")
+		return 0, "", errors.New("error get net interfaces")
+	}
+
 	req := mw.client.R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Accept-Encoding", "gzip").
+		SetHeader("X-Real-IP", interfaces[0]).
 		SetBody(buf)
 
 	resp, err := req.SetContext(ctx).Post(url)
@@ -258,10 +270,16 @@ func (mw *MetricWorker) SendMetrics(ctx context.Context, chIn chan *metric.Metri
 					hEnc := base64.StdEncoding.EncodeToString(h)
 					req.SetHeader("HashSHA256", hEnc)
 				}
+				interfaces, err := ip.GetMyInterfaces()
+				if err != nil || len(interfaces) == 0 {
+					logger.Log.Info("error get net interfaces", zap.Error(err))
+					return
+				}
 				_, err = req.
 					SetHeader("Content-Type", "application/json").
 					SetHeader("Content-Encoding", "gzip").
 					SetHeader("Accept-Encoding", "gzip").
+					SetHeader("X-Real-IP", interfaces[0]).
 					SetBody(buf).
 					Post(serverURL)
 				if err != nil {

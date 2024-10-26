@@ -63,7 +63,7 @@
 				
 				<option value="file3">github.com/Vidkin/metrics/cmd/staticlint/multichecker.go (0.0%)</option>
 				
-				<option value="file4">github.com/Vidkin/metrics/internal/agent/worker.go (48.5%)</option>
+				<option value="file4">github.com/Vidkin/metrics/internal/agent/worker.go (48.3%)</option>
 				
 				<option value="file5">github.com/Vidkin/metrics/internal/certs/x509.go (0.0%)</option>
 				
@@ -97,13 +97,15 @@
 				
 				<option value="file20">github.com/Vidkin/metrics/pkg/hash/sha256.go (100.0%)</option>
 				
-				<option value="file21">github.com/Vidkin/metrics/pkg/middleware/gzip.go (75.0%)</option>
+				<option value="file21">github.com/Vidkin/metrics/pkg/ip/interfaces.go (75.0%)</option>
 				
-				<option value="file22">github.com/Vidkin/metrics/pkg/middleware/hash.go (66.7%)</option>
+				<option value="file22">github.com/Vidkin/metrics/pkg/middleware/gzip.go (75.0%)</option>
 				
-				<option value="file23">github.com/Vidkin/metrics/pkg/middleware/logging.go (100.0%)</option>
+				<option value="file23">github.com/Vidkin/metrics/pkg/middleware/hash.go (66.7%)</option>
 				
-				<option value="file24">github.com/Vidkin/metrics/pkg/middleware/trusted_subnet.go (100.0%)</option>
+				<option value="file24">github.com/Vidkin/metrics/pkg/middleware/logging.go (100.0%)</option>
+				
+				<option value="file25">github.com/Vidkin/metrics/pkg/middleware/trusted_subnet.go (100.0%)</option>
 				
 				</select>
 			</div>
@@ -548,6 +550,7 @@ import (
         "github.com/Vidkin/metrics/internal/metric"
         "github.com/Vidkin/metrics/internal/router"
         "github.com/Vidkin/metrics/pkg/hash"
+        "github.com/Vidkin/metrics/pkg/ip"
 )
 
 const (
@@ -710,10 +713,21 @@ func (mw *MetricWorker) SendMetric(ctx context.Context, url string, metric *metr
                 return 0, "", err
         }</span>
 
+        <span class="cov8" title="1">interfaces, err := ip.GetMyInterfaces()
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Info("error get net interfaces", zap.Error(err))
+                return 0, "", err
+        }</span>
+        <span class="cov8" title="1">if len(interfaces) == 0 </span><span class="cov0" title="0">{
+                logger.Log.Info("error get net interfaces")
+                return 0, "", errors.New("error get net interfaces")
+        }</span>
+
         <span class="cov8" title="1">req := mw.client.R().
                 SetHeader("Content-Type", "application/json").
                 SetHeader("Content-Encoding", "gzip").
                 SetHeader("Accept-Encoding", "gzip").
+                SetHeader("X-Real-IP", interfaces[0]).
                 SetBody(buf)
 
         resp, err := req.SetContext(ctx).Post(url)
@@ -779,10 +793,16 @@ func (mw *MetricWorker) SendMetrics(ctx context.Context, chIn chan *metric.Metri
                                         hEnc := base64.StdEncoding.EncodeToString(h)
                                         req.SetHeader("HashSHA256", hEnc)
                                 }</span>
+                                <span class="cov8" title="1">interfaces, err := ip.GetMyInterfaces()
+                                if err != nil || len(interfaces) == 0 </span><span class="cov0" title="0">{
+                                        logger.Log.Info("error get net interfaces", zap.Error(err))
+                                        return
+                                }</span>
                                 <span class="cov8" title="1">_, err = req.
                                         SetHeader("Content-Type", "application/json").
                                         SetHeader("Content-Encoding", "gzip").
                                         SetHeader("Accept-Encoding", "gzip").
+                                        SetHeader("X-Real-IP", interfaces[0]).
                                         SetBody(buf).
                                         Post(serverURL)
                                 if err != nil </span><span class="cov0" title="0">{
@@ -3311,7 +3331,64 @@ func GetHashSHA256(key string, data []byte) []byte <span class="cov8" title="1">
 }</span>
 </pre>
 		
-		<pre class="file" id="file21" style="display: none">package middleware
+		<pre class="file" id="file21" style="display: none">// Package ip provides utilities for retrieving network interface information.
+//
+// This package includes functions to get the IP addresses of all active network
+// interfaces on the local machine. It can be useful for applications that need
+// to determine the local IP addresses for networking purposes, such as
+// server applications or network diagnostics.
+package ip
+
+import (
+        "net"
+
+        "go.uber.org/zap"
+
+        "github.com/Vidkin/metrics/internal/logger"
+)
+
+// GetMyInterfaces retrieves the IP addresses of all active network interfaces.
+//
+// This function scans all network interfaces on the local machine and returns
+// a slice of strings containing the IPv4 addresses of those interfaces that are
+// currently up (active).
+//
+// Returns:
+//   - A slice of strings containing the IPv4 addresses of active network interfaces.
+//   - An error if there was an issue retrieving the interfaces or their addresses.
+//
+// If an error occurs while fetching the interfaces or their addresses, it logs
+// the error using the logger package and returns the error to the caller.
+func GetMyInterfaces() ([]string, error) <span class="cov8" title="1">{
+        interfaces, err := net.Interfaces()
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Log.Error("error getting interfaces", zap.Error(err))
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">res := make([]string, 0, len(interfaces))
+        for _, iface := range interfaces </span><span class="cov8" title="1">{
+                if iface.Flags&amp;net.FlagUp == 0 </span><span class="cov8" title="1">{
+                        continue</span>
+                }
+
+                <span class="cov8" title="1">addrs, err := iface.Addrs()
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Log.Error("error getting addresses", zap.Error(err))
+                        return nil, err
+                }</span>
+
+                <span class="cov8" title="1">for _, addr := range addrs </span><span class="cov8" title="1">{
+                        if ipnet, ok := addr.(*net.IPNet); ok &amp;&amp; ipnet.IP.To4() != nil </span><span class="cov8" title="1">{
+                                res = append(res, ipnet.IP.String())
+                        }</span>
+                }
+        }
+        <span class="cov8" title="1">return res, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file22" style="display: none">package middleware
 
 import (
         "net/http"
@@ -3376,7 +3453,7 @@ func Gzip(h http.Handler) http.Handler <span class="cov8" title="1">{
 }
 </pre>
 		
-		<pre class="file" id="file22" style="display: none">package middleware
+		<pre class="file" id="file23" style="display: none">package middleware
 
 import (
         "bytes"
@@ -3463,7 +3540,7 @@ func Hash(key string) func(http.Handler) http.Handler <span class="cov8" title="
 }
 </pre>
 		
-		<pre class="file" id="file23" style="display: none">package middleware
+		<pre class="file" id="file24" style="display: none">package middleware
 
 import (
         "net/http"
@@ -3557,7 +3634,7 @@ func Logging(h http.Handler) http.Handler <span class="cov8" title="1">{
 }
 </pre>
 		
-		<pre class="file" id="file24" style="display: none">package middleware
+		<pre class="file" id="file25" style="display: none">package middleware
 
 import (
         "net"
