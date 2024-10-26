@@ -40,7 +40,6 @@ func TrustedSubnet(subnet string) func(http.Handler) http.Handler {
 			}
 			logger.Log.Error("error check trusted subnet")
 			w.WriteHeader(http.StatusForbidden)
-			return
 		})
 	}
 }
