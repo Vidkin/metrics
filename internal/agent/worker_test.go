@@ -28,14 +28,14 @@ func BenchmarkCollectAndSendMetrics(b *testing.B) {
 	client.SetDoNotParseResponse(true)
 	memStats := &runtime.MemStats{}
 	memoryStorage := router.NewFileStorage("")
-	mw := New(memoryStorage, memStats, client, &config.AgentConfig{Key: "", RateLimit: 5})
+	mw := New(memoryStorage, memStats, client, nil, &config.AgentConfig{Key: "", RateLimit: 5})
 	var serverURL = ts.URL + "/updates/"
 
 	b.ResetTimer()
 	b.Run("poll", func(b *testing.B) {
 		var count int64 = 1
 		for i := 0; i < 100; i++ {
-			chIn := make(chan *metric.Metric, 10)
+			chIn := make(chan []*metric.Metric, 10)
 			go mw.CollectMetrics(context.TODO(), chIn, count)
 			for w := 1; w <= mw.config.RateLimit; w++ {
 				go mw.SendMetrics(context.TODO(), chIn, serverURL)
@@ -70,13 +70,13 @@ func TestSendMetrics(t *testing.T) {
 	client.SetDoNotParseResponse(true)
 	memStats := &runtime.MemStats{}
 	memoryStorage := router.NewFileStorage("")
-	mw := New(memoryStorage, memStats, client, &config.AgentConfig{Key: ""})
+	mw := New(memoryStorage, memStats, client, nil, &config.AgentConfig{Key: ""})
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
-			chIn := make(chan *metric.Metric, 10)
+			chIn := make(chan []*metric.Metric, 10)
 			go mw.CollectMetrics(context.TODO(), chIn, 10)
 
 			if test.sendToWrongURL {
@@ -182,7 +182,7 @@ func TestSendMetric(t *testing.T) {
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
-	mw := New(nil, nil, client, &config.AgentConfig{Key: ""})
+	mw := New(nil, nil, client, nil, &config.AgentConfig{Key: ""})
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
