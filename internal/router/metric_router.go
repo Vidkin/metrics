@@ -666,9 +666,9 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 				http.Error(res, "error get updated metric", http.StatusInternalServerError)
 				return
 			}
+			metrics[i] = *updated
 			break
 		}
-		metrics[i] = *updated
 	}
 	res.Header().Set("Content-Type", "application/json")
 	enc := json.NewEncoder(res)

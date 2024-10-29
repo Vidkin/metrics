@@ -28,6 +28,7 @@ type ServerConfig struct {
 	CryptoKey       string   `env:"CRYPTO_KEY" json:"crypto_key"`
 	StoreInterval   Interval `env:"STORE_INTERVAL" json:"store_interval"`
 	Restore         bool     `env:"RESTORE" json:"restore"`
+	UseGRPC         bool     `env:"USER_GRPC" json:"use_grpc"`
 	RetryCount      int
 }
 
@@ -58,8 +59,9 @@ func (config *ServerConfig) parseFlags() error {
 	flag.StringVar(&config.DatabaseDSN, "d", "", "Database DSN")
 	flag.StringVar(&config.Key, "k", "", "Hash key")
 	flag.StringVar(&config.CryptoKey, "crypto-key", "", "Crypto key")
-	flag.StringVar(&config.CryptoKey, "t", "", "Agent trusted subnet")
+	flag.StringVar(&config.TrustedSubnet, "t", "", "Agent trusted subnet")
 	flag.BoolVar(&config.Restore, "r", true, "Restore metrics on startup")
+	flag.BoolVar(&config.UseGRPC, "g", true, "Use gRPC")
 	flag.Parse()
 
 	if config.ConfigPath != "" {
@@ -102,6 +104,7 @@ func (config *ServerConfig) loadJSONConfig(path string) error {
 	restorePassed := false
 	hashKeyPassed := false
 	trustedSubnetPassed := false
+	useGRPCPassed := false
 
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
@@ -119,6 +122,8 @@ func (config *ServerConfig) loadJSONConfig(path string) error {
 			restorePassed = true
 		case "--k", "-k":
 			hashKeyPassed = true
+		case "--g", "-g":
+			useGRPCPassed = true
 		case "--t", "-t":
 			trustedSubnetPassed = true
 		}
@@ -126,6 +131,10 @@ func (config *ServerConfig) loadJSONConfig(path string) error {
 
 	if !trustedSubnetPassed {
 		config.TrustedSubnet = jsonServerConfig.TrustedSubnet
+	}
+
+	if !useGRPCPassed {
+		config.UseGRPC = jsonServerConfig.UseGRPC
 	}
 
 	if !dbDSNPassed {

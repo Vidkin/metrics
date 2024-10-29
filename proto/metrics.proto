@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package metrics;
+
+option go_package = "metrics/proto";
+
+message Metric {
+  enum MetricType {
+    UNSPECIFIED = 0;
+    COUNTER = 1;
+    GAUGE = 2;
+  }
+
+  int64 delta = 1;
+  double value = 2;
+  string id = 3;
+  MetricType type = 4;
+}
+
+message UpdateMetricsRequest {
+  repeated Metric metrics = 1;
+}
+
+message UpdateMetricsResponse {
+  repeated Metric metrics = 1;
+}
+
+service Metrics {
+  rpc UpdateMetrics(UpdateMetricsRequest) returns (UpdateMetricsResponse);
+}
