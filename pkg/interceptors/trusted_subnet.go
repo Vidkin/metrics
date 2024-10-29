@@ -14,6 +14,10 @@ import (
 
 func TrustedSubnetInterceptor(subnet string) func(context.Context, interface{}, *grpc.UnaryServerInfo, grpc.UnaryHandler) (interface{}, error) {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		if subnet == "" {
+			return handler(ctx, req)
+		}
+
 		_, IPNet, err := net.ParseCIDR(subnet)
 		if err != nil {
 			logger.Log.Error("error parse subnet")

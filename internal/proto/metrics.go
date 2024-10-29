@@ -142,5 +142,4 @@ func (m *MetricsServer) UpdateMetrics(ctx context.Context, in *proto.UpdateMetri
 	}
 
 	return &response, nil
-	// TODO: реализовать интерсепторы для логгирования и для trusted_subnet?
 }

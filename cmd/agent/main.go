@@ -10,11 +10,15 @@ import (
 	"syscall"
 
 	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/Vidkin/metrics/internal/agent"
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/router"
+	"github.com/Vidkin/metrics/proto"
 )
 
 var (
@@ -34,12 +38,29 @@ func main() {
 	}
 	memoryStorage := router.NewFileStorage("")
 	memStats := &runtime.MemStats{}
-	client := resty.New()
-	if agentConfig.CryptoKey != "" {
-		client.SetRootCertificate(path.Join(agentConfig.CryptoKey, "cert.pem"))
+
+	var mw *agent.MetricWorker
+	if !agentConfig.UseGRPC {
+		client := resty.New()
+		if agentConfig.CryptoKey != "" {
+			client.SetRootCertificate(path.Join(agentConfig.CryptoKey, "cert.pem"))
+		}
+		client.SetDoNotParseResponse(true)
+		mw = agent.New(memoryStorage, memStats, client, nil, agentConfig)
+	} else {
+		conn, err := grpc.NewClient(agentConfig.ServerAddress.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			logger.Log.Fatal("error create grpc conn", zap.Error(err))
+		}
+		defer func(conn *grpc.ClientConn) {
+			err := conn.Close()
+			if err != nil {
+				logger.Log.Error("error close grpc conn", zap.Error(err))
+			}
+		}(conn)
+		clientGRPC := proto.NewMetricsClient(conn)
+		mw = agent.New(memoryStorage, memStats, nil, clientGRPC, agentConfig)
 	}
-	client.SetDoNotParseResponse(true)
-	mw := agent.New(memoryStorage, memStats, client, agentConfig)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGINT)
 	defer stop()

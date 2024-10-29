@@ -49,12 +49,11 @@ func NewServerApp(cfg *config.ServerConfig) (*ServerApp, error) {
 
 	if cfg.UseGRPC {
 		var s *grpc.Server
-		if cfg.TrustedSubnet != "" {
-			s = grpc.NewServer(grpc.ChainUnaryInterceptor(interceptors.LoggingInterceptor, interceptors.TrustedSubnetInterceptor(cfg.TrustedSubnet)))
-		} else {
-			s = grpc.NewServer(grpc.ChainUnaryInterceptor(interceptors.LoggingInterceptor))
-		}
-
+		s = grpc.NewServer(
+			grpc.ChainUnaryInterceptor(
+				interceptors.LoggingInterceptor,
+				interceptors.TrustedSubnetInterceptor(cfg.TrustedSubnet),
+				interceptors.HashInterceptor(cfg.Key)))
 		proto.RegisterMetricsServer(s, &proto2.MetricsServer{
 			Repository:    repo,
 			LastStoreTime: time.Now(),

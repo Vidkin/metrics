@@ -38,6 +38,7 @@ type AgentConfig struct {
 	LogLevel       string
 	ReportInterval Interval `env:"REPORT_INTERVAL" json:"report_interval"`
 	PollInterval   Interval `env:"POLL_INTERVAL" json:"poll_interval"`
+	UseGRPC        bool     `env:"USE_GRPC" json:"use_grpc"`
 	RateLimit      int      `env:"RATE_LIMIT" json:"rate_limit"`
 }
 
@@ -66,6 +67,7 @@ func (config *AgentConfig) parseFlags() error {
 	flag.IntVar((*int)(&config.PollInterval), "p", DefaultAgentPollInterval, "Agent poll interval (sec)")
 	flag.IntVar(&config.RateLimit, "l", 5, "Rate limit")
 	flag.StringVar(&config.Key, "k", "", "Hash key")
+	flag.BoolVar(&config.UseGRPC, "g", true, "Use gRPC")
 	flag.StringVar(&config.CryptoKey, "crypto-key", "", "Crypto key")
 	flag.Parse()
 
@@ -107,6 +109,7 @@ func (config *AgentConfig) loadJSONConfig(path string) error {
 	pollIntervalPassed := false
 	hashKeyPassed := false
 	rateLimitPassed := false
+	useGRPCPassed := false
 
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
@@ -122,11 +125,17 @@ func (config *AgentConfig) loadJSONConfig(path string) error {
 			rateLimitPassed = true
 		case "--k", "-k":
 			hashKeyPassed = true
+		case "--g", "-g":
+			useGRPCPassed = true
 		}
 	}
 
 	if !cryptoKeyPassed {
 		config.CryptoKey = jsonAgentConfig.CryptoKey
+	}
+
+	if !useGRPCPassed {
+		config.UseGRPC = jsonAgentConfig.UseGRPC
 	}
 
 	if !reportIntervalPassed {
