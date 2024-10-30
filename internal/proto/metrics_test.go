@@ -29,8 +29,8 @@ import (
 
 func TestMetricsServer_UpdateMetrics(t *testing.T) {
 	type params struct {
-		Repository     router.Repository
 		MockRepository *mock.MockRepository
+		Repository     router.Repository
 		LastStoreTime  time.Time
 		TrustedSubnet  string
 		Key            string
@@ -39,21 +39,18 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 		RetryCount     int
 		StoreInterval  int
 	}
-	type args struct {
-		in *proto.UpdateMetricsRequest
-	}
 	tests := []struct {
-		params    params
-		args      args
+		params    *params
+		in        *proto.UpdateMetricsRequest
 		want      *proto.UpdateMetricsResponse
-		name      string
-		wantErr   bool
 		updateErr error
 		getErr    error
+		name      string
+		wantErr   bool
 	}{
 		{
 			name: "update metrics ok",
-			params: params{
+			params: &params{
 				Repository: &storage.FileStorage{
 					FileStoragePath: filepath.Join(os.TempDir(), "metricsTestFile.test"),
 					Gauge:           make(map[string]float64),
@@ -65,19 +62,18 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 				TrustedSubnet: "127.0.0.0/24",
 				ServerAddress: "127.0.0.1:8080",
 			},
-			args: args{
-				in: &proto.UpdateMetricsRequest{
-					Metrics: []*proto.Metric{
-						{
-							Delta: 12,
-							Id:    "c1",
-							Type:  proto.Metric_COUNTER,
-						},
-						{
-							Value: 12.2,
-							Id:    "g1",
-							Type:  proto.Metric_GAUGE,
-						},
+
+			in: &proto.UpdateMetricsRequest{
+				Metrics: []*proto.Metric{
+					{
+						Delta: 12,
+						Id:    "c1",
+						Type:  proto.Metric_COUNTER,
+					},
+					{
+						Value: 12.2,
+						Id:    "g1",
+						Type:  proto.Metric_GAUGE,
 					},
 				},
 			},
@@ -99,7 +95,7 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 		},
 		{
 			name: "update metrics ok with hash",
-			params: params{
+			params: &params{
 				Repository: &storage.FileStorage{
 					FileStoragePath: filepath.Join(os.TempDir(), "metricsTestFile.test"),
 					Gauge:           make(map[string]float64),
@@ -112,19 +108,17 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 				TrustedSubnet: "127.0.0.0/24",
 				ServerAddress: "127.0.0.1:8080",
 			},
-			args: args{
-				in: &proto.UpdateMetricsRequest{
-					Metrics: []*proto.Metric{
-						{
-							Delta: 12,
-							Id:    "c1",
-							Type:  proto.Metric_COUNTER,
-						},
-						{
-							Value: 12.2,
-							Id:    "g1",
-							Type:  proto.Metric_GAUGE,
-						},
+			in: &proto.UpdateMetricsRequest{
+				Metrics: []*proto.Metric{
+					{
+						Delta: 12,
+						Id:    "c1",
+						Type:  proto.Metric_COUNTER,
+					},
+					{
+						Value: 12.2,
+						Id:    "g1",
+						Type:  proto.Metric_GAUGE,
 					},
 				},
 			},
@@ -146,7 +140,7 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 		},
 		{
 			name: "update metrics with bad hash",
-			params: params{
+			params: &params{
 				Repository: &storage.FileStorage{
 					FileStoragePath: filepath.Join(os.TempDir(), "metricsTestFile.test"),
 					Gauge:           make(map[string]float64),
@@ -160,19 +154,17 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 				TrustedSubnet: "127.0.0.0/24",
 				ServerAddress: "127.0.0.1:8080",
 			},
-			args: args{
-				in: &proto.UpdateMetricsRequest{
-					Metrics: []*proto.Metric{
-						{
-							Delta: 12,
-							Id:    "c1",
-							Type:  proto.Metric_COUNTER,
-						},
-						{
-							Value: 12.2,
-							Id:    "g1",
-							Type:  proto.Metric_GAUGE,
-						},
+			in: &proto.UpdateMetricsRequest{
+				Metrics: []*proto.Metric{
+					{
+						Delta: 12,
+						Id:    "c1",
+						Type:  proto.Metric_COUNTER,
+					},
+					{
+						Value: 12.2,
+						Id:    "g1",
+						Type:  proto.Metric_GAUGE,
 					},
 				},
 			},
@@ -194,7 +186,7 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 		},
 		{
 			name: "update metrics with empty",
-			params: params{
+			params: &params{
 				Repository: &storage.FileStorage{
 					FileStoragePath: filepath.Join(os.TempDir(), "metricsTestFile.test"),
 					Gauge:           make(map[string]float64),
@@ -208,19 +200,17 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 				TrustedSubnet: "127.0.0.0/24",
 				ServerAddress: "127.0.0.1:8080",
 			},
-			args: args{
-				in: &proto.UpdateMetricsRequest{
-					Metrics: []*proto.Metric{
-						{
-							Delta: 12,
-							Id:    "c1",
-							Type:  proto.Metric_COUNTER,
-						},
-						{
-							Value: 12.2,
-							Id:    "g1",
-							Type:  proto.Metric_GAUGE,
-						},
+			in: &proto.UpdateMetricsRequest{
+				Metrics: []*proto.Metric{
+					{
+						Delta: 12,
+						Id:    "c1",
+						Type:  proto.Metric_COUNTER,
+					},
+					{
+						Value: 12.2,
+						Id:    "g1",
+						Type:  proto.Metric_GAUGE,
 					},
 				},
 			},
@@ -242,7 +232,7 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 		},
 		{
 			name: "update metrics not in trusted subnet",
-			params: params{
+			params: &params{
 				Repository: &storage.FileStorage{
 					FileStoragePath: filepath.Join(os.TempDir(), "metricsTestFile.test"),
 					Gauge:           make(map[string]float64),
@@ -254,19 +244,17 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 				TrustedSubnet: "192.168.1.0/24",
 				ServerAddress: "127.0.0.1:8080",
 			},
-			args: args{
-				in: &proto.UpdateMetricsRequest{
-					Metrics: []*proto.Metric{
-						{
-							Delta: 12,
-							Id:    "c1",
-							Type:  proto.Metric_COUNTER,
-						},
-						{
-							Value: 12.2,
-							Id:    "g1",
-							Type:  proto.Metric_GAUGE,
-						},
+			in: &proto.UpdateMetricsRequest{
+				Metrics: []*proto.Metric{
+					{
+						Delta: 12,
+						Id:    "c1",
+						Type:  proto.Metric_COUNTER,
+					},
+					{
+						Value: 12.2,
+						Id:    "g1",
+						Type:  proto.Metric_GAUGE,
 					},
 				},
 			},
@@ -288,7 +276,7 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 		},
 		{
 			name: "update metrics err parsing CIDR",
-			params: params{
+			params: &params{
 				Repository: &storage.FileStorage{
 					FileStoragePath: filepath.Join(os.TempDir(), "metricsTestFile.test"),
 					Gauge:           make(map[string]float64),
@@ -300,19 +288,17 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 				TrustedSubnet: "badCIDR",
 				ServerAddress: "127.0.0.1:8080",
 			},
-			args: args{
-				in: &proto.UpdateMetricsRequest{
-					Metrics: []*proto.Metric{
-						{
-							Delta: 12,
-							Id:    "c1",
-							Type:  proto.Metric_COUNTER,
-						},
-						{
-							Value: 12.2,
-							Id:    "g1",
-							Type:  proto.Metric_GAUGE,
-						},
+			in: &proto.UpdateMetricsRequest{
+				Metrics: []*proto.Metric{
+					{
+						Delta: 12,
+						Id:    "c1",
+						Type:  proto.Metric_COUNTER,
+					},
+					{
+						Value: 12.2,
+						Id:    "g1",
+						Type:  proto.Metric_GAUGE,
 					},
 				},
 			},
@@ -334,7 +320,7 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 		},
 		{
 			name: "update metrics bad storage path",
-			params: params{
+			params: &params{
 				Repository: &storage.FileStorage{
 					FileStoragePath: "/badPath//",
 					Gauge:           make(map[string]float64),
@@ -346,19 +332,17 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 				TrustedSubnet: "127.0.0.0/24",
 				ServerAddress: "127.0.0.1:8080",
 			},
-			args: args{
-				in: &proto.UpdateMetricsRequest{
-					Metrics: []*proto.Metric{
-						{
-							Delta: 12,
-							Id:    "c1",
-							Type:  proto.Metric_COUNTER,
-						},
-						{
-							Value: 12.2,
-							Id:    "g1",
-							Type:  proto.Metric_GAUGE,
-						},
+			in: &proto.UpdateMetricsRequest{
+				Metrics: []*proto.Metric{
+					{
+						Delta: 12,
+						Id:    "c1",
+						Type:  proto.Metric_COUNTER,
+					},
+					{
+						Value: 12.2,
+						Id:    "g1",
+						Type:  proto.Metric_GAUGE,
 					},
 				},
 			},
@@ -380,7 +364,7 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 		},
 		{
 			name: "update metrics ok without subnet",
-			params: params{
+			params: &params{
 				Repository: &storage.FileStorage{
 					FileStoragePath: filepath.Join(os.TempDir(), "metricsTestFile.test"),
 					Gauge:           make(map[string]float64),
@@ -391,19 +375,17 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 				StoreInterval: 0,
 				ServerAddress: "127.0.0.1:8080",
 			},
-			args: args{
-				in: &proto.UpdateMetricsRequest{
-					Metrics: []*proto.Metric{
-						{
-							Delta: 12,
-							Id:    "c1",
-							Type:  proto.Metric_COUNTER,
-						},
-						{
-							Value: 12.2,
-							Id:    "g1",
-							Type:  proto.Metric_GAUGE,
-						},
+			in: &proto.UpdateMetricsRequest{
+				Metrics: []*proto.Metric{
+					{
+						Delta: 12,
+						Id:    "c1",
+						Type:  proto.Metric_COUNTER,
+					},
+					{
+						Value: 12.2,
+						Id:    "g1",
+						Type:  proto.Metric_GAUGE,
 					},
 				},
 			},
@@ -425,26 +407,24 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 		},
 		{
 			name: "update metrics with unavailable postgresql storage on update metrics op",
-			params: params{
+			params: &params{
 				MockRepository: mock.NewMockRepository(gomock.NewController(t)),
 				LastStoreTime:  time.Now(),
 				RetryCount:     2,
 				StoreInterval:  20,
 				ServerAddress:  "127.0.0.1:8080",
 			},
-			args: args{
-				in: &proto.UpdateMetricsRequest{
-					Metrics: []*proto.Metric{
-						{
-							Delta: 12,
-							Id:    "c1",
-							Type:  proto.Metric_COUNTER,
-						},
-						{
-							Value: 12.2,
-							Id:    "g1",
-							Type:  proto.Metric_GAUGE,
-						},
+			in: &proto.UpdateMetricsRequest{
+				Metrics: []*proto.Metric{
+					{
+						Delta: 12,
+						Id:    "c1",
+						Type:  proto.Metric_COUNTER,
+					},
+					{
+						Value: 12.2,
+						Id:    "g1",
+						Type:  proto.Metric_GAUGE,
 					},
 				},
 			},
@@ -467,26 +447,24 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 		},
 		{
 			name: "update metrics with unavailable postgresql storage on get metric op",
-			params: params{
+			params: &params{
 				MockRepository: mock.NewMockRepository(gomock.NewController(t)),
 				LastStoreTime:  time.Now(),
 				RetryCount:     2,
 				StoreInterval:  20,
 				ServerAddress:  "127.0.0.1:8080",
 			},
-			args: args{
-				in: &proto.UpdateMetricsRequest{
-					Metrics: []*proto.Metric{
-						{
-							Delta: 12,
-							Id:    "c1",
-							Type:  proto.Metric_COUNTER,
-						},
-						{
-							Value: 12.2,
-							Id:    "g1",
-							Type:  proto.Metric_GAUGE,
-						},
+			in: &proto.UpdateMetricsRequest{
+				Metrics: []*proto.Metric{
+					{
+						Delta: 12,
+						Id:    "c1",
+						Type:  proto.Metric_COUNTER,
+					},
+					{
+						Value: 12.2,
+						Id:    "g1",
+						Type:  proto.Metric_GAUGE,
 					},
 				},
 			},
@@ -550,21 +528,21 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 
 			if !tt.wantErr {
 				if tt.params.Key != "" {
-					data, err := pb.Marshal(tt.args.in)
-					require.NoError(t, err)
+					data, errM := pb.Marshal(tt.in)
+					require.NoError(t, errM)
 					h := hash.GetHashSHA256(tt.params.Key, data)
 					hEnc := base64.StdEncoding.EncodeToString(h)
 					md := metadata.New(map[string]string{"HashSHA256": hEnc})
 					ctx = metadata.NewOutgoingContext(ctx, md)
 				}
 
-				got, err := clientGRPC.UpdateMetrics(ctx, tt.args.in)
-				require.NoError(t, err)
+				got, errU := clientGRPC.UpdateMetrics(ctx, tt.in)
+				require.NoError(t, errU)
 				assert.Equal(t, tt.want.Metrics, got.Metrics)
 			} else {
 				if tt.params.ClientKey != "" {
-					data, err := pb.Marshal(tt.args.in)
-					require.NoError(t, err)
+					data, errM := pb.Marshal(tt.in)
+					require.NoError(t, errM)
 					h := hash.GetHashSHA256(tt.params.ClientKey, data)
 					hEnc := base64.StdEncoding.EncodeToString(h)
 					md := metadata.New(map[string]string{"HashSHA256": hEnc})
@@ -582,7 +560,7 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 							Return(nil, tt.getErr)
 					}
 				}
-				_, err = clientGRPC.UpdateMetrics(ctx, tt.args.in)
+				_, err = clientGRPC.UpdateMetrics(ctx, tt.in)
 				require.Error(t, err)
 			}
 
