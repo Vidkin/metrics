@@ -63,7 +63,7 @@
 				
 				<option value="file3">github.com/Vidkin/metrics/cmd/staticlint/multichecker.go (0.0%)</option>
 				
-				<option value="file4">github.com/Vidkin/metrics/internal/agent/worker.go (38.2%)</option>
+				<option value="file4">github.com/Vidkin/metrics/internal/agent/worker.go (54.3%)</option>
 				
 				<option value="file5">github.com/Vidkin/metrics/internal/config/agent_config.go (0.0%)</option>
 				
@@ -77,7 +77,7 @@
 				
 				<option value="file10">github.com/Vidkin/metrics/internal/metric/metric.go (100.0%)</option>
 				
-				<option value="file11">github.com/Vidkin/metrics/internal/proto/metrics.go (0.0%)</option>
+				<option value="file11">github.com/Vidkin/metrics/internal/proto/metrics.go (83.1%)</option>
 				
 				<option value="file12">github.com/Vidkin/metrics/internal/repository/mock/mock_repository.go (84.0%)</option>
 				
@@ -99,11 +99,11 @@
 				
 				<option value="file21">github.com/Vidkin/metrics/pkg/hash/sha256.go (100.0%)</option>
 				
-				<option value="file22">github.com/Vidkin/metrics/pkg/interceptors/hash.go (3.8%)</option>
+				<option value="file22">github.com/Vidkin/metrics/pkg/interceptors/hash.go (80.8%)</option>
 				
-				<option value="file23">github.com/Vidkin/metrics/pkg/interceptors/logging.go (0.0%)</option>
+				<option value="file23">github.com/Vidkin/metrics/pkg/interceptors/logging.go (92.3%)</option>
 				
-				<option value="file24">github.com/Vidkin/metrics/pkg/interceptors/trusted_subnet.go (4.3%)</option>
+				<option value="file24">github.com/Vidkin/metrics/pkg/interceptors/trusted_subnet.go (73.9%)</option>
 				
 				<option value="file25">github.com/Vidkin/metrics/pkg/ip/interfaces.go (75.0%)</option>
 				
@@ -115,9 +115,9 @@
 				
 				<option value="file29">github.com/Vidkin/metrics/pkg/middleware/trusted_subnet.go (100.0%)</option>
 				
-				<option value="file30">github.com/Vidkin/metrics/proto/metrics.pb.go (10.4%)</option>
+				<option value="file30">github.com/Vidkin/metrics/proto/metrics.pb.go (40.3%)</option>
 				
-				<option value="file31">github.com/Vidkin/metrics/proto/metrics_grpc.pb.go (15.0%)</option>
+				<option value="file31">github.com/Vidkin/metrics/proto/metrics_grpc.pb.go (85.0%)</option>
 				
 				</select>
 			</div>
@@ -855,29 +855,29 @@ func (mw *MetricWorker) SendMetric(ctx context.Context, url string, metric *metr
         }
 }
 
-func (mw *MetricWorker) SendMetricsGRPC(ctx context.Context, chIn chan []*metric.Metric) <span class="cov0" title="0">{
-        for </span><span class="cov0" title="0">{
+func (mw *MetricWorker) SendMetricsGRPC(ctx context.Context, chIn chan []*metric.Metric) <span class="cov8" title="1">{
+        for </span><span class="cov8" title="1">{
                 select </span>{
-                case m, ok := &lt;-chIn:<span class="cov0" title="0">
-                        if !ok </span><span class="cov0" title="0">{
+                case m, ok := &lt;-chIn:<span class="cov8" title="1">
+                        if !ok </span><span class="cov8" title="1">{
                                 return
                         }</span>
 
-                        <span class="cov0" title="0">protoMetrics := make([]*proto.Metric, len(m))
-                        for i, met := range m </span><span class="cov0" title="0">{
+                        <span class="cov8" title="1">protoMetrics := make([]*proto.Metric, len(m))
+                        for i, met := range m </span><span class="cov8" title="1">{
                                 protoMetrics[i] = &amp;proto.Metric{
                                         Id: met.ID,
                                 }
-                                if met.MType == MetricTypeCounter </span><span class="cov0" title="0">{
+                                if met.MType == MetricTypeCounter </span><span class="cov8" title="1">{
                                         protoMetrics[i].Delta = *met.Delta
                                         protoMetrics[i].Type = proto.Metric_COUNTER
-                                }</span> else<span class="cov0" title="0"> {
+                                }</span> else<span class="cov8" title="1"> {
                                         protoMetrics[i].Value = *met.Value
                                         protoMetrics[i].Type = proto.Metric_GAUGE
                                 }</span>
                         }
 
-                        <span class="cov0" title="0">for i := 0; i &lt;= RequestRetryCount; i++ </span><span class="cov0" title="0">{
+                        <span class="cov8" title="1">for i := 0; i &lt;= RequestRetryCount; i++ </span><span class="cov8" title="1">{
                                 ctxTimeout, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
                                 defer cancel()
 
@@ -885,31 +885,31 @@ func (mw *MetricWorker) SendMetricsGRPC(ctx context.Context, chIn chan []*metric
                                         Metrics: protoMetrics,
                                 }
 
-                                if mw.config.Key != "" </span><span class="cov0" title="0">{
+                                if mw.config.Key != "" </span><span class="cov8" title="1">{
                                         data, err := pb.Marshal(req)
                                         if err != nil </span><span class="cov0" title="0">{
                                                 logger.Log.Error("failed to marshal request: %v", zap.Error(err))
                                                 continue</span>
                                         }
-                                        <span class="cov0" title="0">h := hash.GetHashSHA256(mw.config.Key, data)
+                                        <span class="cov8" title="1">h := hash.GetHashSHA256(mw.config.Key, data)
                                         hEnc := base64.StdEncoding.EncodeToString(h)
                                         md := metadata.New(map[string]string{"HashSHA256": hEnc})
                                         ctxTimeout = metadata.NewOutgoingContext(ctxTimeout, md)</span>
                                 }
 
-                                <span class="cov0" title="0">_, err := mw.clientGRPC.UpdateMetrics(ctxTimeout, req)
-                                if err != nil </span><span class="cov0" title="0">{
-                                        if e, ok := status.FromError(err); ok </span><span class="cov0" title="0">{
+                                <span class="cov8" title="1">_, err := mw.clientGRPC.UpdateMetrics(ctxTimeout, req)
+                                if err != nil </span><span class="cov8" title="1">{
+                                        if e, ok := status.FromError(err); ok </span><span class="cov8" title="1">{
                                                 logger.Log.Error("code = " + e.Code().String() + ", message = " + e.Message())
                                         }</span> else<span class="cov0" title="0"> {
                                                 logger.Log.Error("error update metrics", zap.Error(err))
                                         }</span>
 
-                                        <span class="cov0" title="0">if i != RequestRetryCount </span><span class="cov0" title="0">{
+                                        <span class="cov8" title="1">if i != RequestRetryCount </span><span class="cov8" title="1">{
                                                 continue</span>
                                         }
                                 }
-                                <span class="cov0" title="0">break</span>
+                                <span class="cov8" title="1">break</span>
                         }
 
                 case &lt;-ctx.Done():<span class="cov0" title="0">
@@ -1558,7 +1558,9 @@ func (m *Metric) ValueAsString() string <span class="cov8" title="1">{
 }
 </pre>
 		
-		<pre class="file" id="file11" style="display: none">package proto
+		<pre class="file" id="file11" style="display: none">// Package proto provides a gRPC server implementation for handling metrics-related operations.
+// It defines the MetricsServer struct and methods for updating and dumping metrics to a repository.
+package proto
 
 import (
         "context"
@@ -1578,33 +1580,62 @@ import (
         "github.com/Vidkin/metrics/proto"
 )
 
+// MetricsServer is a gRPC server that handles metrics-related operations.
+// It implements the proto.MetricsServer interface and provides methods for
+// updating and dumping metrics to a specified repository.
 type MetricsServer struct {
         proto.UnimplementedMetricsServer
-        Repository    router.Repository
-        LastStoreTime time.Time
-        RetryCount    int
-        StoreInterval int
+        Repository    router.Repository // Repository for storing metrics
+        LastStoreTime time.Time         // Last time metrics were successfully stored
+        RetryCount    int               // Number of retry attempts for database operations
+        StoreInterval int               // Interval for storing metrics
 }
 
+// Dumper defines the methods required for dumping metrics to a storage system.
+// Implementations of this interface should provide functionality to save individual metrics
+// as well as to perform a complete dump of all metrics.
 type Dumper interface {
-        Dump(metric *metric.Metric) error
-        FullDump() error
+        Dump(metric *metric.Metric) error // Dumps a single metric
+        FullDump() error                  // Performs a complete dump of all metrics
 }
 
-func DumpMetric(r router.Repository, m *metric.Metric) error <span class="cov0" title="0">{
-        if dumper, ok := r.(Dumper); ok </span><span class="cov0" title="0">{
+// DumpMetric attempts to dump a given metric to the provided Repository.
+// It checks if the Repository implements the Dumper interface. If it does,
+// the function calls the Dump method of the Dumper interface to persist
+// the metric. If the Repository does not implement the Dumper interface,
+// the function returns an error indicating that the provided Repository
+// cannot perform the dump operation.
+//
+// Parameters:
+//   - r: A Repository instance that is expected to implement the Dumper interface.
+//   - m: A pointer to the metric.Metric that needs to be dumped.
+//
+// Returns:
+//   - An error if the dumping operation fails or if the Repository does not
+//     implement the Dumper interface; otherwise, it returns nil.
+func DumpMetric(r router.Repository, m *metric.Metric) error <span class="cov8" title="1">{
+        if dumper, ok := r.(Dumper); ok </span><span class="cov8" title="1">{
                 return dumper.Dump(m)
         }</span>
         <span class="cov0" title="0">return errors.New("provided Repository does not implement Dumper")</span>
 }
 
-func (m *MetricsServer) DumpMetric(metric *metric.Metric) error <span class="cov0" title="0">{
-        if m.StoreInterval == 0 </span><span class="cov0" title="0">{
-                for i := 0; i &lt;= m.RetryCount; i++ </span><span class="cov0" title="0">{
+// DumpMetric attempts to dump a given metric to the MetricsServer's Repository.
+// It retries the dump operation based on the configured RetryCount and handles
+// connection errors by waiting and retrying.
+//
+// Parameters:
+//   - metric: A pointer to the metric.Metric that needs to be dumped.
+//
+// Returns:
+//   - An error if the dumping operation fails; otherwise, it returns nil.
+func (m *MetricsServer) DumpMetric(metric *metric.Metric) error <span class="cov8" title="1">{
+        if m.StoreInterval == 0 </span><span class="cov8" title="1">{
+                for i := 0; i &lt;= m.RetryCount; i++ </span><span class="cov8" title="1">{
                         err := DumpMetric(m.Repository, metric)
-                        if err != nil </span><span class="cov0" title="0">{
+                        if err != nil </span><span class="cov8" title="1">{
                                 var pathErr *os.PathError
-                                if errors.As(err, &amp;pathErr) &amp;&amp; i != m.RetryCount </span><span class="cov0" title="0">{
+                                if errors.As(err, &amp;pathErr) &amp;&amp; i != m.RetryCount </span><span class="cov8" title="1">{
                                         logger.Log.Info("repository connection error", zap.Error(err))
                                         time.Sleep(time.Duration(1+i*2) * time.Second)
                                         continue</span>
@@ -1612,25 +1643,36 @@ func (m *MetricsServer) DumpMetric(metric *metric.Metric) error <span class="cov
                                 <span class="cov0" title="0">logger.Log.Info("error saving metric", zap.Error(err))
                                 return errors.New("error saving metric")</span>
                         }
-                        <span class="cov0" title="0">break</span>
+                        <span class="cov8" title="1">break</span>
                 }
         }
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
-func (m *MetricsServer) UpdateMetrics(ctx context.Context, in *proto.UpdateMetricsRequest) (*proto.UpdateMetricsResponse, error) <span class="cov0" title="0">{
+// UpdateMetrics handles the gRPC request to update multiple metrics.
+// It processes the incoming UpdateMetricsRequest, updates the metrics in the repository,
+// and returns the updated metrics in the response.
+//
+// Parameters:
+//   - ctx: A context.Context to control the lifetime of the operation.
+//   - in: A pointer to the proto.UpdateMetricsRequest containing the metrics to update.
+//
+// Returns:
+//   - A pointer to the proto.UpdateMetricsResponse containing the updated metrics,
+//     or an error if the operation fails.
+func (m *MetricsServer) UpdateMetrics(ctx context.Context, in *proto.UpdateMetricsRequest) (*proto.UpdateMetricsResponse, error) <span class="cov8" title="1">{
         var response proto.UpdateMetricsResponse
         var metrics []metric.Metric
 
-        for _, protoMetric := range in.Metrics </span><span class="cov0" title="0">{
+        for _, protoMetric := range in.Metrics </span><span class="cov8" title="1">{
                 var me metric.Metric
-                if protoMetric.Type == proto.Metric_GAUGE </span><span class="cov0" title="0">{
+                if protoMetric.Type == proto.Metric_GAUGE </span><span class="cov8" title="1">{
                         me = metric.Metric{
                                 ID:    protoMetric.Id,
                                 MType: router.MetricTypeGauge,
                                 Value: &amp;protoMetric.Value,
                         }
-                }</span> else<span class="cov0" title="0"> if protoMetric.Type == proto.Metric_COUNTER </span><span class="cov0" title="0">{
+                }</span> else<span class="cov8" title="1"> if protoMetric.Type == proto.Metric_COUNTER </span><span class="cov8" title="1">{
                         me = metric.Metric{
                                 ID:    protoMetric.Id,
                                 MType: router.MetricTypeCounter,
@@ -1640,15 +1682,15 @@ func (m *MetricsServer) UpdateMetrics(ctx context.Context, in *proto.UpdateMetri
                         logger.Log.Info(`unknown metric type`)
                         return nil, status.Errorf(codes.InvalidArgument, `unknown metric type`)
                 }</span>
-                <span class="cov0" title="0">metrics = append(metrics, me)</span>
+                <span class="cov8" title="1">metrics = append(metrics, me)</span>
         }
 
-        <span class="cov0" title="0">for i := 0; i &lt;= m.RetryCount; i++ </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">for i := 0; i &lt;= m.RetryCount; i++ </span><span class="cov8" title="1">{
                 err := m.Repository.UpdateMetrics(ctx, &amp;metrics)
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         var pgErr *pgconn.PgError
-                        if errors.As(err, &amp;pgErr) </span><span class="cov0" title="0">{
-                                if pgerrcode.IsConnectionException(pgErr.Code) &amp;&amp; i != m.RetryCount </span><span class="cov0" title="0">{
+                        if errors.As(err, &amp;pgErr) </span><span class="cov8" title="1">{
+                                if pgerrcode.IsConnectionException(pgErr.Code) &amp;&amp; i != m.RetryCount </span><span class="cov8" title="1">{
                                         logger.Log.Info("repository connection error", zap.Error(err))
                                         time.Sleep(time.Duration(1+i*2) * time.Second)
                                         continue</span>
@@ -1657,27 +1699,27 @@ func (m *MetricsServer) UpdateMetrics(ctx context.Context, in *proto.UpdateMetri
                         <span class="cov0" title="0">logger.Log.Info(`can't update metrics in database`, zap.Error(err))
                         return nil, status.Errorf(codes.Internal, `can't update metrics in database`)</span>
                 }
-                <span class="cov0" title="0">break</span>
+                <span class="cov8" title="1">break</span>
         }
 
-        <span class="cov0" title="0">for _, me := range metrics </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">for _, me := range metrics </span><span class="cov8" title="1">{
                 if err := m.DumpMetric(&amp;me); err != nil </span><span class="cov0" title="0">{
                         logger.Log.Info(`error saving metrics`, zap.Error(err))
                         return nil, status.Errorf(codes.Internal, `error saving metrics`)
                 }</span>
         }
 
-        <span class="cov0" title="0">for _, met := range metrics </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">for _, met := range metrics </span><span class="cov8" title="1">{
                 var (
                         updated *metric.Metric
                         err     error
                 )
-                for r := 0; r &lt;= m.RetryCount; r++ </span><span class="cov0" title="0">{
+                for r := 0; r &lt;= m.RetryCount; r++ </span><span class="cov8" title="1">{
                         updated, err = m.Repository.GetMetric(ctx, met.MType, met.ID)
-                        if err != nil </span><span class="cov0" title="0">{
+                        if err != nil </span><span class="cov8" title="1">{
                                 var pgErr *pgconn.PgError
-                                if errors.As(err, &amp;pgErr) </span><span class="cov0" title="0">{
-                                        if pgerrcode.IsConnectionException(pgErr.Code) &amp;&amp; r != m.RetryCount </span><span class="cov0" title="0">{
+                                if errors.As(err, &amp;pgErr) </span><span class="cov8" title="1">{
+                                        if pgerrcode.IsConnectionException(pgErr.Code) &amp;&amp; r != m.RetryCount </span><span class="cov8" title="1">{
                                                 logger.Log.Info("repository connection error", zap.Error(err))
                                                 time.Sleep(time.Duration(1+r*2) * time.Second)
                                                 continue</span>
@@ -1686,22 +1728,22 @@ func (m *MetricsServer) UpdateMetrics(ctx context.Context, in *proto.UpdateMetri
                                 <span class="cov0" title="0">logger.Log.Info("error get updated metric", zap.Error(err))
                                 return nil, status.Errorf(codes.Internal, `error get updated metric`)</span>
                         }
-                        <span class="cov0" title="0">prMetric := &amp;proto.Metric{
+                        <span class="cov8" title="1">prMetric := &amp;proto.Metric{
                                 Id: updated.ID,
                         }
-                        if updated.MType == router.MetricTypeGauge </span><span class="cov0" title="0">{
+                        if updated.MType == router.MetricTypeGauge </span><span class="cov8" title="1">{
                                 prMetric.Type = proto.Metric_GAUGE
                                 prMetric.Value = *updated.Value
-                        }</span> else<span class="cov0" title="0"> {
+                        }</span> else<span class="cov8" title="1"> {
                                 prMetric.Type = proto.Metric_COUNTER
                                 prMetric.Delta = *updated.Delta
                         }</span>
-                        <span class="cov0" title="0">response.Metrics = append(response.Metrics, prMetric)
+                        <span class="cov8" title="1">response.Metrics = append(response.Metrics, prMetric)
                         break</span>
                 }
         }
 
-        <span class="cov0" title="0">return &amp;response, nil</span>
+        <span class="cov8" title="1">return &amp;response, nil</span>
 }
 </pre>
 		
@@ -3738,30 +3780,30 @@ import (
 )
 
 func HashInterceptor(key string) func(context.Context, interface{}, *grpc.UnaryServerInfo, grpc.UnaryHandler) (interface{}, error) <span class="cov8" title="1">{
-        return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) </span><span class="cov0" title="0">{
-                if key == "" </span><span class="cov0" title="0">{
+        return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) </span><span class="cov8" title="1">{
+                if key == "" </span><span class="cov8" title="1">{
                         return handler(ctx, req)
                 }</span>
 
-                <span class="cov0" title="0">var hEnc string
-                if md, ok := metadata.FromIncomingContext(ctx); ok </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">var hEnc string
+                if md, ok := metadata.FromIncomingContext(ctx); ok </span><span class="cov8" title="1">{
                         values := md.Get("HashSHA256")
-                        if len(values) &gt; 0 </span><span class="cov0" title="0">{
+                        if len(values) &gt; 0 </span><span class="cov8" title="1">{
                                 hEnc = values[0]
                         }</span>
                 }
-                <span class="cov0" title="0">if len(hEnc) == 0 </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">if len(hEnc) == 0 </span><span class="cov8" title="1">{
                         return nil, status.Error(codes.InvalidArgument, "missing hash")
                 }</span>
 
-                <span class="cov0" title="0">hashA, err := base64.StdEncoding.DecodeString(hEnc)
+                <span class="cov8" title="1">hashA, err := base64.StdEncoding.DecodeString(hEnc)
                 if err != nil </span><span class="cov0" title="0">{
                         logger.Log.Error("error decode hash from base64 string", zap.Error(err))
                         return nil, status.Error(codes.Internal, "missing hash")
                 }</span>
 
-                <span class="cov0" title="0">var data []byte
-                if msg, ok := req.(proto.Message); ok </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">var data []byte
+                if msg, ok := req.(proto.Message); ok </span><span class="cov8" title="1">{
                         data, err = proto.Marshal(msg)
                         if err != nil </span><span class="cov0" title="0">{
                                 logger.Log.Error("failed to marshal request: %v", zap.Error(err))
@@ -3771,13 +3813,13 @@ func HashInterceptor(key string) func(context.Context, interface{}, *grpc.UnaryS
                         return nil, status.Errorf(codes.Internal, "failed to get proto.Message")
                 }</span>
 
-                <span class="cov0" title="0">hashB := hash.GetHashSHA256(key, data)
-                if !bytes.Equal(hashA, hashB) </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">hashB := hash.GetHashSHA256(key, data)
+                if !bytes.Equal(hashA, hashB) </span><span class="cov8" title="1">{
                         logger.Log.Error("hashes don't match")
                         return nil, status.Errorf(codes.InvalidArgument, "hashes don't match")
                 }</span>
 
-                <span class="cov0" title="0">return handler(ctx, req)</span>
+                <span class="cov8" title="1">return handler(ctx, req)</span>
         }
 }
 </pre>
@@ -3796,23 +3838,23 @@ import (
         "github.com/Vidkin/metrics/internal/logger"
 )
 
-func LoggingInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) <span class="cov0" title="0">{
+func LoggingInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) <span class="cov8" title="1">{
         startTime := time.Now()
         itf, err := handler(ctx, req)
         duration := time.Since(startTime)
 
         var respStatus string
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 st, ok := status.FromError(err)
-                if ok </span><span class="cov0" title="0">{
+                if ok </span><span class="cov8" title="1">{
                         respStatus = st.Code().String()
                 }</span> else<span class="cov0" title="0"> {
                         respStatus = err.Error()
                 }</span>
-        } else<span class="cov0" title="0"> {
+        } else<span class="cov8" title="1"> {
                 respStatus = codes.OK.String()
         }</span>
-        <span class="cov0" title="0">logger.Log.Info(
+        <span class="cov8" title="1">logger.Log.Info(
                 "Request data",
                 zap.String("method", info.FullMethod),
                 zap.Duration("duration", duration),
@@ -3840,19 +3882,19 @@ import (
 )
 
 func TrustedSubnetInterceptor(subnet string) func(context.Context, interface{}, *grpc.UnaryServerInfo, grpc.UnaryHandler) (interface{}, error) <span class="cov8" title="1">{
-        return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) </span><span class="cov0" title="0">{
-                if subnet == "" </span><span class="cov0" title="0">{
+        return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) </span><span class="cov8" title="1">{
+                if subnet == "" </span><span class="cov8" title="1">{
                         return handler(ctx, req)
                 }</span>
 
-                <span class="cov0" title="0">_, IPNet, err := net.ParseCIDR(subnet)
-                if err != nil </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">_, IPNet, err := net.ParseCIDR(subnet)
+                if err != nil </span><span class="cov8" title="1">{
                         logger.Log.Error("error parse subnet")
                         return nil, status.Error(codes.PermissionDenied, "error parse subnet")
                 }</span>
-                <span class="cov0" title="0">var ipStr string
-                if p, ok := peer.FromContext(ctx); ok </span><span class="cov0" title="0">{
-                        if addr, ok := p.Addr.(*net.TCPAddr); ok </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">var ipStr string
+                if p, ok := peer.FromContext(ctx); ok </span><span class="cov8" title="1">{
+                        if addr, ok := p.Addr.(*net.TCPAddr); ok </span><span class="cov8" title="1">{
                                 ipStr = addr.IP.String()
                         }</span> else<span class="cov0" title="0"> {
                                 logger.Log.Error("error get client ip address")
@@ -3863,15 +3905,15 @@ func TrustedSubnetInterceptor(subnet string) func(context.Context, interface{}, 
                         return nil, status.Error(codes.PermissionDenied, "error get client ip address")
                 }</span>
 
-                <span class="cov0" title="0">ip := net.ParseIP(ipStr)
+                <span class="cov8" title="1">ip := net.ParseIP(ipStr)
                 if ip == nil </span><span class="cov0" title="0">{
                         logger.Log.Error("error parse ip")
                         return nil, status.Error(codes.PermissionDenied, "error parse ip")
                 }</span>
-                <span class="cov0" title="0">if IPNet.Contains(ip) </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">if IPNet.Contains(ip) </span><span class="cov8" title="1">{
                         return handler(ctx, req)
                 }</span>
-                <span class="cov0" title="0">logger.Log.Error("error check trusted subnet")
+                <span class="cov8" title="1">logger.Log.Error("error check trusted subnet")
                 return nil, status.Error(codes.PermissionDenied, "error check trusted subnet")</span>
         }
 }
@@ -4322,7 +4364,7 @@ func (x *Metric) String() string <span class="cov0" title="0">{
 
 func (*Metric) ProtoMessage() {<span class="cov0" title="0">}</span>
 
-func (x *Metric) ProtoReflect() protoreflect.Message <span class="cov0" title="0">{
+func (x *Metric) ProtoReflect() protoreflect.Message <span class="cov8" title="1">{
         mi := &amp;file_proto_metrics_proto_msgTypes[0]
         if x != nil </span><span class="cov0" title="0">{
                 ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -4331,7 +4373,7 @@ func (x *Metric) ProtoReflect() protoreflect.Message <span class="cov0" title="0
                 }</span>
                 <span class="cov0" title="0">return ms</span>
         }
-        <span class="cov0" title="0">return mi.MessageOf(x)</span>
+        <span class="cov8" title="1">return mi.MessageOf(x)</span>
 }
 
 // Deprecated: Use Metric.ProtoReflect.Descriptor instead.
@@ -4375,7 +4417,7 @@ type UpdateMetricsRequest struct {
         Metrics []*Metric `protobuf:"bytes,1,rep,name=metrics,proto3" json:"metrics,omitempty"`
 }
 
-func (x *UpdateMetricsRequest) Reset() <span class="cov0" title="0">{
+func (x *UpdateMetricsRequest) Reset() <span class="cov8" title="1">{
         *x = UpdateMetricsRequest{}
         mi := &amp;file_proto_metrics_proto_msgTypes[1]
         ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -4388,14 +4430,14 @@ func (x *UpdateMetricsRequest) String() string <span class="cov0" title="0">{
 
 func (*UpdateMetricsRequest) ProtoMessage() {<span class="cov0" title="0">}</span>
 
-func (x *UpdateMetricsRequest) ProtoReflect() protoreflect.Message <span class="cov0" title="0">{
+func (x *UpdateMetricsRequest) ProtoReflect() protoreflect.Message <span class="cov8" title="1">{
         mi := &amp;file_proto_metrics_proto_msgTypes[1]
-        if x != nil </span><span class="cov0" title="0">{
+        if x != nil </span><span class="cov8" title="1">{
                 ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-                if ms.LoadMessageInfo() == nil </span><span class="cov0" title="0">{
+                if ms.LoadMessageInfo() == nil </span><span class="cov8" title="1">{
                         ms.StoreMessageInfo(mi)
                 }</span>
-                <span class="cov0" title="0">return ms</span>
+                <span class="cov8" title="1">return ms</span>
         }
         <span class="cov0" title="0">return mi.MessageOf(x)</span>
 }
@@ -4420,7 +4462,7 @@ type UpdateMetricsResponse struct {
         Metrics []*Metric `protobuf:"bytes,1,rep,name=metrics,proto3" json:"metrics,omitempty"`
 }
 
-func (x *UpdateMetricsResponse) Reset() <span class="cov0" title="0">{
+func (x *UpdateMetricsResponse) Reset() <span class="cov8" title="1">{
         *x = UpdateMetricsResponse{}
         mi := &amp;file_proto_metrics_proto_msgTypes[2]
         ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -4433,14 +4475,14 @@ func (x *UpdateMetricsResponse) String() string <span class="cov0" title="0">{
 
 func (*UpdateMetricsResponse) ProtoMessage() {<span class="cov0" title="0">}</span>
 
-func (x *UpdateMetricsResponse) ProtoReflect() protoreflect.Message <span class="cov0" title="0">{
+func (x *UpdateMetricsResponse) ProtoReflect() protoreflect.Message <span class="cov8" title="1">{
         mi := &amp;file_proto_metrics_proto_msgTypes[2]
-        if x != nil </span><span class="cov0" title="0">{
+        if x != nil </span><span class="cov8" title="1">{
                 ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-                if ms.LoadMessageInfo() == nil </span><span class="cov0" title="0">{
+                if ms.LoadMessageInfo() == nil </span><span class="cov8" title="1">{
                         ms.StoreMessageInfo(mi)
                 }</span>
-                <span class="cov0" title="0">return ms</span>
+                <span class="cov8" title="1">return ms</span>
         }
         <span class="cov0" title="0">return mi.MessageOf(x)</span>
 }
@@ -4586,18 +4628,18 @@ type metricsClient struct {
         cc grpc.ClientConnInterface
 }
 
-func NewMetricsClient(cc grpc.ClientConnInterface) MetricsClient <span class="cov0" title="0">{
+func NewMetricsClient(cc grpc.ClientConnInterface) MetricsClient <span class="cov8" title="1">{
         return &amp;metricsClient{cc}
 }</span>
 
-func (c *metricsClient) UpdateMetrics(ctx context.Context, in *UpdateMetricsRequest, opts ...grpc.CallOption) (*UpdateMetricsResponse, error) <span class="cov0" title="0">{
+func (c *metricsClient) UpdateMetrics(ctx context.Context, in *UpdateMetricsRequest, opts ...grpc.CallOption) (*UpdateMetricsResponse, error) <span class="cov8" title="1">{
         cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
         out := new(UpdateMetricsResponse)
         err := c.cc.Invoke(ctx, Metrics_UpdateMetrics_FullMethodName, in, out, cOpts...)
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 return nil, err
         }</span>
-        <span class="cov0" title="0">return out, nil</span>
+        <span class="cov8" title="1">return out, nil</span>
 }
 
 // MetricsServer is the server API for Metrics service.
@@ -4639,22 +4681,22 @@ func RegisterMetricsServer(s grpc.ServiceRegistrar, srv MetricsServer) <span cla
         <span class="cov8" title="1">s.RegisterService(&amp;Metrics_ServiceDesc, srv)</span>
 }
 
-func _Metrics_UpdateMetrics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) <span class="cov0" title="0">{
+func _Metrics_UpdateMetrics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) <span class="cov8" title="1">{
         in := new(UpdateMetricsRequest)
         if err := dec(in); err != nil </span><span class="cov0" title="0">{
                 return nil, err
         }</span>
-        <span class="cov0" title="0">if interceptor == nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if interceptor == nil </span><span class="cov0" title="0">{
                 return srv.(MetricsServer).UpdateMetrics(ctx, in)
         }</span>
-        <span class="cov0" title="0">info := &amp;grpc.UnaryServerInfo{
+        <span class="cov8" title="1">info := &amp;grpc.UnaryServerInfo{
                 Server:     srv,
                 FullMethod: Metrics_UpdateMetrics_FullMethodName,
         }
-        handler := func(ctx context.Context, req interface{}) (interface{}, error) </span><span class="cov0" title="0">{
+        handler := func(ctx context.Context, req interface{}) (interface{}, error) </span><span class="cov8" title="1">{
                 return srv.(MetricsServer).UpdateMetrics(ctx, req.(*UpdateMetricsRequest))
         }</span>
-        <span class="cov0" title="0">return interceptor(ctx, in, info, handler)</span>
+        <span class="cov8" title="1">return interceptor(ctx, in, info, handler)</span>
 }
 
 // Metrics_ServiceDesc is the grpc.ServiceDesc for Metrics service.
