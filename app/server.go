@@ -114,8 +114,9 @@ func (a *ServerApp) DumpToFile() error {
 					continue
 				}
 				logger.Log.Info("error saving metrics", zap.Error(err))
+			} else {
+				return nil
 			}
-			break
 		}
 	}
 	return errors.New("provided Repository does not implement Dumper")
