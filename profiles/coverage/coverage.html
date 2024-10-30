@@ -67,7 +67,7 @@
 				
 				<option value="file5">github.com/Vidkin/metrics/internal/config/agent_config.go (0.0%)</option>
 				
-				<option value="file6">github.com/Vidkin/metrics/internal/config/interval.go (0.0%)</option>
+				<option value="file6">github.com/Vidkin/metrics/internal/config/interval.go (80.0%)</option>
 				
 				<option value="file7">github.com/Vidkin/metrics/internal/config/server_address.go (0.0%)</option>
 				
@@ -109,7 +109,7 @@
 				
 				<option value="file26">github.com/Vidkin/metrics/pkg/middleware/gzip.go (75.0%)</option>
 				
-				<option value="file27">github.com/Vidkin/metrics/pkg/middleware/hash.go (66.7%)</option>
+				<option value="file27">github.com/Vidkin/metrics/pkg/middleware/hash.go (75.8%)</option>
 				
 				<option value="file28">github.com/Vidkin/metrics/pkg/middleware/logging.go (100.0%)</option>
 				
@@ -1203,25 +1203,32 @@ import (
         "strings"
 )
 
+// Interval represents a time interval in seconds.
 type Interval int
 
-func (i *Interval) UnmarshalJSON(data []byte) error <span class="cov0" title="0">{
+// UnmarshalJSON customizes the JSON unmarshalling for the Interval type.
+// It expects a string representation of the interval, which should end with
+// the suffix "s" (for seconds). The method converts the string to an integer
+// and assigns it to the Interval type.
+//
+// Returns an error if the input format is invalid or if the conversion fails.
+func (i *Interval) UnmarshalJSON(data []byte) error <span class="cov8" title="1">{
         var intervalStr string
 
         if err := json.Unmarshal(data, &amp;intervalStr); err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
 
-        <span class="cov0" title="0">if strings.HasSuffix(intervalStr, "s") </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if strings.HasSuffix(intervalStr, "s") </span><span class="cov8" title="1">{
                 seconds, err := strconv.Atoi(strings.TrimSuffix(intervalStr, "s"))
                 if err != nil </span><span class="cov0" title="0">{
                         return err
                 }</span>
-                <span class="cov0" title="0">*i = Interval(seconds)</span>
-        } else<span class="cov0" title="0"> {
+                <span class="cov8" title="1">*i = Interval(seconds)</span>
+        } else<span class="cov8" title="1"> {
                 return fmt.Errorf("invalid interval format: %s", intervalStr)
         }</span>
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 </pre>
 		
@@ -4026,7 +4033,7 @@ func Hash(key string) func(http.Handler) http.Handler <span class="cov8" title="
         return func(next http.Handler) http.Handler </span><span class="cov8" title="1">{
                 return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
                         hEnc := r.Header.Get("HashSHA256")
-                        if hEnc == "" </span><span class="cov0" title="0">{
+                        if hEnc == "" </span><span class="cov8" title="1">{
                                 logger.Log.Error("client does not provide any hash")
                                 w.WriteHeader(http.StatusBadRequest)
                                 return

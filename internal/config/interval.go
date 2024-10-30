@@ -7,8 +7,15 @@ import (
 	"strings"
 )
 
+// Interval represents a time interval in seconds.
 type Interval int
 
+// UnmarshalJSON customizes the JSON unmarshalling for the Interval type.
+// It expects a string representation of the interval, which should end with
+// the suffix "s" (for seconds). The method converts the string to an integer
+// and assigns it to the Interval type.
+//
+// Returns an error if the input format is invalid or if the conversion fails.
 func (i *Interval) UnmarshalJSON(data []byte) error {
 	var intervalStr string
 
