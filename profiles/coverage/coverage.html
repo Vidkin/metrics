@@ -65,33 +65,33 @@
 				
 				<option value="file4">github.com/Vidkin/metrics/internal/agent/worker.go (38.2%)</option>
 				
-				<option value="file5">github.com/Vidkin/metrics/internal/certs/x509.go (0.0%)</option>
+				<option value="file5">github.com/Vidkin/metrics/internal/config/agent_config.go (0.0%)</option>
 				
-				<option value="file6">github.com/Vidkin/metrics/internal/config/agent_config.go (0.0%)</option>
+				<option value="file6">github.com/Vidkin/metrics/internal/config/interval.go (0.0%)</option>
 				
-				<option value="file7">github.com/Vidkin/metrics/internal/config/interval.go (0.0%)</option>
+				<option value="file7">github.com/Vidkin/metrics/internal/config/server_address.go (0.0%)</option>
 				
-				<option value="file8">github.com/Vidkin/metrics/internal/config/server_address.go (0.0%)</option>
+				<option value="file8">github.com/Vidkin/metrics/internal/config/server_config.go (0.0%)</option>
 				
-				<option value="file9">github.com/Vidkin/metrics/internal/config/server_config.go (0.0%)</option>
+				<option value="file9">github.com/Vidkin/metrics/internal/logger/logger.go (90.9%)</option>
 				
-				<option value="file10">github.com/Vidkin/metrics/internal/logger/logger.go (90.9%)</option>
+				<option value="file10">github.com/Vidkin/metrics/internal/metric/metric.go (100.0%)</option>
 				
-				<option value="file11">github.com/Vidkin/metrics/internal/metric/metric.go (100.0%)</option>
+				<option value="file11">github.com/Vidkin/metrics/internal/proto/metrics.go (0.0%)</option>
 				
-				<option value="file12">github.com/Vidkin/metrics/internal/proto/metrics.go (0.0%)</option>
+				<option value="file12">github.com/Vidkin/metrics/internal/repository/mock/mock_repository.go (84.0%)</option>
 				
-				<option value="file13">github.com/Vidkin/metrics/internal/repository/mock/mock_repository.go (84.0%)</option>
+				<option value="file13">github.com/Vidkin/metrics/internal/repository/storage/file.go (81.8%)</option>
 				
-				<option value="file14">github.com/Vidkin/metrics/internal/repository/storage/file.go (79.1%)</option>
+				<option value="file14">github.com/Vidkin/metrics/internal/repository/storage/memory.go (93.3%)</option>
 				
-				<option value="file15">github.com/Vidkin/metrics/internal/repository/storage/memory.go (93.3%)</option>
+				<option value="file15">github.com/Vidkin/metrics/internal/repository/storage/postgres.go (71.1%)</option>
 				
-				<option value="file16">github.com/Vidkin/metrics/internal/repository/storage/postgres.go (71.1%)</option>
+				<option value="file16">github.com/Vidkin/metrics/internal/router/metric_router.go (91.6%)</option>
 				
-				<option value="file17">github.com/Vidkin/metrics/internal/router/metric_router.go (91.6%)</option>
+				<option value="file17">github.com/Vidkin/metrics/internal/router/storage_factory.go (81.7%)</option>
 				
-				<option value="file18">github.com/Vidkin/metrics/internal/router/storage_factory.go (81.7%)</option>
+				<option value="file18">github.com/Vidkin/metrics/pkg/cert/x509.go (83.9%)</option>
 				
 				<option value="file19">github.com/Vidkin/metrics/pkg/compress/gzip.go (80.0%)</option>
 				
@@ -1034,90 +1034,7 @@ func (mw *MetricWorker) Poll(ctx context.Context) <span class="cov0" title="0">{
 }
 </pre>
 		
-		<pre class="file" id="file5" style="display: none">package main
-
-import (
-        "bytes"
-        "crypto/rand"
-        "crypto/rsa"
-        "crypto/x509"
-        "crypto/x509/pkix"
-        "encoding/pem"
-        "log"
-        "math/big"
-        "net"
-        "os"
-        "time"
-)
-
-func saveFile(path string, data []byte) error <span class="cov0" title="0">{
-        return os.WriteFile(path, data, 0755)
-}</span>
-
-func main() <span class="cov0" title="0">{
-        // создаём шаблон сертификата
-        cert := &amp;x509.Certificate{
-                // указываем уникальный номер сертификата
-                SerialNumber: big.NewInt(1),
-                // заполняем базовую информацию о владельце сертификата
-                Subject: pkix.Name{
-                        Organization: []string{"Yandex.Praktikum.Sirkin"},
-                        Country:      []string{"RU"},
-                },
-                // разрешаем использование сертификата для 127.0.0.1 и ::1
-                IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
-                // сертификат верен, начиная со времени создания
-                NotBefore: time.Now(),
-                // время жизни сертификата — 10 лет
-                NotAfter:     time.Now().AddDate(10, 0, 0),
-                SubjectKeyId: []byte{1, 2, 3, 4, 6},
-                // устанавливаем использование ключа для цифровой подписи,
-                // а также клиентской и серверной авторизации
-                ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-                KeyUsage:    x509.KeyUsageDigitalSignature,
-        }
-
-        // создаём новый приватный RSA-ключ длиной 4096 бит
-        // обратите внимание, что для генерации ключа и сертификата
-        // используется rand.Reader в качестве источника случайных данных
-        privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
-        if err != nil </span><span class="cov0" title="0">{
-                log.Fatal(err)
-        }</span>
-
-        // создаём сертификат x.509
-        <span class="cov0" title="0">certBytes, err := x509.CreateCertificate(rand.Reader, cert, cert, &amp;privateKey.PublicKey, privateKey)
-        if err != nil </span><span class="cov0" title="0">{
-                log.Fatal(err)
-        }</span>
-
-        // кодируем сертификат и ключ в формате PEM, который
-        // используется для хранения и обмена криптографическими ключами
-        <span class="cov0" title="0">var certPEM bytes.Buffer
-        pem.Encode(&amp;certPEM, &amp;pem.Block{
-                Type:  "CERTIFICATE",
-                Bytes: certBytes,
-        })
-
-        var privateKeyPEM bytes.Buffer
-        pem.Encode(&amp;privateKeyPEM, &amp;pem.Block{
-                Type:  "RSA PRIVATE KEY",
-                Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
-        })
-
-        err = saveFile("cert.pem", certPEM.Bytes())
-        if err != nil </span><span class="cov0" title="0">{
-                log.Fatal(err)
-        }</span>
-
-        <span class="cov0" title="0">err = saveFile("privateKey.pem", privateKeyPEM.Bytes())
-        if err != nil </span><span class="cov0" title="0">{
-                log.Fatal(err)
-        }</span>
-}
-</pre>
-		
-		<pre class="file" id="file6" style="display: none">package config
+		<pre class="file" id="file5" style="display: none">package config
 
 import (
         "encoding/json"
@@ -1277,7 +1194,7 @@ func (config *AgentConfig) loadJSONConfig(path string) error <span class="cov0" 
 }
 </pre>
 		
-		<pre class="file" id="file7" style="display: none">package config
+		<pre class="file" id="file6" style="display: none">package config
 
 import (
         "encoding/json"
@@ -1308,7 +1225,7 @@ func (i *Interval) UnmarshalJSON(data []byte) error <span class="cov0" title="0"
 }
 </pre>
 		
-		<pre class="file" id="file8" style="display: none">package config
+		<pre class="file" id="file7" style="display: none">package config
 
 import (
         "errors"
@@ -1408,7 +1325,7 @@ func (s *ServerAddress) UnmarshalJSON(data []byte) error <span class="cov0" titl
 }
 </pre>
 		
-		<pre class="file" id="file9" style="display: none">package config
+		<pre class="file" id="file8" style="display: none">package config
 
 import (
         "encoding/json"
@@ -1575,7 +1492,7 @@ func (config *ServerConfig) loadJSONConfig(path string) error <span class="cov0"
 }
 </pre>
 		
-		<pre class="file" id="file10" style="display: none">// Package logger provides a simple logging utility using the Zap logging library.
+		<pre class="file" id="file9" style="display: none">// Package logger provides a simple logging utility using the Zap logging library.
 package logger
 
 import (
@@ -1604,7 +1521,7 @@ func Initialize(logLevel string) error <span class="cov8" title="1">{
 }
 </pre>
 		
-		<pre class="file" id="file11" style="display: none">// Package metric provides defining of metrics used in monitoring systems.
+		<pre class="file" id="file10" style="display: none">// Package metric provides defining of metrics used in monitoring systems.
 package metric
 
 import (
@@ -1634,7 +1551,7 @@ func (m *Metric) ValueAsString() string <span class="cov8" title="1">{
 }
 </pre>
 		
-		<pre class="file" id="file12" style="display: none">package proto
+		<pre class="file" id="file11" style="display: none">package proto
 
 import (
         "context"
@@ -1781,7 +1698,7 @@ func (m *MetricsServer) UpdateMetrics(ctx context.Context, in *proto.UpdateMetri
 }
 </pre>
 		
-		<pre class="file" id="file13" style="display: none">// Code generated by MockGen. DO NOT EDIT.
+		<pre class="file" id="file12" style="display: none">// Code generated by MockGen. DO NOT EDIT.
 // Source: github.com/Vidkin/metrics/internal/router (interfaces: Repository)
 
 // Package mock is a generated GoMock package.
@@ -1972,7 +1889,7 @@ func (mr *MockRepositoryMockRecorder) Ping(arg0 interface{}) *gomock.Call <span 
 }</span>
 </pre>
 		
-		<pre class="file" id="file14" style="display: none">package storage
+		<pre class="file" id="file13" style="display: none">package storage
 
 import (
         "context"
@@ -2204,13 +2121,10 @@ func (f *FileStorage) FullDump() error <span class="cov8" title="1">{
 
 func (f *FileStorage) Load(ctx context.Context) error <span class="cov8" title="1">{
         file, err := os.OpenFile(f.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
-        if err != nil </span><span class="cov0" title="0">{
-                if err == io.EOF </span><span class="cov0" title="0">{
-                        return nil
-                }</span>
-                <span class="cov0" title="0">logger.Log.Info("error open file", zap.Error(err))
-                return err</span>
-        }
+        if err != nil </span><span class="cov8" title="1">{
+                logger.Log.Info("error open file", zap.Error(err))
+                return err
+        }</span>
         <span class="cov8" title="1">defer file.Close()
 
         data, err := io.ReadAll(file)
@@ -2232,7 +2146,7 @@ func (f *FileStorage) Load(ctx context.Context) error <span class="cov8" title="
 }
 </pre>
 		
-		<pre class="file" id="file15" style="display: none">package storage
+		<pre class="file" id="file14" style="display: none">package storage
 
 import (
         "context"
@@ -2375,7 +2289,7 @@ func (m *MemoryStorage) GetCounters(_ context.Context) ([]*me.Metric, error) <sp
 }
 </pre>
 		
-		<pre class="file" id="file16" style="display: none">package storage
+		<pre class="file" id="file15" style="display: none">package storage
 
 import (
         "context"
@@ -2649,7 +2563,7 @@ func (p *PostgresStorage) Close() error <span class="cov8" title="1">{
 }</span>
 </pre>
 		
-		<pre class="file" id="file17" style="display: none">// Package router provides an HTTP routing implementation for handling metrics-related operations.
+		<pre class="file" id="file16" style="display: none">// Package router provides an HTTP routing implementation for handling metrics-related operations.
 package router
 
 import (
@@ -3332,7 +3246,7 @@ func (mr *MetricRouter) UpdateMetricsHandlerJSON(res http.ResponseWriter, req *h
 }
 </pre>
 		
-		<pre class="file" id="file18" style="display: none">package router
+		<pre class="file" id="file17" style="display: none">package router
 
 import (
         "context"
@@ -3441,6 +3355,152 @@ func NewRepository(cfg *config.ServerConfig) (Repository, error) <span class="co
 
         <span class="cov8" title="1">memStorage := NewMemoryStorage()
         return memStorage, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file18" style="display: none">/*
+Package cert provides functionality for creating and saving
+X.509 certificates and corresponding private keys in PEM format.
+*/
+package cert
+
+import (
+        "bytes"
+        "crypto/rand"
+        "crypto/rsa"
+        "crypto/x509"
+        "crypto/x509/pkix"
+        "encoding/pem"
+        "math/big"
+        "net"
+        "os"
+        "time"
+)
+
+// saveFile saves data to a file at the specified path.
+// Parameters:
+//   - path: the path to the file where data will be saved.
+//   - data: the data to be saved.
+//
+// Returns an error if the saving fails.
+func saveFile(path string, data []byte) error <span class="cov8" title="1">{
+        return os.WriteFile(path, data, 0755)
+}</span>
+
+// createX509Certificate creates a new X.509 certificate and the corresponding
+// private RSA key. The certificate will be valid for the IP addresses
+// 127.0.0.1 and ::1, and will have a validity period of 10 years.
+// Parameters:
+//   - organization: the name of the organization for which the certificate is created.
+//   - country: the country where the organization is registered.
+//
+// Returns the private key, certificate bytes, and an error if the certificate creation fails.
+func createX509Certificate(organization, country string) (*rsa.PrivateKey, []byte, error) <span class="cov8" title="1">{
+        // создаём шаблон сертификата
+        cert := &amp;x509.Certificate{
+                // указываем уникальный номер сертификата
+                SerialNumber: big.NewInt(1),
+                // заполняем базовую информацию о владельце сертификата
+                Subject: pkix.Name{
+                        Organization: []string{organization},
+                        Country:      []string{country},
+                },
+                // разрешаем использование сертификата для 127.0.0.1 и ::1
+                IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+                // сертификат верен, начиная со времени создания
+                NotBefore: time.Now(),
+                // время жизни сертификата — 10 лет
+                NotAfter:     time.Now().AddDate(10, 0, 0),
+                SubjectKeyId: []byte{1, 2, 3, 4, 6},
+                // устанавливаем использование ключа для цифровой подписи,
+                // а также клиентской и серверной авторизации
+                ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+                KeyUsage:    x509.KeyUsageDigitalSignature,
+        }
+
+        // создаём новый приватный RSA-ключ длиной 4096 бит
+        // обратите внимание, что для генерации ключа и сертификата
+        // используется rand.Reader в качестве источника случайных данных
+        privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, nil, err
+        }</span>
+
+        // создаём сертификат x.509
+        <span class="cov8" title="1">certBytes, err := x509.CreateCertificate(rand.Reader, cert, cert, &amp;privateKey.PublicKey, privateKey)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, nil, err
+        }</span>
+
+        <span class="cov8" title="1">return privateKey, certBytes, nil</span>
+}
+
+// createCertPEM encodes the certificate in PEM format.
+// Parameters:
+//   - certBytes: the bytes of the certificate to encode.
+//
+// Returns a buffer with the encoded certificate and an error if encoding fails.
+func createCertPEM(certBytes []byte) (bytes.Buffer, error) <span class="cov8" title="1">{
+        // кодируем сертификат и ключ в формате PEM, который
+        // используется для хранения и обмена криптографическими ключами
+        var certPEM bytes.Buffer
+        err := pem.Encode(&amp;certPEM, &amp;pem.Block{
+                Type:  "CERTIFICATE",
+                Bytes: certBytes,
+        })
+        return certPEM, err
+}</span>
+
+// createPrivateKeyPEM encodes the private key in PEM format.
+// Parameters:
+//   - privateKey: the private RSA key to encode.
+//
+// Returns a buffer with the encoded private key and an error if encoding fails.
+func createPrivateKeyPEM(privateKey *rsa.PrivateKey) (bytes.Buffer, error) <span class="cov8" title="1">{
+        var privateKeyPEM bytes.Buffer
+        err := pem.Encode(&amp;privateKeyPEM, &amp;pem.Block{
+                Type:  "RSA PRIVATE KEY",
+                Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+        })
+        return privateKeyPEM, err
+}</span>
+
+// createAndSave is the entry point of the program. It creates an X.509 certificate,
+// generates the corresponding private key, and saves them to files
+// cert.pem and privateKey.pem.
+// Parameters:
+//   - organization: the name of the organization for which the certificate is created.
+//   - country: the country where the organization is registered.
+//   - pathCertPEM: path where to save cert pem file.
+//   - pathPrivateKeyPEM: path where to save private key pem file.
+//
+// Returns an error if operation fails.
+func createAndSave(organization, country, pathCertPEM, pathPrivateKeyPEM string) error <span class="cov8" title="1">{
+        privateKey, certBytes, err := createX509Certificate(organization, country)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">certPEM, err := createCertPEM(certBytes)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">privateKeyPEM, err := createPrivateKeyPEM(privateKey)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">err = saveFile(pathCertPEM, certPEM.Bytes())
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">err = saveFile(pathPrivateKeyPEM, privateKeyPEM.Bytes())
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+        <span class="cov8" title="1">return nil</span>
 }
 </pre>
 		

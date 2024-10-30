@@ -581,7 +581,7 @@ func TestFileStorage_Load(t *testing.T) {
 			if tt.wantErr == true {
 				bak := fileStorage.FileStoragePath
 				fileStorage.FileStoragePath = "/badPath//"
-				err := fileStorage.FullDump()
+				err := fileStorage.Load(context.TODO())
 				assert.Error(t, err)
 				fileStorage.FileStoragePath = bak
 			}
