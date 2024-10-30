@@ -1,3 +1,5 @@
+// Package proto provides a gRPC server implementation for handling metrics-related operations.
+// It defines the MetricsServer struct and methods for updating and dumping metrics to a repository.
 package proto
 
 import (
@@ -18,19 +20,39 @@ import (
 	"github.com/Vidkin/metrics/proto"
 )
 
+// MetricsServer is a gRPC server that handles metrics-related operations.
+// It implements the proto.MetricsServer interface and provides methods for
+// updating and dumping metrics to a specified repository.
 type MetricsServer struct {
 	proto.UnimplementedMetricsServer
-	Repository    router.Repository
-	LastStoreTime time.Time
-	RetryCount    int
-	StoreInterval int
+	Repository    router.Repository // Repository for storing metrics
+	LastStoreTime time.Time         // Last time metrics were successfully stored
+	RetryCount    int               // Number of retry attempts for database operations
+	StoreInterval int               // Interval for storing metrics
 }
 
+// Dumper defines the methods required for dumping metrics to a storage system.
+// Implementations of this interface should provide functionality to save individual metrics
+// as well as to perform a complete dump of all metrics.
 type Dumper interface {
-	Dump(metric *metric.Metric) error
-	FullDump() error
+	Dump(metric *metric.Metric) error // Dumps a single metric
+	FullDump() error                  // Performs a complete dump of all metrics
 }
 
+// DumpMetric attempts to dump a given metric to the provided Repository.
+// It checks if the Repository implements the Dumper interface. If it does,
+// the function calls the Dump method of the Dumper interface to persist
+// the metric. If the Repository does not implement the Dumper interface,
+// the function returns an error indicating that the provided Repository
+// cannot perform the dump operation.
+//
+// Parameters:
+//   - r: A Repository instance that is expected to implement the Dumper interface.
+//   - m: A pointer to the metric.Metric that needs to be dumped.
+//
+// Returns:
+//   - An error if the dumping operation fails or if the Repository does not
+//     implement the Dumper interface; otherwise, it returns nil.
 func DumpMetric(r router.Repository, m *metric.Metric) error {
 	if dumper, ok := r.(Dumper); ok {
 		return dumper.Dump(m)
@@ -38,6 +60,15 @@ func DumpMetric(r router.Repository, m *metric.Metric) error {
 	return errors.New("provided Repository does not implement Dumper")
 }
 
+// DumpMetric attempts to dump a given metric to the MetricsServer's Repository.
+// It retries the dump operation based on the configured RetryCount and handles
+// connection errors by waiting and retrying.
+//
+// Parameters:
+//   - metric: A pointer to the metric.Metric that needs to be dumped.
+//
+// Returns:
+//   - An error if the dumping operation fails; otherwise, it returns nil.
 func (m *MetricsServer) DumpMetric(metric *metric.Metric) error {
 	if m.StoreInterval == 0 {
 		for i := 0; i <= m.RetryCount; i++ {
@@ -58,6 +89,17 @@ func (m *MetricsServer) DumpMetric(metric *metric.Metric) error {
 	return nil
 }
 
+// UpdateMetrics handles the gRPC request to update multiple metrics.
+// It processes the incoming UpdateMetricsRequest, updates the metrics in the repository,
+// and returns the updated metrics in the response.
+//
+// Parameters:
+//   - ctx: A context.Context to control the lifetime of the operation.
+//   - in: A pointer to the proto.UpdateMetricsRequest containing the metrics to update.
+//
+// Returns:
+//   - A pointer to the proto.UpdateMetricsResponse containing the updated metrics,
+//     or an error if the operation fails.
 func (m *MetricsServer) UpdateMetrics(ctx context.Context, in *proto.UpdateMetricsRequest) (*proto.UpdateMetricsResponse, error) {
 	var response proto.UpdateMetricsResponse
 	var metrics []metric.Metric
