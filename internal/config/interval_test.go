@@ -42,9 +42,9 @@ func TestInterval_UnmarshalJSON(t *testing.T) {
 
 func TestInterval_MarshalJSON(t *testing.T) {
 	tests := []struct {
+		want     string
 		name     string
 		interval Interval
-		want     string
 	}{
 		{
 			name:     "marshal 0 seconds",
