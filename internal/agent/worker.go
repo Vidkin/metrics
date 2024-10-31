@@ -409,7 +409,6 @@ func (mw *MetricWorker) Poll(ctx context.Context) {
 			return
 		default:
 			currentTime := time.Now()
-
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -417,7 +416,6 @@ func (mw *MetricWorker) Poll(ctx context.Context) {
 			}()
 
 			if currentTime.Sub(startTime).Seconds() >= float64(mw.config.ReportInterval) {
-				startTime = currentTime
 				for w := 1; w <= mw.config.RateLimit; w++ {
 					wg.Add(1)
 					go func() {

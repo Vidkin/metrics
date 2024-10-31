@@ -63,7 +63,7 @@
 				
 				<option value="file3">github.com/Vidkin/metrics/cmd/staticlint/multichecker.go (0.0%)</option>
 				
-				<option value="file4">github.com/Vidkin/metrics/internal/agent/worker.go (54.3%)</option>
+				<option value="file4">github.com/Vidkin/metrics/internal/agent/worker.go (67.0%)</option>
 				
 				<option value="file5">github.com/Vidkin/metrics/internal/config/agent_config.go (84.8%)</option>
 				
@@ -972,18 +972,18 @@ func (mw *MetricWorker) SendMetrics(ctx context.Context, chIn chan []*metric.Met
         }
 }
 
-func (mw *MetricWorker) Poll(ctx context.Context) <span class="cov0" title="0">{
+func (mw *MetricWorker) Poll(ctx context.Context) <span class="cov8" title="1">{
         startTime := time.Now()
         protocol := "http"
         if mw.config.CryptoKey != "" </span><span class="cov0" title="0">{
                 protocol = "https"
         }</span>
-        <span class="cov0" title="0">var serverURL = protocol + "://" + mw.config.ServerAddress.Address + "/updates/"
+        <span class="cov8" title="1">var serverURL = protocol + "://" + mw.config.ServerAddress.Address + "/updates/"
         var count int64 = 0
 
         var wg sync.WaitGroup
 
-        for </span><span class="cov0" title="0">{
+        for </span><span class="cov8" title="1">{
                 chIn := make(chan []*metric.Metric, mw.config.RateLimit)
                 select </span>{
                 case &lt;-ctx.Done():<span class="cov0" title="0">
@@ -1004,30 +1004,28 @@ func (mw *MetricWorker) Poll(ctx context.Context) <span class="cov0" title="0">{
 
                         <span class="cov0" title="0">&lt;-ctxWait.Done()
                         return</span>
-                default:<span class="cov0" title="0">
+                default:<span class="cov8" title="1">
                         currentTime := time.Now()
-
                         wg.Add(1)
-                        go func() </span><span class="cov0" title="0">{
+                        go func() </span><span class="cov8" title="1">{
                                 defer wg.Done()
                                 mw.CollectMetrics(ctx, chIn, count)
                         }</span>()
 
-                        <span class="cov0" title="0">if currentTime.Sub(startTime).Seconds() &gt;= float64(mw.config.ReportInterval) </span><span class="cov0" title="0">{
-                                startTime = currentTime
-                                for w := 1; w &lt;= mw.config.RateLimit; w++ </span><span class="cov0" title="0">{
+                        <span class="cov8" title="1">if currentTime.Sub(startTime).Seconds() &gt;= float64(mw.config.ReportInterval) </span><span class="cov8" title="1">{
+                                for w := 1; w &lt;= mw.config.RateLimit; w++ </span><span class="cov8" title="1">{
                                         wg.Add(1)
-                                        go func() </span><span class="cov0" title="0">{
+                                        go func() </span><span class="cov8" title="1">{
                                                 defer wg.Done()
                                                 if !mw.config.UseGRPC </span><span class="cov0" title="0">{
                                                         mw.SendMetrics(ctx, chIn, serverURL)
-                                                }</span> else<span class="cov0" title="0"> {
+                                                }</span> else<span class="cov8" title="1"> {
                                                         mw.SendMetricsGRPC(ctx, chIn)
                                                 }</span>
                                         }()
                                 }
                         }
-                        <span class="cov0" title="0">time.Sleep(time.Duration(mw.config.PollInterval) * time.Second)
+                        <span class="cov8" title="1">time.Sleep(time.Duration(mw.config.PollInterval) * time.Second)
                         count++</span>
                 }
         }

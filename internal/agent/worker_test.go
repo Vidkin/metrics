@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -21,6 +22,7 @@ import (
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/metric"
 	proto2 "github.com/Vidkin/metrics/internal/proto"
+	mock2 "github.com/Vidkin/metrics/internal/repository/mock"
 	"github.com/Vidkin/metrics/internal/repository/storage"
 	"github.com/Vidkin/metrics/internal/router"
 	"github.com/Vidkin/metrics/pkg/interceptors"
@@ -294,4 +296,65 @@ func TestSendMetric(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPoll(t *testing.T) {
+	mockController := gomock.NewController(t)
+	serverRepository := mock2.NewMockRepository(mockController)
+
+	ms := &proto2.MetricsServer{
+		Repository:    serverRepository,
+		LastStoreTime: time.Now(),
+		RetryCount:    2,
+		StoreInterval: 10,
+	}
+	defer os.Remove(filepath.Join(os.TempDir(), "metricsTestFile.test"))
+	defer os.Remove(filepath.Join(os.TempDir(), "metricsTestFile2.test"))
+
+	var s *grpc.Server
+	s = grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			interceptors.LoggingInterceptor,
+			interceptors.TrustedSubnetInterceptor("127.0.0.0/24"),
+			interceptors.HashInterceptor("testKey")))
+	proto.RegisterMetricsServer(s, ms)
+
+	listen, err := net.Listen("tcp", "127.0.0.1:8081")
+	require.NoError(t, err)
+	go func() {
+		err = s.Serve(listen)
+		require.NoError(t, err)
+	}()
+	defer s.Stop()
+
+	memStats := &runtime.MemStats{}
+	memoryStorage := router.NewFileStorage("")
+	conn, err := grpc.NewClient("127.0.0.1:8081", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	defer func(conn *grpc.ClientConn) {
+		err = conn.Close()
+		require.NoError(t, err)
+	}(conn)
+	clientGRPC := proto.NewMetricsClient(conn)
+	mw := New(memoryStorage, memStats, nil, clientGRPC, &config.AgentConfig{UseGRPC: true, ReportInterval: 1, PollInterval: 2, RateLimit: 1, Key: "testKey", ServerAddress: &config.ServerAddress{Address: "127.0.0.1:8081"}})
+
+	serverRepository.EXPECT().
+		UpdateMetrics(gomock.Any(), gomock.Any()).
+		Return(nil).AnyTimes()
+
+	serverRepository.EXPECT().
+		GetMetrics(gomock.Any()).
+		Return([]*metric.Metric{}, nil).AnyTimes()
+
+	fVal := 12.2
+	serverRepository.EXPECT().
+		GetMetric(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(&metric.Metric{ID: "test", MType: MetricTypeGauge, Value: &fVal}, nil).AnyTimes()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
+	defer cancel()
+
+	go mw.Poll(ctx)
+
+	time.Sleep(5 * time.Second)
 }
