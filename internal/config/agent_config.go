@@ -60,17 +60,21 @@ func NewAgentConfig() (*AgentConfig, error) {
 }
 
 func (config *AgentConfig) parseFlags() error {
-	flag.Var(config.ServerAddress, "a", "Server address host:port")
-	flag.StringVar(&config.ConfigPath, "c", "", "Path to json config file")
-	flag.StringVar(&config.ConfigPath, "config", "", "Path to json config file")
-	flag.IntVar((*int)(&config.ReportInterval), "r", DefaultAgentReportInterval, "Agent report poll interval (sec)")
-	flag.IntVar((*int)(&config.PollInterval), "p", DefaultAgentPollInterval, "Agent poll interval (sec)")
-	flag.IntVar(&config.RateLimit, "l", 5, "Rate limit")
-	flag.StringVar(&config.Key, "k", "", "Hash key")
-	flag.BoolVar(&config.UseGRPC, "g", true, "Use gRPC")
-	flag.StringVar(&config.CryptoKey, "crypto-key", "", "Crypto key")
-	flag.Parse()
+	fs := flag.NewFlagSet("agentFlagSet", flag.ContinueOnError)
 
+	fs.Var(config.ServerAddress, "a", "Server address host:port")
+	fs.StringVar(&config.ConfigPath, "c", "", "Path to json config file")
+	fs.StringVar(&config.ConfigPath, "config", "", "Path to json config file")
+	fs.IntVar((*int)(&config.ReportInterval), "r", DefaultAgentReportInterval, "Agent report poll interval (sec)")
+	fs.IntVar((*int)(&config.PollInterval), "p", DefaultAgentPollInterval, "Agent poll interval (sec)")
+	fs.IntVar(&config.RateLimit, "l", 5, "Rate limit")
+	fs.StringVar(&config.Key, "k", "", "Hash key")
+	fs.StringVar(&config.CryptoKey, "crypto-key", "", "Crypto key")
+	fs.BoolVar(&config.UseGRPC, "g", true, "Use gRPC")
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		logger.Log.Error("error parse agent flags", zap.Error(err))
+		return err
+	}
 	if config.ConfigPath != "" {
 		if err := config.loadJSONConfig(config.ConfigPath); err != nil {
 			logger.Log.Error("error parse json config file", zap.Error(err))

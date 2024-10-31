@@ -34,3 +34,11 @@ func (i *Interval) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+
+// MarshalJSON customizes the JSON marshalling for the Interval type.
+// It converts the Interval value to a string representation ending with "s".
+func (i Interval) MarshalJSON() ([]byte, error) {
+	// Convert the Interval value to a string and append "s"
+	intervalStr := fmt.Sprintf("%ds", i)
+	return json.Marshal(intervalStr)
+}

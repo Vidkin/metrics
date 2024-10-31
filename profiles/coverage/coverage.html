@@ -65,13 +65,13 @@
 				
 				<option value="file4">github.com/Vidkin/metrics/internal/agent/worker.go (54.3%)</option>
 				
-				<option value="file5">github.com/Vidkin/metrics/internal/config/agent_config.go (0.0%)</option>
+				<option value="file5">github.com/Vidkin/metrics/internal/config/agent_config.go (84.8%)</option>
 				
-				<option value="file6">github.com/Vidkin/metrics/internal/config/interval.go (80.0%)</option>
+				<option value="file6">github.com/Vidkin/metrics/internal/config/interval.go (83.3%)</option>
 				
-				<option value="file7">github.com/Vidkin/metrics/internal/config/server_address.go (0.0%)</option>
+				<option value="file7">github.com/Vidkin/metrics/internal/config/server_address.go (100.0%)</option>
 				
-				<option value="file8">github.com/Vidkin/metrics/internal/config/server_config.go (0.0%)</option>
+				<option value="file8">github.com/Vidkin/metrics/internal/config/server_config.go (80.5%)</option>
 				
 				<option value="file9">github.com/Vidkin/metrics/internal/logger/logger.go (90.9%)</option>
 				
@@ -1084,7 +1084,7 @@ type AgentConfig struct {
 // Returns:
 // - A pointer to an `AgentConfig` instance containing the configuration settings.
 // - An error if there was an issue during initialization or parsing; otherwise, nil.
-func NewAgentConfig() (*AgentConfig, error) <span class="cov0" title="0">{
+func NewAgentConfig() (*AgentConfig, error) <span class="cov8" title="1">{
         var config AgentConfig
         config.ServerAddress = NewServerAddress()
         config.LogLevel = "info"
@@ -1092,55 +1092,59 @@ func NewAgentConfig() (*AgentConfig, error) <span class="cov0" title="0">{
         if err != nil </span><span class="cov0" title="0">{
                 return nil, err
         }</span>
-        <span class="cov0" title="0">return &amp;config, nil</span>
+        <span class="cov8" title="1">return &amp;config, nil</span>
 }
 
-func (config *AgentConfig) parseFlags() error <span class="cov0" title="0">{
-        flag.Var(config.ServerAddress, "a", "Server address host:port")
-        flag.StringVar(&amp;config.ConfigPath, "c", "", "Path to json config file")
-        flag.StringVar(&amp;config.ConfigPath, "config", "", "Path to json config file")
-        flag.IntVar((*int)(&amp;config.ReportInterval), "r", DefaultAgentReportInterval, "Agent report poll interval (sec)")
-        flag.IntVar((*int)(&amp;config.PollInterval), "p", DefaultAgentPollInterval, "Agent poll interval (sec)")
-        flag.IntVar(&amp;config.RateLimit, "l", 5, "Rate limit")
-        flag.StringVar(&amp;config.Key, "k", "", "Hash key")
-        flag.BoolVar(&amp;config.UseGRPC, "g", true, "Use gRPC")
-        flag.StringVar(&amp;config.CryptoKey, "crypto-key", "", "Crypto key")
-        flag.Parse()
+func (config *AgentConfig) parseFlags() error <span class="cov8" title="1">{
+        fs := flag.NewFlagSet("agentFlagSet", flag.ContinueOnError)
 
-        if config.ConfigPath != "" </span><span class="cov0" title="0">{
-                if err := config.loadJSONConfig(config.ConfigPath); err != nil </span><span class="cov0" title="0">{
+        fs.Var(config.ServerAddress, "a", "Server address host:port")
+        fs.StringVar(&amp;config.ConfigPath, "c", "", "Path to json config file")
+        fs.StringVar(&amp;config.ConfigPath, "config", "", "Path to json config file")
+        fs.IntVar((*int)(&amp;config.ReportInterval), "r", DefaultAgentReportInterval, "Agent report poll interval (sec)")
+        fs.IntVar((*int)(&amp;config.PollInterval), "p", DefaultAgentPollInterval, "Agent poll interval (sec)")
+        fs.IntVar(&amp;config.RateLimit, "l", 5, "Rate limit")
+        fs.StringVar(&amp;config.Key, "k", "", "Hash key")
+        fs.StringVar(&amp;config.CryptoKey, "crypto-key", "", "Crypto key")
+        fs.BoolVar(&amp;config.UseGRPC, "g", true, "Use gRPC")
+        if err := fs.Parse(os.Args[1:]); err != nil </span><span class="cov0" title="0">{
+                logger.Log.Error("error parse agent flags", zap.Error(err))
+                return err
+        }</span>
+        <span class="cov8" title="1">if config.ConfigPath != "" </span><span class="cov8" title="1">{
+                if err := config.loadJSONConfig(config.ConfigPath); err != nil </span><span class="cov8" title="1">{
                         logger.Log.Error("error parse json config file", zap.Error(err))
                 }</span>
         }
 
-        <span class="cov0" title="0">err := env.Parse(config.ServerAddress)
+        <span class="cov8" title="1">err := env.Parse(config.ServerAddress)
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
 
-        <span class="cov0" title="0">if config.ServerAddress.Address == "" </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if config.ServerAddress.Address == "" </span><span class="cov8" title="1">{
                 config.ServerAddress.Address = config.ServerAddress.String()
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
-func (config *AgentConfig) loadJSONConfig(path string) error <span class="cov0" title="0">{
+func (config *AgentConfig) loadJSONConfig(path string) error <span class="cov8" title="1">{
         data, err := os.ReadFile(path)
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 return err
         }</span>
 
-        <span class="cov0" title="0">var jsonAgentConfig AgentConfig
-        if err = json.Unmarshal(data, &amp;jsonAgentConfig); err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">var jsonAgentConfig AgentConfig
+        if err = json.Unmarshal(data, &amp;jsonAgentConfig); err != nil </span><span class="cov8" title="1">{
                 return err
         }</span>
 
-        <span class="cov0" title="0">if config.ServerAddress.Address == "" </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if config.ServerAddress.Address == "" </span><span class="cov8" title="1">{
                 config.ServerAddress = jsonAgentConfig.ServerAddress
         }</span>
 
-        <span class="cov0" title="0">cryptoKeyPassed := false
+        <span class="cov8" title="1">cryptoKeyPassed := false
         reportIntervalPassed := false
         pollIntervalPassed := false
         hashKeyPassed := false
@@ -1148,7 +1152,7 @@ func (config *AgentConfig) loadJSONConfig(path string) error <span class="cov0" 
         useGRPCPassed := false
 
         args := os.Args[1:]
-        for i := 0; i &lt; len(args); i++ </span><span class="cov0" title="0">{
+        for i := 0; i &lt; len(args); i++ </span><span class="cov8" title="1">{
                 arg := args[i]
                 switch arg </span>{
                 case "--p", "-p":<span class="cov0" title="0">
@@ -1166,31 +1170,31 @@ func (config *AgentConfig) loadJSONConfig(path string) error <span class="cov0" 
                 }
         }
 
-        <span class="cov0" title="0">if !cryptoKeyPassed </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !cryptoKeyPassed </span><span class="cov8" title="1">{
                 config.CryptoKey = jsonAgentConfig.CryptoKey
         }</span>
 
-        <span class="cov0" title="0">if !useGRPCPassed </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !useGRPCPassed </span><span class="cov8" title="1">{
                 config.UseGRPC = jsonAgentConfig.UseGRPC
         }</span>
 
-        <span class="cov0" title="0">if !reportIntervalPassed </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !reportIntervalPassed </span><span class="cov8" title="1">{
                 config.ReportInterval = jsonAgentConfig.ReportInterval
         }</span>
 
-        <span class="cov0" title="0">if !pollIntervalPassed </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !pollIntervalPassed </span><span class="cov8" title="1">{
                 config.PollInterval = jsonAgentConfig.PollInterval
         }</span>
 
-        <span class="cov0" title="0">if !rateLimitPassed </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !rateLimitPassed </span><span class="cov8" title="1">{
                 config.RateLimit = jsonAgentConfig.RateLimit
         }</span>
 
-        <span class="cov0" title="0">if !hashKeyPassed </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !hashKeyPassed </span><span class="cov8" title="1">{
                 config.Key = jsonAgentConfig.Key
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 </pre>
 		
@@ -1230,11 +1234,20 @@ func (i *Interval) UnmarshalJSON(data []byte) error <span class="cov8" title="1"
         }</span>
         <span class="cov8" title="1">return nil</span>
 }
+
+// MarshalJSON customizes the JSON marshalling for the Interval type.
+// It converts the Interval value to a string representation ending with "s".
+func (i Interval) MarshalJSON() ([]byte, error) <span class="cov8" title="1">{
+        // Convert the Interval value to a string and append "s"
+        intervalStr := fmt.Sprintf("%ds", i)
+        return json.Marshal(intervalStr)
+}</span>
 </pre>
 		
 		<pre class="file" id="file7" style="display: none">package config
 
 import (
+        "encoding/json"
         "errors"
         "net"
         "strconv"
@@ -1266,7 +1279,7 @@ type ServerAddress struct {
 //
 // Returns:
 // - Pointer to the newly created ServerAddress instance.
-func NewServerAddress() *ServerAddress <span class="cov0" title="0">{
+func NewServerAddress() *ServerAddress <span class="cov8" title="1">{
         return &amp;ServerAddress{
                 Host: DefaultServerAddress,
                 Port: DefaultServerPort,
@@ -1277,7 +1290,7 @@ func NewServerAddress() *ServerAddress <span class="cov0" title="0">{
 //
 // Returns:
 //   - The server address string formatted as "host:port".
-func (s *ServerAddress) String() string <span class="cov0" title="0">{
+func (s *ServerAddress) String() string <span class="cov8" title="1">{
         return s.Host + ":" + strconv.Itoa(s.Port)
 }</span>
 
@@ -1289,20 +1302,20 @@ func (s *ServerAddress) String() string <span class="cov0" title="0">{
 //
 // Returns:
 //   - An error if the input format is invalid or if the port cannot be converted to an integer.
-func (s *ServerAddress) Set(flagRunAddr string) error <span class="cov0" title="0">{
+func (s *ServerAddress) Set(flagRunAddr string) error <span class="cov8" title="1">{
         splittedAddress := strings.Split(flagRunAddr, ":")
 
-        if len(splittedAddress) != 2 </span><span class="cov0" title="0">{
+        if len(splittedAddress) != 2 </span><span class="cov8" title="1">{
                 return errors.New("need address in a form host:port")
         }</span>
 
-        <span class="cov0" title="0">port, err := strconv.Atoi(splittedAddress[1])
+        <span class="cov8" title="1">port, err := strconv.Atoi(splittedAddress[1])
 
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 return err
         }</span>
 
-        <span class="cov0" title="0">s.Host = splittedAddress[0]
+        <span class="cov8" title="1">s.Host = splittedAddress[0]
         s.Port = port
 
         return nil</span>
@@ -1316,20 +1329,27 @@ func (s *ServerAddress) Set(flagRunAddr string) error <span class="cov0" title="
 //
 // Returns:
 //   - An error if the input format is invalid or if the port cannot be converted to an integer.
-func (s *ServerAddress) UnmarshalJSON(data []byte) error <span class="cov0" title="0">{
+func (s *ServerAddress) UnmarshalJSON(data []byte) error <span class="cov8" title="1">{
         address := strings.Trim(string(data), "\"")
         host, portStr, err := net.SplitHostPort(address)
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 return err
         }</span>
-        <span class="cov0" title="0">s.Host = host
+        <span class="cov8" title="1">s.Host = host
         port, err := strconv.Atoi(portStr)
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 return err
         }</span>
-        <span class="cov0" title="0">s.Port = port
+        <span class="cov8" title="1">s.Port = port
         return nil</span>
 }
+
+// MarshalJSON marshals the ServerAddress struct into a JSON string
+// in the format "host:port".
+func (s *ServerAddress) MarshalJSON() ([]byte, error) <span class="cov8" title="1">{
+        address := s.String()
+        return json.Marshal(address)
+}</span>
 </pre>
 		
 		<pre class="file" id="file8" style="display: none">package config
@@ -1354,7 +1374,7 @@ import (
 type ServerConfig struct {
         ServerAddress   *ServerAddress `json:"address"`
         LogLevel        string
-        TrustedSubnet   string   `evn:"TRUSTED_SUBNET" json:"trusted_subnet"`
+        TrustedSubnet   string   `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
         ConfigPath      string   `env:"CONFIG"`
         FileStoragePath string   `env:"FILE_STORAGE_PATH" json:"store_file"`
         DatabaseDSN     string   `env:"DATABASE_DSN" json:"database_dsn"`
@@ -1372,7 +1392,7 @@ type ServerConfig struct {
 // Returns:
 // - A pointer to the newly created and initialized ServerConfig instance.
 // - An error if the configuration parsing fails; otherwise, nil.
-func NewServerConfig() (*ServerConfig, error) <span class="cov0" title="0">{
+func NewServerConfig() (*ServerConfig, error) <span class="cov8" title="1">{
         var config ServerConfig
         config.ServerAddress = NewServerAddress()
         config.RetryCount = 3
@@ -1380,58 +1400,63 @@ func NewServerConfig() (*ServerConfig, error) <span class="cov0" title="0">{
         if err != nil </span><span class="cov0" title="0">{
                 return nil, err
         }</span>
-        <span class="cov0" title="0">return &amp;config, nil</span>
+        <span class="cov8" title="1">return &amp;config, nil</span>
 }
 
-func (config *ServerConfig) parseFlags() error <span class="cov0" title="0">{
-        flag.Var(config.ServerAddress, "a", "Net address host:port")
-        flag.StringVar(&amp;config.ConfigPath, "c", "", "Path to json config file")
-        flag.StringVar(&amp;config.ConfigPath, "config", "", "Path to json config file")
-        flag.StringVar(&amp;config.LogLevel, "l", "info", "Log level")
-        flag.IntVar((*int)(&amp;config.StoreInterval), "i", 300, "Config store interval")
-        flag.StringVar(&amp;config.FileStoragePath, "f", "", "Metrics file storage path")
-        flag.StringVar(&amp;config.DatabaseDSN, "d", "", "Database DSN")
-        flag.StringVar(&amp;config.Key, "k", "", "Hash key")
-        flag.StringVar(&amp;config.CryptoKey, "crypto-key", "", "Crypto key")
-        flag.StringVar(&amp;config.TrustedSubnet, "t", "", "Agent trusted subnet")
-        flag.BoolVar(&amp;config.Restore, "r", true, "Restore metrics on startup")
-        flag.BoolVar(&amp;config.UseGRPC, "g", true, "Use gRPC")
-        flag.Parse()
+func (config *ServerConfig) parseFlags() error <span class="cov8" title="1">{
+        fs := flag.NewFlagSet("serverFlagSet", flag.ContinueOnError)
 
-        if config.ConfigPath != "" </span><span class="cov0" title="0">{
+        fs.Var(config.ServerAddress, "a", "Net address host:port")
+        fs.StringVar(&amp;config.ConfigPath, "c", "", "Path to json config file")
+        fs.StringVar(&amp;config.ConfigPath, "config", "", "Path to json config file")
+        fs.StringVar(&amp;config.LogLevel, "l", "info", "Log level")
+        fs.IntVar((*int)(&amp;config.StoreInterval), "i", 300, "Config store interval")
+        fs.StringVar(&amp;config.FileStoragePath, "f", "", "Metrics file storage path")
+        fs.StringVar(&amp;config.DatabaseDSN, "d", "", "Database DSN")
+        fs.StringVar(&amp;config.Key, "k", "", "Hash key")
+        fs.StringVar(&amp;config.CryptoKey, "crypto-key", "", "Crypto key")
+        fs.StringVar(&amp;config.TrustedSubnet, "t", "", "Agent trusted subnet")
+        fs.BoolVar(&amp;config.Restore, "r", true, "Restore metrics on startup")
+        fs.BoolVar(&amp;config.UseGRPC, "g", true, "Use gRPC")
+
+        if err := fs.Parse(os.Args[1:]); err != nil </span><span class="cov0" title="0">{
+                logger.Log.Error("error parse server flags", zap.Error(err))
+                return err
+        }</span>
+        <span class="cov8" title="1">if config.ConfigPath != "" </span><span class="cov0" title="0">{
                 if err := config.loadJSONConfig(config.ConfigPath); err != nil </span><span class="cov0" title="0">{
                         logger.Log.Error("error parse json config file", zap.Error(err))
                 }</span>
         }
 
-        <span class="cov0" title="0">err := env.Parse(config)
+        <span class="cov8" title="1">err := env.Parse(config)
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
 
-        <span class="cov0" title="0">if config.ServerAddress.Address == "" </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if config.ServerAddress.Address == "" </span><span class="cov8" title="1">{
                 config.ServerAddress.Address = config.ServerAddress.String()
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
-func (config *ServerConfig) loadJSONConfig(path string) error <span class="cov0" title="0">{
+func (config *ServerConfig) loadJSONConfig(path string) error <span class="cov8" title="1">{
         data, err := os.ReadFile(path)
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 return err
         }</span>
 
-        <span class="cov0" title="0">var jsonServerConfig ServerConfig
+        <span class="cov8" title="1">var jsonServerConfig ServerConfig
         if err = json.Unmarshal(data, &amp;jsonServerConfig); err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
 
-        <span class="cov0" title="0">if config.ServerAddress.Address == "" </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if config.ServerAddress.Address == "" </span><span class="cov8" title="1">{
                 config.ServerAddress = jsonServerConfig.ServerAddress
         }</span>
 
-        <span class="cov0" title="0">storeFilePassed := false
+        <span class="cov8" title="1">storeFilePassed := false
         dbDSNPassed := false
         cryptoKeyPassed := false
         storeIntervalPassed := false
@@ -1441,7 +1466,7 @@ func (config *ServerConfig) loadJSONConfig(path string) error <span class="cov0"
         useGRPCPassed := false
 
         args := os.Args[1:]
-        for i := 0; i &lt; len(args); i++ </span><span class="cov0" title="0">{
+        for i := 0; i &lt; len(args); i++ </span><span class="cov8" title="1">{
                 arg := args[i]
                 switch arg </span>{
                 case "--f", "-f":<span class="cov0" title="0">
@@ -1463,39 +1488,39 @@ func (config *ServerConfig) loadJSONConfig(path string) error <span class="cov0"
                 }
         }
 
-        <span class="cov0" title="0">if !trustedSubnetPassed </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !trustedSubnetPassed </span><span class="cov8" title="1">{
                 config.TrustedSubnet = jsonServerConfig.TrustedSubnet
         }</span>
 
-        <span class="cov0" title="0">if !useGRPCPassed </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !useGRPCPassed </span><span class="cov8" title="1">{
                 config.UseGRPC = jsonServerConfig.UseGRPC
         }</span>
 
-        <span class="cov0" title="0">if !dbDSNPassed </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !dbDSNPassed </span><span class="cov8" title="1">{
                 config.DatabaseDSN = jsonServerConfig.DatabaseDSN
         }</span>
 
-        <span class="cov0" title="0">if !storeFilePassed </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !storeFilePassed </span><span class="cov8" title="1">{
                 config.FileStoragePath = jsonServerConfig.FileStoragePath
         }</span>
 
-        <span class="cov0" title="0">if !cryptoKeyPassed </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !cryptoKeyPassed </span><span class="cov8" title="1">{
                 config.CryptoKey = jsonServerConfig.CryptoKey
         }</span>
 
-        <span class="cov0" title="0">if !storeIntervalPassed </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !storeIntervalPassed </span><span class="cov8" title="1">{
                 config.StoreInterval = jsonServerConfig.StoreInterval
         }</span>
 
-        <span class="cov0" title="0">if !restorePassed </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !restorePassed </span><span class="cov8" title="1">{
                 config.Restore = jsonServerConfig.Restore
         }</span>
 
-        <span class="cov0" title="0">if !hashKeyPassed </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !hashKeyPassed </span><span class="cov8" title="1">{
                 config.Key = jsonServerConfig.Key
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 </pre>
 		

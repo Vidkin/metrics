@@ -39,3 +39,40 @@ func TestInterval_UnmarshalJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestInterval_MarshalJSON(t *testing.T) {
+	tests := []struct {
+		name     string
+		interval Interval
+		want     string
+	}{
+		{
+			name:     "marshal 0 seconds",
+			interval: 0,
+			want:     `"0s"`,
+		},
+		{
+			name:     "marshal 1 second",
+			interval: 1,
+			want:     `"1s"`,
+		},
+		{
+			name:     "marshal 10 seconds",
+			interval: 10,
+			want:     `"10s"`,
+		},
+		{
+			name:     "marshal 100 seconds",
+			interval: 100,
+			want:     `"100s"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := json.Marshal(tt.interval)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, string(got))
+		})
+	}
+}
