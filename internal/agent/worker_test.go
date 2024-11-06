@@ -2,18 +2,31 @@ package agent
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/metric"
+	proto2 "github.com/Vidkin/metrics/internal/proto"
+	mock2 "github.com/Vidkin/metrics/internal/repository/mock"
+	"github.com/Vidkin/metrics/internal/repository/storage"
 	"github.com/Vidkin/metrics/internal/router"
+	"github.com/Vidkin/metrics/pkg/interceptors"
+	"github.com/Vidkin/metrics/proto"
 )
 
 func BenchmarkCollectAndSendMetrics(b *testing.B) {
@@ -28,14 +41,14 @@ func BenchmarkCollectAndSendMetrics(b *testing.B) {
 	client.SetDoNotParseResponse(true)
 	memStats := &runtime.MemStats{}
 	memoryStorage := router.NewFileStorage("")
-	mw := New(memoryStorage, memStats, client, &config.AgentConfig{Key: "", RateLimit: 5})
+	mw := New(memoryStorage, memStats, client, nil, &config.AgentConfig{Key: "", RateLimit: 5})
 	var serverURL = ts.URL + "/updates/"
 
 	b.ResetTimer()
 	b.Run("poll", func(b *testing.B) {
 		var count int64 = 1
 		for i := 0; i < 100; i++ {
-			chIn := make(chan *metric.Metric, 10)
+			chIn := make(chan []*metric.Metric, 10)
 			go mw.CollectMetrics(context.TODO(), chIn, count)
 			for w := 1; w <= mw.config.RateLimit; w++ {
 				go mw.SendMetrics(context.TODO(), chIn, serverURL)
@@ -70,13 +83,13 @@ func TestSendMetrics(t *testing.T) {
 	client.SetDoNotParseResponse(true)
 	memStats := &runtime.MemStats{}
 	memoryStorage := router.NewFileStorage("")
-	mw := New(memoryStorage, memStats, client, &config.AgentConfig{Key: ""})
+	mw := New(memoryStorage, memStats, client, nil, &config.AgentConfig{Key: ""})
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clear(serverRepository.Gauge)
 			clear(serverRepository.Counter)
-			chIn := make(chan *metric.Metric, 10)
+			chIn := make(chan []*metric.Metric, 10)
 			go mw.CollectMetrics(context.TODO(), chIn, 10)
 
 			if test.sendToWrongURL {
@@ -91,6 +104,86 @@ func TestSendMetrics(t *testing.T) {
 				testMetrics, _ := mw.repository.GetMetrics(ctx)
 				serverMetrics, _ := serverRepository.GetMetrics(ctx)
 				assert.ElementsMatch(t, testMetrics, serverMetrics)
+			}
+		})
+	}
+}
+
+func TestSendMetricsGRPC(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{
+			name:    "test send ok",
+			wantErr: false,
+		},
+		{
+			name:    "test send error",
+			wantErr: true,
+		},
+	}
+
+	serverRepository := &storage.FileStorage{
+		FileStoragePath: filepath.Join(os.TempDir(), "metricsTestFile.test"),
+		Gauge:           make(map[string]float64),
+		Counter:         make(map[string]int64),
+	}
+	ms := &proto2.MetricsServer{
+		Repository:    serverRepository,
+		LastStoreTime: time.Now(),
+		RetryCount:    2,
+		StoreInterval: 10,
+	}
+	defer os.Remove(filepath.Join(os.TempDir(), "metricsTestFile.test"))
+	defer os.Remove(filepath.Join(os.TempDir(), "metricsTestFile2.test"))
+
+	s := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			interceptors.LoggingInterceptor,
+			interceptors.TrustedSubnetInterceptor("127.0.0.0/24"),
+			interceptors.HashInterceptor("testKey")))
+	proto.RegisterMetricsServer(s, ms)
+
+	listen, err := net.Listen("tcp", "127.0.0.1:8080")
+	require.NoError(t, err)
+	go func() {
+		err = s.Serve(listen)
+		require.NoError(t, err)
+	}()
+	defer s.Stop()
+
+	memStats := &runtime.MemStats{}
+	memoryStorage := router.NewFileStorage("")
+	conn, err := grpc.NewClient("127.0.0.1:8080", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	defer func(conn *grpc.ClientConn) {
+		err = conn.Close()
+		require.NoError(t, err)
+	}(conn)
+	clientGRPC := proto.NewMetricsClient(conn)
+	mw := New(memoryStorage, memStats, nil, clientGRPC, &config.AgentConfig{Key: "testKey"})
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			clear(serverRepository.Gauge)
+			clear(serverRepository.Counter)
+
+			chIn := make(chan []*metric.Metric, 10)
+			go mw.CollectMetrics(context.TODO(), chIn, 10)
+
+			if test.wantErr {
+				mw.config.Key = "badKey"
+			}
+			mw.SendMetricsGRPC(context.Background(), chIn)
+			ctx := context.TODO()
+			testMetrics, _ := mw.repository.GetMetrics(ctx)
+			serverMetrics, _ := serverRepository.GetMetrics(ctx)
+			if !test.wantErr {
+				assert.ElementsMatch(t, testMetrics, serverMetrics)
+			} else {
+				assert.Equal(t, 0, len(serverMetrics))
+				assert.NotEqual(t, 0, len(testMetrics))
 			}
 		})
 	}
@@ -182,7 +275,7 @@ func TestSendMetric(t *testing.T) {
 	ts := httptest.NewServer(metricRouter.Router)
 	defer ts.Close()
 
-	mw := New(nil, nil, client, &config.AgentConfig{Key: ""})
+	mw := New(nil, nil, client, nil, &config.AgentConfig{Key: ""})
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -202,4 +295,64 @@ func TestSendMetric(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPoll(t *testing.T) {
+	mockController := gomock.NewController(t)
+	serverRepository := mock2.NewMockRepository(mockController)
+
+	ms := &proto2.MetricsServer{
+		Repository:    serverRepository,
+		LastStoreTime: time.Now(),
+		RetryCount:    2,
+		StoreInterval: 10,
+	}
+	defer os.Remove(filepath.Join(os.TempDir(), "metricsTestFile.test"))
+	defer os.Remove(filepath.Join(os.TempDir(), "metricsTestFile2.test"))
+
+	s := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			interceptors.LoggingInterceptor,
+			interceptors.TrustedSubnetInterceptor("127.0.0.0/24"),
+			interceptors.HashInterceptor("testKey")))
+	proto.RegisterMetricsServer(s, ms)
+
+	listen, err := net.Listen("tcp", "127.0.0.1:8081")
+	require.NoError(t, err)
+	go func() {
+		err = s.Serve(listen)
+		require.NoError(t, err)
+	}()
+	defer s.Stop()
+
+	memStats := &runtime.MemStats{}
+	memoryStorage := router.NewFileStorage("")
+	conn, err := grpc.NewClient("127.0.0.1:8081", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	defer func(conn *grpc.ClientConn) {
+		err = conn.Close()
+		require.NoError(t, err)
+	}(conn)
+	clientGRPC := proto.NewMetricsClient(conn)
+	mw := New(memoryStorage, memStats, nil, clientGRPC, &config.AgentConfig{UseGRPC: true, ReportInterval: 1, PollInterval: 2, RateLimit: 1, Key: "testKey", ServerAddress: &config.ServerAddress{Address: "127.0.0.1:8081"}})
+
+	serverRepository.EXPECT().
+		UpdateMetrics(gomock.Any(), gomock.Any()).
+		Return(nil).AnyTimes()
+
+	serverRepository.EXPECT().
+		GetMetrics(gomock.Any()).
+		Return([]*metric.Metric{}, nil).AnyTimes()
+
+	fVal := 12.2
+	serverRepository.EXPECT().
+		GetMetric(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(&metric.Metric{ID: "test", MType: MetricTypeGauge, Value: &fVal}, nil).AnyTimes()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
+	defer cancel()
+
+	go mw.Poll(ctx)
+
+	time.Sleep(5 * time.Second)
 }

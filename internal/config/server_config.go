@@ -20,6 +20,7 @@ import (
 type ServerConfig struct {
 	ServerAddress   *ServerAddress `json:"address"`
 	LogLevel        string
+	TrustedSubnet   string   `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
 	ConfigPath      string   `env:"CONFIG"`
 	FileStoragePath string   `env:"FILE_STORAGE_PATH" json:"store_file"`
 	DatabaseDSN     string   `env:"DATABASE_DSN" json:"database_dsn"`
@@ -27,6 +28,7 @@ type ServerConfig struct {
 	CryptoKey       string   `env:"CRYPTO_KEY" json:"crypto_key"`
 	StoreInterval   Interval `env:"STORE_INTERVAL" json:"store_interval"`
 	Restore         bool     `env:"RESTORE" json:"restore"`
+	UseGRPC         bool     `env:"USER_GRPC" json:"use_grpc"`
 	RetryCount      int
 }
 
@@ -48,18 +50,25 @@ func NewServerConfig() (*ServerConfig, error) {
 }
 
 func (config *ServerConfig) parseFlags() error {
-	flag.Var(config.ServerAddress, "a", "Net address host:port")
-	flag.StringVar(&config.ConfigPath, "c", "", "Path to json config file")
-	flag.StringVar(&config.ConfigPath, "config", "", "Path to json config file")
-	flag.StringVar(&config.LogLevel, "l", "info", "Log level")
-	flag.IntVar((*int)(&config.StoreInterval), "i", 300, "Config store interval")
-	flag.StringVar(&config.FileStoragePath, "f", "", "Metrics file storage path")
-	flag.StringVar(&config.DatabaseDSN, "d", "", "Database DSN")
-	flag.StringVar(&config.Key, "k", "", "Hash key")
-	flag.StringVar(&config.CryptoKey, "crypto-key", "", "Crypto key")
-	flag.BoolVar(&config.Restore, "r", true, "Restore metrics on startup")
-	flag.Parse()
+	fs := flag.NewFlagSet("serverFlagSet", flag.ContinueOnError)
 
+	fs.Var(config.ServerAddress, "a", "Net address host:port")
+	fs.StringVar(&config.ConfigPath, "c", "", "Path to json config file")
+	fs.StringVar(&config.ConfigPath, "config", "", "Path to json config file")
+	fs.StringVar(&config.LogLevel, "l", "info", "Log level")
+	fs.IntVar((*int)(&config.StoreInterval), "i", 300, "Config store interval")
+	fs.StringVar(&config.FileStoragePath, "f", "", "Metrics file storage path")
+	fs.StringVar(&config.DatabaseDSN, "d", "", "Database DSN")
+	fs.StringVar(&config.Key, "k", "", "Hash key")
+	fs.StringVar(&config.CryptoKey, "crypto-key", "", "Crypto key")
+	fs.StringVar(&config.TrustedSubnet, "t", "", "Agent trusted subnet")
+	fs.BoolVar(&config.Restore, "r", true, "Restore metrics on startup")
+	fs.BoolVar(&config.UseGRPC, "g", true, "Use gRPC")
+
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		logger.Log.Error("error parse server flags", zap.Error(err))
+		return err
+	}
 	if config.ConfigPath != "" {
 		if err := config.loadJSONConfig(config.ConfigPath); err != nil {
 			logger.Log.Error("error parse json config file", zap.Error(err))
@@ -99,6 +108,8 @@ func (config *ServerConfig) loadJSONConfig(path string) error {
 	storeIntervalPassed := false
 	restorePassed := false
 	hashKeyPassed := false
+	trustedSubnetPassed := false
+	useGRPCPassed := false
 
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
@@ -116,7 +127,19 @@ func (config *ServerConfig) loadJSONConfig(path string) error {
 			restorePassed = true
 		case "--k", "-k":
 			hashKeyPassed = true
+		case "--g", "-g":
+			useGRPCPassed = true
+		case "--t", "-t":
+			trustedSubnetPassed = true
 		}
+	}
+
+	if !trustedSubnetPassed {
+		config.TrustedSubnet = jsonServerConfig.TrustedSubnet
+	}
+
+	if !useGRPCPassed {
+		config.UseGRPC = jsonServerConfig.UseGRPC
 	}
 
 	if !dbDSNPassed {

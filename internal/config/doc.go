@@ -15,4 +15,8 @@
 // server_config.go defines the `ServerConfig` struct, which holds various configuration options
 // for a server app, including server address, storage settings, logging preferences, and more.
 // It supports loading configuration values from both command-line flags and environment variables.
+//
+// interval.go defines the Interval type, which represents a time interval
+// in seconds. It includes a custom JSON unmarshalling method to parse
+// interval strings that are expected to have a suffix of "s" (for seconds).
 package config

@@ -119,6 +119,16 @@ func (s *MetricRouterTestSuite) TestMetricRouter_HashMiddleware() {
 		s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
 		s.Key = goodKey
 	})
+
+	s.Run("check_without_key", func() {
+		goodKey := s.Key
+		s.Key = ""
+
+		resp, _ := s.RequestTest(http.MethodPost, "/update", requestBody, "application/json", true, false)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+		s.Key = goodKey
+	})
 }
 
 func (s *MetricRouterTestSuite) TestMetricRouter_PingDBHandler() {

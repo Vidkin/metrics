@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"net"
 	"strconv"
@@ -95,4 +96,11 @@ func (s *ServerAddress) UnmarshalJSON(data []byte) error {
 	}
 	s.Port = port
 	return nil
+}
+
+// MarshalJSON marshals the ServerAddress struct into a JSON string
+// in the format "host:port".
+func (s *ServerAddress) MarshalJSON() ([]byte, error) {
+	address := s.String()
+	return json.Marshal(address)
 }

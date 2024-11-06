@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -14,16 +15,21 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
+	protoAPI "github.com/Vidkin/metrics/internal/proto"
 	"github.com/Vidkin/metrics/internal/repository/storage"
 	"github.com/Vidkin/metrics/internal/router"
+	"github.com/Vidkin/metrics/pkg/interceptors"
+	"github.com/Vidkin/metrics/proto"
 )
 
 type ServerApp struct {
 	config     *config.ServerConfig
-	srv        *http.Server
+	httpSrv    *http.Server
+	gRPCServer *grpc.Server
 	repository router.Repository
 }
 
@@ -35,18 +41,35 @@ func NewServerApp(cfg *config.ServerConfig) (*ServerApp, error) {
 	if err != nil {
 		return nil, err
 	}
-	chiRouter := chi.NewRouter()
-	metricRouter := router.NewMetricRouter(chiRouter, repo, cfg)
 
-	srv := &http.Server{
-		Addr:    cfg.ServerAddress.Address,
-		Handler: metricRouter.Router,
-	}
-	return &ServerApp{
+	serverApp := &ServerApp{
 		config:     cfg,
-		srv:        srv,
 		repository: repo,
-	}, nil
+	}
+
+	if cfg.UseGRPC {
+		s := grpc.NewServer(
+			grpc.ChainUnaryInterceptor(
+				interceptors.LoggingInterceptor,
+				interceptors.TrustedSubnetInterceptor(cfg.TrustedSubnet),
+				interceptors.HashInterceptor(cfg.Key)))
+		proto.RegisterMetricsServer(s, &protoAPI.MetricsServer{
+			Repository:    repo,
+			LastStoreTime: time.Now(),
+			StoreInterval: (int)(cfg.StoreInterval),
+			RetryCount:    cfg.RetryCount,
+		})
+		serverApp.gRPCServer = s
+	} else {
+		chiRouter := chi.NewRouter()
+		metricRouter := router.NewMetricRouter(chiRouter, repo, cfg)
+		serverApp.httpSrv = &http.Server{
+			Addr:    cfg.ServerAddress.Address,
+			Handler: metricRouter.Router,
+		}
+	}
+
+	return serverApp, nil
 }
 
 func (a *ServerApp) Serve() {
@@ -56,13 +79,24 @@ func (a *ServerApp) Serve() {
 			logger.Log.Error("error start pprof endpoint", zap.Error(err))
 		}
 	}()
-	if a.config.CryptoKey != "" {
-		if err := a.srv.ListenAndServeTLS(path.Join(a.config.CryptoKey, "cert.pem"), path.Join(a.config.CryptoKey, "privateKey.pem")); err != nil && err != http.ErrServerClosed {
-			logger.Log.Fatal("listen and serve tls fatal error", zap.Error(err))
+	if a.config.UseGRPC {
+		listen, err := net.Listen("tcp", a.config.ServerAddress.Address)
+		if err != nil {
+			logger.Log.Fatal("listen gRPC server fatal error", zap.Error(err))
+		}
+		// получаем запрос gRPC
+		if err := a.gRPCServer.Serve(listen); err != nil {
+			logger.Log.Fatal("serve gRPC server fatal error", zap.Error(err))
 		}
 	} else {
-		if err := a.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Log.Fatal("listen and serve fatal error", zap.Error(err))
+		if a.config.CryptoKey != "" {
+			if err := a.httpSrv.ListenAndServeTLS(path.Join(a.config.CryptoKey, "cert.pem"), path.Join(a.config.CryptoKey, "privateKey.pem")); err != nil && err != http.ErrServerClosed {
+				logger.Log.Fatal("listen and serve tls fatal error", zap.Error(err))
+			}
+		} else {
+			if err := a.httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				logger.Log.Fatal("listen and serve fatal error", zap.Error(err))
+			}
 		}
 	}
 }
@@ -79,8 +113,9 @@ func (a *ServerApp) DumpToFile() error {
 					continue
 				}
 				logger.Log.Info("error saving metrics", zap.Error(err))
+			} else {
+				return nil
 			}
-			break
 		}
 	}
 	return errors.New("provided Repository does not implement Dumper")
@@ -115,8 +150,13 @@ func (a *ServerApp) Stop() {
 	defer cancel()
 
 	// Останавливаем сервер, ожидая завершения текущих обработчиков
-	if err := a.srv.Shutdown(ctx); err != nil {
-		logger.Log.Info("shutdown error", zap.Error(err))
+	if a.gRPCServer != nil {
+		a.gRPCServer.GracefulStop()
+	}
+	if a.httpSrv != nil {
+		if err := a.httpSrv.Shutdown(ctx); err != nil {
+			logger.Log.Info("shutdown error", zap.Error(err))
+		}
 	}
 
 	logger.Log.Info("dump metrics before exit")

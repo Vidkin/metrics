@@ -609,6 +609,126 @@ func TestGetMetricValueHandlerJSON(t *testing.T) {
 	}
 }
 
+func TestTrustedSubnet(t *testing.T) {
+	requestBody := `{
+		"id": "test",
+		"type": "gauge",
+		"value": 13.5
+	}`
+
+	// ожидаемое содержимое тела ответа при успешном запросе
+	successBody := `{
+		"id": "test",
+		"type": "gauge",
+		"value": 13.5
+	}`
+
+	t.Run("good remote ip", func(t *testing.T) {
+		serverRepository := NewMemoryStorage()
+		chiRouter := chi.NewRouter()
+		serverConfig := config.ServerConfig{StoreInterval: 300, TrustedSubnet: "192.168.0.1/24"}
+		metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+		ts := httptest.NewServer(metricRouter.Router)
+		defer ts.Close()
+
+		buf := bytes.NewBuffer(nil)
+		zb := gzip.NewWriter(buf)
+		_, err := zb.Write([]byte(requestBody))
+		require.NoError(t, err)
+		err = zb.Close()
+		require.NoError(t, err)
+
+		r := httptest.NewRequest("POST", ts.URL+"/update", buf)
+		r.RequestURI = ""
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("Content-Encoding", "gzip")
+		r.Header.Set("Accept-Encoding", "")
+		r.Header.Set("X-Real-IP", "192.168.0.222")
+
+		resp, err := http.DefaultClient.Do(r)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		defer resp.Body.Close()
+
+		b, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.JSONEq(t, successBody, string(b))
+	})
+
+	t.Run("bad cidr", func(t *testing.T) {
+		serverRepository := NewMemoryStorage()
+		chiRouter := chi.NewRouter()
+		serverConfig := config.ServerConfig{StoreInterval: 300, TrustedSubnet: "errorCidr"}
+		metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+		ts := httptest.NewServer(metricRouter.Router)
+		defer ts.Close()
+
+		buf := bytes.NewBuffer(nil)
+		zb := gzip.NewWriter(buf)
+		_, err := zb.Write([]byte(requestBody))
+		require.NoError(t, err)
+		err = zb.Close()
+		require.NoError(t, err)
+
+		r := httptest.NewRequest("POST", ts.URL+"/update", buf)
+		r.RequestURI = ""
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("Content-Encoding", "gzip")
+		r.Header.Set("Accept-Encoding", "")
+		r.Header.Set("X-Real-IP", "192.168.0.222")
+
+		resp, err := http.DefaultClient.Do(r)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusForbidden, resp.StatusCode)
+
+		defer resp.Body.Close()
+	})
+
+	t.Run("bad remote ip", func(t *testing.T) {
+		serverRepository := NewMemoryStorage()
+		chiRouter := chi.NewRouter()
+		serverConfig := config.ServerConfig{StoreInterval: 300, TrustedSubnet: "192.168.0.1/24"}
+		metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+		ts := httptest.NewServer(metricRouter.Router)
+		defer ts.Close()
+
+		buf := bytes.NewBufferString(requestBody)
+		r := httptest.NewRequest("POST", ts.URL+"/update", buf)
+		r.RequestURI = ""
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("Accept-Encoding", "gzip")
+		r.Header.Set("X-Real-IP", "192.162.2.1")
+
+		resp, err := http.DefaultClient.Do(r)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusForbidden, resp.StatusCode)
+
+		defer resp.Body.Close()
+	})
+
+	t.Run("null real ip", func(t *testing.T) {
+		serverRepository := NewMemoryStorage()
+		chiRouter := chi.NewRouter()
+		serverConfig := config.ServerConfig{StoreInterval: 300, TrustedSubnet: "192.168.0.1/24"}
+		metricRouter := NewMetricRouter(chiRouter, serverRepository, &serverConfig)
+		ts := httptest.NewServer(metricRouter.Router)
+		defer ts.Close()
+
+		buf := bytes.NewBufferString(requestBody)
+		r := httptest.NewRequest("POST", ts.URL+"/update", buf)
+		r.RequestURI = ""
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("Accept-Encoding", "gzip")
+
+		resp, err := http.DefaultClient.Do(r)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusForbidden, resp.StatusCode)
+
+		defer resp.Body.Close()
+	})
+}
+
 func TestGzipCompression(t *testing.T) {
 	serverRepository := NewMemoryStorage()
 	chiRouter := chi.NewRouter()

@@ -231,9 +231,6 @@ func (f *FileStorage) FullDump() error {
 func (f *FileStorage) Load(ctx context.Context) error {
 	file, err := os.OpenFile(f.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
-		if err == io.EOF {
-			return nil
-		}
 		logger.Log.Info("error open file", zap.Error(err))
 		return err
 	}

@@ -21,12 +21,17 @@ import (
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+	pb "google.golang.org/protobuf/proto"
 
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
 	"github.com/Vidkin/metrics/internal/metric"
 	"github.com/Vidkin/metrics/internal/router"
 	"github.com/Vidkin/metrics/pkg/hash"
+	"github.com/Vidkin/metrics/pkg/ip"
+	"github.com/Vidkin/metrics/proto"
 )
 
 const (
@@ -74,19 +79,21 @@ type MetricWorker struct {
 	repository router.Repository
 	memStats   *runtime.MemStats
 	client     *resty.Client
+	clientGRPC proto.MetricsClient
 	config     *config.AgentConfig
 }
 
-func New(repository router.Repository, memStats *runtime.MemStats, client *resty.Client, config *config.AgentConfig) *MetricWorker {
+func New(repository router.Repository, memStats *runtime.MemStats, client *resty.Client, clientGRPC proto.MetricsClient, config *config.AgentConfig) *MetricWorker {
 	return &MetricWorker{
 		repository: repository,
 		memStats:   memStats,
 		client:     client,
+		clientGRPC: clientGRPC,
 		config:     config,
 	}
 }
 
-func (mw *MetricWorker) CollectMetrics(ctx context.Context, chIn chan *metric.Metric, count int64) {
+func (mw *MetricWorker) CollectMetrics(ctx context.Context, chIn chan []*metric.Metric, count int64) {
 	defer close(chIn)
 	runtime.ReadMemStats(mw.memStats)
 
@@ -153,7 +160,6 @@ func (mw *MetricWorker) CollectMetrics(ctx context.Context, chIn chan *metric.Me
 			logger.Log.Error("error update gauge metric", zap.Error(err))
 			return
 		}
-		chIn <- gMetric
 	}
 	cMetric := &metric.Metric{
 		ID:    CounterMetricPollCount,
@@ -161,11 +167,17 @@ func (mw *MetricWorker) CollectMetrics(ctx context.Context, chIn chan *metric.Me
 		Delta: &count,
 	}
 	err = mw.repository.UpdateMetric(ctx, cMetric)
-	chIn <- cMetric
 	if err != nil {
 		logger.Log.Error("error update counter metric", zap.Error(err))
 		return
 	}
+
+	metrics, err := mw.repository.GetMetrics(ctx)
+	if err != nil {
+		logger.Log.Error("error get metrics from repository", zap.Error(err))
+		return
+	}
+	chIn <- metrics
 }
 
 func (mw *MetricWorker) SendMetric(ctx context.Context, url string, metric *metric.Metric) (int, string, error) {
@@ -189,10 +201,21 @@ func (mw *MetricWorker) SendMetric(ctx context.Context, url string, metric *metr
 		return 0, "", err
 	}
 
+	interfaces, err := ip.GetMyInterfaces()
+	if err != nil {
+		logger.Log.Info("error get net interfaces", zap.Error(err))
+		return 0, "", err
+	}
+	if len(interfaces) == 0 {
+		logger.Log.Info("error get net interfaces")
+		return 0, "", errors.New("error get net interfaces")
+	}
+
 	req := mw.client.R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Accept-Encoding", "gzip").
+		SetHeader("X-Real-IP", interfaces[0]).
 		SetBody(buf)
 
 	resp, err := req.SetContext(ctx).Post(url)
@@ -235,14 +258,77 @@ func (mw *MetricWorker) SendMetric(ctx context.Context, url string, metric *metr
 	}
 }
 
-func (mw *MetricWorker) SendMetrics(ctx context.Context, chIn chan *metric.Metric, serverURL string) {
+func (mw *MetricWorker) SendMetricsGRPC(ctx context.Context, chIn chan []*metric.Metric) {
 	for {
 		select {
 		case m, ok := <-chIn:
 			if !ok {
 				return
 			}
-			body, _ := json.Marshal([]*metric.Metric{m})
+
+			protoMetrics := make([]*proto.Metric, len(m))
+			for i, met := range m {
+				protoMetrics[i] = &proto.Metric{
+					Id: met.ID,
+				}
+				if met.MType == MetricTypeCounter {
+					protoMetrics[i].Delta = *met.Delta
+					protoMetrics[i].Type = proto.Metric_COUNTER
+				} else {
+					protoMetrics[i].Value = *met.Value
+					protoMetrics[i].Type = proto.Metric_GAUGE
+				}
+			}
+
+			for i := 0; i <= RequestRetryCount; i++ {
+				ctxTimeout, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
+				defer cancel()
+
+				req := &proto.UpdateMetricsRequest{
+					Metrics: protoMetrics,
+				}
+
+				if mw.config.Key != "" {
+					data, err := pb.Marshal(req)
+					if err != nil {
+						logger.Log.Error("failed to marshal request: %v", zap.Error(err))
+						continue
+					}
+					h := hash.GetHashSHA256(mw.config.Key, data)
+					hEnc := base64.StdEncoding.EncodeToString(h)
+					md := metadata.New(map[string]string{"HashSHA256": hEnc})
+					ctxTimeout = metadata.NewOutgoingContext(ctxTimeout, md)
+				}
+
+				_, err := mw.clientGRPC.UpdateMetrics(ctxTimeout, req)
+				if err != nil {
+					if e, ok := status.FromError(err); ok {
+						logger.Log.Error("code = " + e.Code().String() + ", message = " + e.Message())
+					} else {
+						logger.Log.Error("error update metrics", zap.Error(err))
+					}
+
+					if i != RequestRetryCount {
+						continue
+					}
+				}
+				break
+			}
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (mw *MetricWorker) SendMetrics(ctx context.Context, chIn chan []*metric.Metric, serverURL string) {
+	for {
+		select {
+		case m, ok := <-chIn:
+			if !ok {
+				return
+			}
+			body, _ := json.Marshal(m)
 			buf := bytes.NewBuffer([]byte{})
 			zb := gzip.NewWriter(buf)
 			_, _ = zb.Write(body)
@@ -258,10 +344,16 @@ func (mw *MetricWorker) SendMetrics(ctx context.Context, chIn chan *metric.Metri
 					hEnc := base64.StdEncoding.EncodeToString(h)
 					req.SetHeader("HashSHA256", hEnc)
 				}
+				interfaces, err := ip.GetMyInterfaces()
+				if err != nil || len(interfaces) == 0 {
+					logger.Log.Info("error get net interfaces", zap.Error(err))
+					return
+				}
 				_, err = req.
 					SetHeader("Content-Type", "application/json").
 					SetHeader("Content-Encoding", "gzip").
 					SetHeader("Accept-Encoding", "gzip").
+					SetHeader("X-Real-IP", interfaces[0]).
 					SetBody(buf).
 					Post(serverURL)
 				if err != nil {
@@ -295,13 +387,17 @@ func (mw *MetricWorker) Poll(ctx context.Context) {
 	var wg sync.WaitGroup
 
 	for {
-		chIn := make(chan *metric.Metric, mw.config.RateLimit)
+		chIn := make(chan []*metric.Metric, mw.config.RateLimit)
 		select {
 		case <-ctx.Done():
 			logger.Log.Info("application shutdown")
 			ctxTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			mw.SendMetrics(ctxTimeout, chIn, serverURL)
+			if !mw.config.UseGRPC {
+				mw.SendMetrics(ctxTimeout, chIn, serverURL)
+			} else {
+				mw.SendMetricsGRPC(ctxTimeout, chIn)
+			}
 
 			ctxWait, cancelWait := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancelWait()
@@ -313,7 +409,6 @@ func (mw *MetricWorker) Poll(ctx context.Context) {
 			return
 		default:
 			currentTime := time.Now()
-
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -321,12 +416,15 @@ func (mw *MetricWorker) Poll(ctx context.Context) {
 			}()
 
 			if currentTime.Sub(startTime).Seconds() >= float64(mw.config.ReportInterval) {
-				startTime = currentTime
 				for w := 1; w <= mw.config.RateLimit; w++ {
 					wg.Add(1)
 					go func() {
 						defer wg.Done()
-						mw.SendMetrics(ctx, chIn, serverURL)
+						if !mw.config.UseGRPC {
+							mw.SendMetrics(ctx, chIn, serverURL)
+						} else {
+							mw.SendMetricsGRPC(ctx, chIn)
+						}
 					}()
 				}
 			}

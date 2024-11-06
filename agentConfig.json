@@ -4,5 +4,6 @@
   "poll_interval": "2s",
   "hash_key": "",
   "rate_limit": 5,
-  "crypto_key": "/Users/skim/GolandProjects/yandex-praktikum/metrics/internal/certs"
+  "crypto_key": "/Users/skim/GolandProjects/yandex-praktikum/metrics/internal/certs",
+  "use_grpc": true
 }

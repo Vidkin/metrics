@@ -38,6 +38,7 @@ type AgentConfig struct {
 	LogLevel       string
 	ReportInterval Interval `env:"REPORT_INTERVAL" json:"report_interval"`
 	PollInterval   Interval `env:"POLL_INTERVAL" json:"poll_interval"`
+	UseGRPC        bool     `env:"USE_GRPC" json:"use_grpc"`
 	RateLimit      int      `env:"RATE_LIMIT" json:"rate_limit"`
 }
 
@@ -59,16 +60,21 @@ func NewAgentConfig() (*AgentConfig, error) {
 }
 
 func (config *AgentConfig) parseFlags() error {
-	flag.Var(config.ServerAddress, "a", "Server address host:port")
-	flag.StringVar(&config.ConfigPath, "c", "", "Path to json config file")
-	flag.StringVar(&config.ConfigPath, "config", "", "Path to json config file")
-	flag.IntVar((*int)(&config.ReportInterval), "r", DefaultAgentReportInterval, "Agent report poll interval (sec)")
-	flag.IntVar((*int)(&config.PollInterval), "p", DefaultAgentPollInterval, "Agent poll interval (sec)")
-	flag.IntVar(&config.RateLimit, "l", 5, "Rate limit")
-	flag.StringVar(&config.Key, "k", "", "Hash key")
-	flag.StringVar(&config.CryptoKey, "crypto-key", "", "Crypto key")
-	flag.Parse()
+	fs := flag.NewFlagSet("agentFlagSet", flag.ContinueOnError)
 
+	fs.Var(config.ServerAddress, "a", "Server address host:port")
+	fs.StringVar(&config.ConfigPath, "c", "", "Path to json config file")
+	fs.StringVar(&config.ConfigPath, "config", "", "Path to json config file")
+	fs.IntVar((*int)(&config.ReportInterval), "r", DefaultAgentReportInterval, "Agent report poll interval (sec)")
+	fs.IntVar((*int)(&config.PollInterval), "p", DefaultAgentPollInterval, "Agent poll interval (sec)")
+	fs.IntVar(&config.RateLimit, "l", 5, "Rate limit")
+	fs.StringVar(&config.Key, "k", "", "Hash key")
+	fs.StringVar(&config.CryptoKey, "crypto-key", "", "Crypto key")
+	fs.BoolVar(&config.UseGRPC, "g", true, "Use gRPC")
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		logger.Log.Error("error parse agent flags", zap.Error(err))
+		return err
+	}
 	if config.ConfigPath != "" {
 		if err := config.loadJSONConfig(config.ConfigPath); err != nil {
 			logger.Log.Error("error parse json config file", zap.Error(err))
@@ -107,6 +113,7 @@ func (config *AgentConfig) loadJSONConfig(path string) error {
 	pollIntervalPassed := false
 	hashKeyPassed := false
 	rateLimitPassed := false
+	useGRPCPassed := false
 
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
@@ -122,11 +129,17 @@ func (config *AgentConfig) loadJSONConfig(path string) error {
 			rateLimitPassed = true
 		case "--k", "-k":
 			hashKeyPassed = true
+		case "--g", "-g":
+			useGRPCPassed = true
 		}
 	}
 
 	if !cryptoKeyPassed {
 		config.CryptoKey = jsonAgentConfig.CryptoKey
+	}
+
+	if !useGRPCPassed {
+		config.UseGRPC = jsonAgentConfig.UseGRPC
 	}
 
 	if !reportIntervalPassed {
