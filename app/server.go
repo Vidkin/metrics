@@ -48,8 +48,7 @@ func NewServerApp(cfg *config.ServerConfig) (*ServerApp, error) {
 	}
 
 	if cfg.UseGRPC {
-		var s *grpc.Server
-		s = grpc.NewServer(
+		s := grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
 				interceptors.LoggingInterceptor,
 				interceptors.TrustedSubnetInterceptor(cfg.TrustedSubnet),

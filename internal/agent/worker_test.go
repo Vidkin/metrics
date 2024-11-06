@@ -138,8 +138,7 @@ func TestSendMetricsGRPC(t *testing.T) {
 	defer os.Remove(filepath.Join(os.TempDir(), "metricsTestFile.test"))
 	defer os.Remove(filepath.Join(os.TempDir(), "metricsTestFile2.test"))
 
-	var s *grpc.Server
-	s = grpc.NewServer(
+	s := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			interceptors.LoggingInterceptor,
 			interceptors.TrustedSubnetInterceptor("127.0.0.0/24"),
@@ -311,8 +310,7 @@ func TestPoll(t *testing.T) {
 	defer os.Remove(filepath.Join(os.TempDir(), "metricsTestFile.test"))
 	defer os.Remove(filepath.Join(os.TempDir(), "metricsTestFile2.test"))
 
-	var s *grpc.Server
-	s = grpc.NewServer(
+	s := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			interceptors.LoggingInterceptor,
 			interceptors.TrustedSubnetInterceptor("127.0.0.0/24"),
