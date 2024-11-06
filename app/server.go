@@ -19,7 +19,7 @@ import (
 
 	"github.com/Vidkin/metrics/internal/config"
 	"github.com/Vidkin/metrics/internal/logger"
-	proto2 "github.com/Vidkin/metrics/internal/proto"
+	protoAPI "github.com/Vidkin/metrics/internal/proto"
 	"github.com/Vidkin/metrics/internal/repository/storage"
 	"github.com/Vidkin/metrics/internal/router"
 	"github.com/Vidkin/metrics/pkg/interceptors"
@@ -28,7 +28,7 @@ import (
 
 type ServerApp struct {
 	config     *config.ServerConfig
-	srv        *http.Server
+	httpSrv    *http.Server
 	gRPCServer *grpc.Server
 	repository router.Repository
 }
@@ -54,7 +54,7 @@ func NewServerApp(cfg *config.ServerConfig) (*ServerApp, error) {
 				interceptors.LoggingInterceptor,
 				interceptors.TrustedSubnetInterceptor(cfg.TrustedSubnet),
 				interceptors.HashInterceptor(cfg.Key)))
-		proto.RegisterMetricsServer(s, &proto2.MetricsServer{
+		proto.RegisterMetricsServer(s, &protoAPI.MetricsServer{
 			Repository:    repo,
 			LastStoreTime: time.Now(),
 			StoreInterval: (int)(cfg.StoreInterval),
@@ -64,7 +64,7 @@ func NewServerApp(cfg *config.ServerConfig) (*ServerApp, error) {
 	} else {
 		chiRouter := chi.NewRouter()
 		metricRouter := router.NewMetricRouter(chiRouter, repo, cfg)
-		serverApp.srv = &http.Server{
+		serverApp.httpSrv = &http.Server{
 			Addr:    cfg.ServerAddress.Address,
 			Handler: metricRouter.Router,
 		}
@@ -91,11 +91,11 @@ func (a *ServerApp) Serve() {
 		}
 	} else {
 		if a.config.CryptoKey != "" {
-			if err := a.srv.ListenAndServeTLS(path.Join(a.config.CryptoKey, "cert.pem"), path.Join(a.config.CryptoKey, "privateKey.pem")); err != nil && err != http.ErrServerClosed {
+			if err := a.httpSrv.ListenAndServeTLS(path.Join(a.config.CryptoKey, "cert.pem"), path.Join(a.config.CryptoKey, "privateKey.pem")); err != nil && err != http.ErrServerClosed {
 				logger.Log.Fatal("listen and serve tls fatal error", zap.Error(err))
 			}
 		} else {
-			if err := a.srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			if err := a.httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				logger.Log.Fatal("listen and serve fatal error", zap.Error(err))
 			}
 		}
@@ -154,8 +154,8 @@ func (a *ServerApp) Stop() {
 	if a.gRPCServer != nil {
 		a.gRPCServer.GracefulStop()
 	}
-	if a.srv != nil {
-		if err := a.srv.Shutdown(ctx); err != nil {
+	if a.httpSrv != nil {
+		if err := a.httpSrv.Shutdown(ctx); err != nil {
 			logger.Log.Info("shutdown error", zap.Error(err))
 		}
 	}
