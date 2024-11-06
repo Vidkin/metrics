@@ -498,8 +498,7 @@ func TestMetricsServer_UpdateMetrics(t *testing.T) {
 				RetryCount:    tt.params.RetryCount,
 				StoreInterval: tt.params.StoreInterval,
 			}
-			var s *grpc.Server
-			s = grpc.NewServer(
+			s := grpc.NewServer(
 				grpc.ChainUnaryInterceptor(
 					interceptors.LoggingInterceptor,
 					interceptors.TrustedSubnetInterceptor(tt.params.TrustedSubnet),
